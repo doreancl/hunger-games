@@ -1,0 +1,41 @@
+layer: 2
+name: non-functional
+requirements:
+  performance:
+    - metric: initial_load_time
+      target: "<= 2.5s p75 en red 4G"
+    - metric: turn_render_time
+      target: "<= 100ms p95 por evento"
+    - metric: simulation_tick
+      target: "<= 50ms p95 en servidor"
+    - metric: api_p95_latency
+      target: "<= 250ms p95 en endpoints de partida"
+  scalability:
+    - metric: concurrent_matches
+      target: ">= 500 partidas concurrentes"
+    - metric: roster_size_supported
+      target: "10-48 personajes por partida"
+  reliability:
+    - metric: match_completion_rate
+      target: ">= 99.5% partidas terminan sin error"
+    - metric: api_success_rate
+      target: ">= 99.9% respuestas 2xx/3xx"
+    - metric: resumable_match_recovery
+      target: ">= 99% partidas en curso recuperables tras refresh/reconexión"
+  observability:
+    - metric: structured_event_coverage
+      target: "100% de eventos de partida con logs estructurados"
+    - metric: seed_replay_reproducibility
+      target: "100% de replays con misma seed producen mismos resultados en misma version"
+  accessibility:
+    - metric: wcag
+      target: "WCAG 2.1 AA en flujo principal"
+  game_quality:
+    - metric: event_type_repetition_cap
+      target: "<= 35% del mismo tipo en una ventana de 20 turnos"
+    - metric: multi_actor_probability_accuracy
+      target: "Desviación <= 10% respecto a probabilidad objetivo en 100k simulaciones"
+    - metric: match_duration_window
+      target: "p80 de partidas entre 5 y 15 minutos en velocidad 1x"
+    - metric: minimum_variety_per_match
+      target: ">= 8 plantillas de evento distintas en los primeros 20 turnos"

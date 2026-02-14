@@ -1,0 +1,87 @@
+layer: 8
+name: integrations
+contracts:
+  internal_http:
+    - name: create_match
+      method: POST
+      path: /api/matches
+      request:
+        roster_character_ids: "string[]"
+        settings:
+          surprise_level: "low | normal | high"
+          event_profile: "balanced | aggressive | chaotic"
+          simulation_speed: "1x | 2x | 4x"
+          seed: "string | null"
+      response:
+        match_id: string
+        phase: setup
+    - name: update_match_settings
+      method: PATCH
+      path: /api/matches/{matchId}/settings
+      request:
+        surprise_level: "low | normal | high"
+        event_profile: "balanced | aggressive | chaotic"
+        simulation_speed: "1x | 2x | 4x"
+      response:
+        match_id: string
+        settings: "MatchSettings"
+    - name: start_match
+      method: POST
+      path: /api/matches/{matchId}/start
+      response:
+        match_id: string
+        phase: running
+        cycle_phase: bloodbath
+        turn_number: 0
+    - name: advance_turn
+      method: POST
+      path: /api/matches/{matchId}/turns/advance
+      response:
+        turn_number: number
+        cycle_phase: string
+        tension_level: number
+        event:
+          id: string
+          type: string
+          narrative_text: string
+          participant_ids: "string[]"
+        survivors_count: number
+        eliminated_ids: "string[]"
+        finished: boolean
+    - name: create_match_share
+      method: POST
+      path: /api/matches/{matchId}/share
+      response:
+        share_code: string
+        url: string
+    - name: get_match_by_share
+      method: GET
+      path: /api/matches/share/{shareCode}
+      response:
+        match_id: string
+        phase: string
+        turn_number: number
+    - name: replay_match
+      method: POST
+      path: /api/matches/{matchId}/replay
+      request:
+        mode: "same_seed | new_seed"
+      response:
+        new_match_id: string
+    - name: get_match_state
+      method: GET
+      path: /api/matches/{matchId}
+      response:
+        match_id: string
+        phase: string
+        cycle_phase: string
+        turn_number: number
+        tension_level: number
+        settings: "MatchSettings"
+        participants: "ParticipantState[]"
+        recent_events: "Event[]"
+    - name: list_event_templates
+      method: GET
+      path: /api/event-templates
+      response:
+        templates: "EventTemplate[]"

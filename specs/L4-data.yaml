@@ -1,0 +1,91 @@
+layer: 4
+name: data-design
+entities:
+  Character:
+    fields:
+      - id
+      - name
+      - avatar
+      - stats: [health, aggression, cunning, charisma, luck]
+      - status: [alive, injured, eliminated]
+  Match:
+    fields:
+      - id
+      - seed
+      - ruleset_version
+      - phase: [setup, running, finished]
+      - cycle_phase: [bloodbath, day, night, finale]
+      - turn_number
+      - tension_level
+      - created_at
+      - ended_at
+  MatchSettings:
+    fields:
+      - id
+      - match_id
+      - surprise_level: [low, normal, high]
+      - simulation_speed: [1x, 2x, 4x]
+      - event_profile: [balanced, aggressive, chaotic]
+  MatchParticipant:
+    fields:
+      - id
+      - match_id
+      - character_id
+      - current_health
+      - status
+      - streak_score
+  Relationship:
+    fields:
+      - id
+      - match_id
+      - source_participant_id
+      - target_participant_id
+      - pair_key
+      - affinity_score
+      - trust_score
+      - rivalry_score
+      - label: [neutral, alliance, rivalry, betrayal]
+  EventTemplate:
+    fields:
+      - id
+      - type: [combat, alliance, betrayal, resource, hazard, surprise]
+      - phase_tags: [bloodbath, day, night, finale]
+      - base_weight
+      - min_participants
+      - max_participants
+  Event:
+    fields:
+      - id
+      - match_id
+      - template_id
+      - turn_number
+      - type: [combat, alliance, betrayal, resource, hazard, surprise]
+      - phase
+      - participant_count
+      - intensity
+      - narrative_text
+      - lethal
+      - created_at
+  EventParticipant:
+    fields:
+      - id
+      - event_id
+      - participant_id
+      - role: [initiator, target, ally, observer]
+  MatchShare:
+    fields:
+      - id
+      - match_id
+      - share_code
+      - visibility: [public, unlisted, private]
+      - created_at
+
+relationships:
+  - Match 1:1 MatchSettings
+  - Match 1:N MatchParticipant
+  - Match 1:N Event
+  - MatchParticipant N:N Event (via EventParticipant)
+  - Match 1:N Relationship
+  - Match 1:N MatchShare
+  - EventTemplate 1:N Event
+  - Character 1:N MatchParticipant

@@ -1,0 +1,23 @@
+layer: 5
+name: security
+requirements:
+  authn_authz:
+    - "Solo usuarios autenticados pueden crear partidas privadas."
+    - "Lectura de partidas limitada por ownership o visibilidad pública."
+    - "Códigos de partida deben ser no predecibles y revocables."
+    - "Solo el owner puede editar configuración de una partida no pública."
+  data_protection:
+    - "Todo tráfico bajo HTTPS."
+    - "No exponer datos sensibles en payloads ni logs."
+    - "URLs compartibles no deben incluir datos personales."
+  abuse_prevention:
+    - "Rate limiting en creación de partidas y avance de turnos."
+    - "Validación estricta de entrada en roster y parámetros de simulación."
+    - "Rate limiting adicional para generación/consulta de share codes."
+  integrity:
+    - "La simulación es server-authoritative; cliente no puede forzar resultados."
+    - "Cada partida usa seed persistida para reproducibilidad opcional."
+    - "Eventos de partida inmutables tras persistencia."
+    - "Cambios de reglas/versiones deben quedar trazados por partida."
+  privacy:
+    - "Eliminar o anonimizar datos de usuario bajo solicitud."
