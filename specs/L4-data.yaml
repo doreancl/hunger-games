@@ -72,13 +72,6 @@ entities:
       - event_id
       - participant_id
       - role: [initiator, target, ally, observer]
-  MatchShare:
-    fields:
-      - id
-      - match_id
-      - share_code
-      - visibility: [public, unlisted, private]
-      - created_at
 
 relationships:
   - Match 1:1 MatchSettings
@@ -86,6 +79,5 @@ relationships:
   - Match 1:N Event
   - MatchParticipant N:N Event (via EventParticipant)
   - Match 1:N Relationship
-  - Match 1:N MatchShare
   - EventTemplate 1:N Event
   - Character 1:N MatchParticipant

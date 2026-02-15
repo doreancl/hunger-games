@@ -6,6 +6,7 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 ## Alcance V1
 - Simulación automática turno a turno (sin decisiones tácticas durante la partida).
 - Foco en narrativa emergente, tensión progresiva y alta rejugabilidad.
+- Continuidad de sesión en el mismo navegador/dispositivo usando `localStorage`.
 
 ## Usuario objetivo
 - Jugador casual que disfruta drama emergente, sorpresas y decisiones de roster.
@@ -15,6 +16,7 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 1. Seleccionar personajes participantes.
 2. Presionar `Iniciar` para bloquear roster y arrancar simulación.
 3. Ver eventos turno a turno con interacciones entre personajes hasta fin de partida.
+4. Al recargar, continuar desde el último estado local disponible.
 
 ## Reglas funcionales del juego
 
@@ -58,8 +60,8 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 - Contador de vivos/eliminados.
 - Estado actualizado de cada personaje.
 - Pantalla final con ganador y resumen de momentos clave.
-- Código/link compartible de partida.
 - Re-simulación con mismo roster y misma o nueva seed.
+- Menú local para reabrir partidas guardadas en `localStorage`.
 
 ## Criterios de aceptación
 - El usuario puede iniciar partida con 10-48 personajes.
@@ -68,5 +70,5 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 - Las relaciones cambian y afectan eventos posteriores.
 - La partida siempre termina con un único ganador.
 - El jugador percibe variedad entre partidas con mismo roster.
-- El jugador puede guardar/cargar/reanudar por código o enlace.
-- Repetir con misma seed reproduce el mismo resultado en la misma versión de reglas.
+- El jugador puede reanudar en el mismo navegador/dispositivo desde `localStorage`.
+- Si el estado local está corrupto, se informa `partida no recuperable` y se permite iniciar una nueva.

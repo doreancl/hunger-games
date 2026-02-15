@@ -48,26 +48,6 @@ contracts:
         survivors_count: number
         eliminated_ids: "string[]"
         finished: boolean
-    - name: create_match_share
-      method: POST
-      path: /api/matches/{matchId}/share
-      response:
-        share_code: string
-        url: string
-    - name: get_match_by_share
-      method: GET
-      path: /api/matches/share/{shareCode}
-      response:
-        match_id: string
-        phase: string
-        turn_number: number
-    - name: replay_match
-      method: POST
-      path: /api/matches/{matchId}/replay
-      request:
-        mode: "same_seed | new_seed"
-      response:
-        new_match_id: string
     - name: get_match_state
       method: GET
       path: /api/matches/{matchId}
@@ -80,8 +60,13 @@ contracts:
         settings: "MatchSettings"
         participants: "ParticipantState[]"
         recent_events: "Event[]"
-    - name: list_event_templates
+    - name: export_match_state
       method: GET
-      path: /api/event-templates
+      path: /api/matches/{matchId}/export
       response:
-        templates: "EventTemplate[]"
+        file_format: json
+        payload: "MatchSnapshot"
+notes:
+  - "Sin contratos de share code en V1."
+  - "Sin lectura de partidas entre dispositivos en V1."
+  - "Continuidad de sesión basada en localStorage del cliente."

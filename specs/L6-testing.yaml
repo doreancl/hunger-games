@@ -3,20 +3,21 @@ name: testing-strategy
 strategy:
   pyramid:
     - "Unit: motor de reglas/probabilidades, transiciones de estado, tensión y relaciones."
-    - "Integration: APIs de creación/inicio/avance y persistencia de eventos."
-    - "E2E: flujo completo setup -> simulacion -> ganador."
+    - "Integration: APIs de creación/inicio/avance/lectura de estado en memoria de servidor."
+    - "E2E: flujo completo setup -> simulacion -> ganador -> refresh -> reanudacion local."
   stochastic_validation:
     - "Pruebas estadísticas sobre miles de simulaciones para validar distribuciones esperadas."
     - "Control por seed para escenarios deterministas de regresión."
     - "Validación específica de probabilidades 3+ participantes (1%, 0.5%, 0.25%, ...)."
     - "Property-based tests para invariantes (nunca revivir eliminados, ganador único, fin garantizado)."
-  ux_quality:
-    - "Pruebas de accesibilidad automatizadas en setup/simulación/final."
-    - "Pruebas visuales de componentes críticos del feed narrativo."
-    - "Pruebas de usabilidad para controles de velocidad, pausa, paso a paso y replay."
+  local_state_recovery:
+    - "Pruebas de autosave en cada turno/evento en localStorage."
+    - "Pruebas de reanudación al recargar página desde localStorage."
+    - "Pruebas de manejo de corrupción de estado local con mensaje y fallback a nueva partida."
+    - "Pruebas de incompatibilidad de versión de estado local (best effort, sin garantía)."
   contracts:
-    - "Contract tests de payloads API (create/start/advance/share/replay/settings)."
+    - "Contract tests de payloads API (create/start/advance/get_state/settings)."
   exit_criteria:
     - "Sin regresiones en reglas core de interacción."
     - "Cobertura alta en motor de simulación y contratos API críticos."
-    - "Replays con misma seed y misma ruleset_version deben coincidir al 100%."
+    - "Refresh del navegador mantiene continuidad desde localStorage en escenario nominal."

@@ -4,29 +4,29 @@
 Arquitectura modular con separación de responsabilidades entre UI, orquestación de partida y motor de simulación.
 
 ## Módulos
-- `Presentation`: setup, simulación en vivo, final.
-- `Application`: casos de uso (`createMatch`, `startMatch`, `advanceTurn`, `getMatchState`).
+- `Presentation`: setup, simulación en vivo, final, menú de partidas locales.
+- `Application`: casos de uso (`createMatch`, `startMatch`, `advanceTurn`, `getMatchState`, `resumeFromLocalState`).
 - `Domain Simulation Engine`: reglas de interacción, tensión, relaciones y resolución de eventos.
 - `Simulation Director`: pacing por fases (`bloodbath/day/night/finale`) y tensión global.
 - `Event Catalog`: plantillas narrativas + pesos + reglas anti-repetición.
-- `Persistence`: repositorios de partidas, participantes, eventos, relaciones.
-- `Replay/Share`: lectura por código y replay por seed.
+- `Runtime State Store`: estado en memoria de servidor por partida activa.
+- `Local Recovery`: serialización/lectura de estado en `localStorage` (cliente).
 
 ## Flujo abstracto
 ```mermaid
 flowchart TD
-  A[Usuario inicia partida] --> B[Application Orchestrator]
+  A[Usuario inicia o reanuda] --> B[Application Orchestrator]
   B --> C[Simulation Director]
   C --> D[Simulation Engine]
   D --> E[Event Catalog]
-  D --> F[Persistencia de evento/estado]
-  F --> G[Estado actualizado]
-  G --> H[UI renderiza feed y panel]
+  D --> F[Runtime State Store memoria]
+  F --> G[UI renderiza feed y panel]
+  G --> H[Autosave localStorage]
 ```
 
 ## Reglas arquitectónicas
 - Motor de simulación desacoplado de UI y de framework web.
-- Contratos explícitos entre casos de uso y persistencia.
-- Eventos como fuente narrativa principal de la partida.
-- Semilla y versión de reglas trazables por partida para reproducibilidad.
-- Configuración de partida separada del estado dinámico de la partida.
+- Contratos explícitos entre casos de uso y runtime state.
+- Sin persistencia duradera de servidor en V1 (sin DB, sin filesystem).
+- Recuperación de continuidad orientada a `localStorage` del cliente.
+- Estado local versionado para manejo de incompatibilidades entre releases.
