@@ -1,7 +1,6 @@
 # Kanban simple (texto base)
 
 ## TODO
-- `US-001` Contratos y modelo base
 - `US-002` Ciclo de vida base
 - `US-003A` Motor + director + catalogo
 - `US-003B` Setup UX + menu local
@@ -21,4 +20,4 @@
 - (vacio)
 
 ## DONE
-- (vacio)
+- `US-001` Contratos y modelo base

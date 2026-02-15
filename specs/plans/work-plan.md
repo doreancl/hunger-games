@@ -18,7 +18,7 @@
 ## User stories
 
 ### 01 - US-001 - Contratos y modelo base de dominio
-- Estado: `TODO`
+- Estado: `DONE`
 - As a jugador, I want un modelo consistente de partida/eventos/participantes, so that la simulacion y la UI hablen el mismo idioma.
 - Acceptance criteria:
   - Given entidades de L4, when se define dominio, then existen tipos unicos para estado y eventos.
