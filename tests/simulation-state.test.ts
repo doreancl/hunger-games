@@ -3,11 +3,13 @@ import {
   advanceDirector,
   canResumeFromLocalStorage,
   createSeededRng,
+  nextCyclePhase,
+  nextTensionLevel,
   nextTurn,
   sampleParticipantCount,
   selectCatalogEvent
 } from '@/lib/simulation-state';
-import type { EventTemplate } from '@/lib/simulation-state';
+import type { DirectorState, EventTemplate } from '@/lib/simulation-state';
 
 describe('nextTurn', () => {
   it('increments turn when match is active', () => {
@@ -58,9 +60,60 @@ describe('seeded RNG reproducibility', () => {
     expect(runSequence('seed-123')).toEqual(runSequence('seed-123'));
     expect(runSequence('seed-123')).not.toEqual(runSequence('seed-456'));
   });
+
+  it('keeps full simulation flow reproducible for the same seed', () => {
+    const catalog: EventTemplate[] = [
+      { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
+      { id: 'resource-1', type: 'resource', base_weight: 8, phases: ['bloodbath', 'day', 'night'] },
+      { id: 'hazard-1', type: 'hazard', base_weight: 6, phases: ['bloodbath', 'day', 'night'] }
+    ];
+
+    const runSimulation = (seed: string) => {
+      const rng = createSeededRng(seed);
+      const selectedIds: string[] = [];
+      let director: DirectorState = {
+        turn_number: 0,
+        cycle_phase: 'bloodbath',
+        alive_count: 24,
+        tension_level: 20
+      };
+      const trace: string[] = [];
+
+      for (let turn = 0; turn < 20; turn += 1) {
+        const participantCount = sampleParticipantCount(director.alive_count, rng);
+        const selected = selectCatalogEvent(
+          catalog,
+          director.cycle_phase,
+          selectedIds.slice(-4),
+          rng,
+          2
+        );
+        selectedIds.push(selected.id);
+
+        const hadElimination = rng() < 0.25;
+        const nextAliveCount = Math.max(1, director.alive_count - (hadElimination ? 1 : 0));
+        director = advanceDirector(director, hadElimination, nextAliveCount);
+
+        trace.push(
+          `${participantCount}|${selected.id}|${director.turn_number}|${director.cycle_phase}|${director.tension_level}|${director.alive_count}`
+        );
+      }
+
+      return trace;
+    };
+
+    expect(runSimulation('seeded-flow')).toEqual(runSimulation('seeded-flow'));
+    expect(runSimulation('seeded-flow')).not.toEqual(runSimulation('seeded-flow-2'));
+  });
 });
 
 describe('director phases and tension', () => {
+  it('keeps bloodbath at turn 0 and enters finale with <=2 alive', () => {
+    expect(nextCyclePhase(0, 24)).toBe('bloodbath');
+    expect(nextCyclePhase(0, 2)).toBe('bloodbath');
+    expect(nextCyclePhase(7, 2)).toBe('finale');
+  });
+
   it('starts bloodbath and alternates day/night before finale', () => {
     const state1 = advanceDirector(
       { turn_number: 0, cycle_phase: 'bloodbath', alive_count: 24, tension_level: 10 },
@@ -90,12 +143,17 @@ describe('director phases and tension', () => {
     expect(calmState.tension_level).toBeGreaterThan(40);
     expect(lethalState.tension_level).toBeLessThan(40);
   });
+
+  it('clamps tension level within [0, 100]', () => {
+    expect(nextTensionLevel(99, false, 24)).toBe(100);
+    expect(nextTensionLevel(3, true, 24)).toBe(0);
+  });
 });
 
 describe('multi-participant distribution', () => {
-  it('keeps k>=3 in tolerance bands', () => {
+  it('matches target probabilities for k>=3 within 10% deviation', () => {
     const rng = createSeededRng('stats');
-    const samples = 150000;
+    const samples = 500000;
     const counts = { k2: 0, k3: 0, k4: 0, k5: 0, k6: 0 };
 
     for (let index = 0; index < samples; index += 1) {
@@ -108,14 +166,29 @@ describe('multi-participant distribution', () => {
     }
 
     const toRatio = (value: number) => value / samples;
-    expect(toRatio(counts.k3)).toBeGreaterThan(0.0085);
-    expect(toRatio(counts.k3)).toBeLessThan(0.0115);
-    expect(toRatio(counts.k4)).toBeGreaterThan(0.004);
-    expect(toRatio(counts.k4)).toBeLessThan(0.006);
-    expect(toRatio(counts.k5)).toBeGreaterThan(0.0015);
-    expect(toRatio(counts.k5)).toBeLessThan(0.0035);
-    expect(toRatio(counts.k6)).toBeGreaterThan(0.0005);
-    expect(toRatio(counts.k6)).toBeLessThan(0.002);
+    const expected = { k3: 0.01, k4: 0.005, k5: 0.0025, k6: 0.00125 };
+
+    expect(toRatio(counts.k3)).toBeGreaterThan(expected.k3 * 0.9);
+    expect(toRatio(counts.k3)).toBeLessThan(expected.k3 * 1.1);
+    expect(toRatio(counts.k4)).toBeGreaterThan(expected.k4 * 0.9);
+    expect(toRatio(counts.k4)).toBeLessThan(expected.k4 * 1.1);
+    expect(toRatio(counts.k5)).toBeGreaterThan(expected.k5 * 0.9);
+    expect(toRatio(counts.k5)).toBeLessThan(expected.k5 * 1.1);
+    expect(toRatio(counts.k6)).toBeGreaterThan(expected.k6 * 0.9);
+    expect(toRatio(counts.k6)).toBeLessThan(expected.k6 * 1.1);
+  });
+
+  it('respects alive-count bounds for low survivor counts', () => {
+    const rng = createSeededRng('low-alive');
+    const samples = 10000;
+
+    for (let index = 0; index < samples; index += 1) {
+      const k3 = sampleParticipantCount(3, rng);
+      expect([2, 3]).toContain(k3);
+    }
+
+    expect(sampleParticipantCount(2, rng)).toBe(2);
+    expect(sampleParticipantCount(1, rng)).toBe(1);
   });
 });
 
@@ -130,22 +203,51 @@ describe('catalog anti-repetition', () => {
 
   it('caps repetition pressure across 20 turns', () => {
     const rng = createSeededRng('anti-repeat');
-    const picked: string[] = [];
+    const picked: EventTemplate[] = [];
 
     for (let turn = 0; turn < 20; turn += 1) {
       const phase = turn % 2 === 0 ? 'day' : 'night';
-      const recent = picked.slice(-4);
+      const recent = picked.map((event) => event.id).slice(-4);
       const event = selectCatalogEvent(catalog, phase, recent, rng, 2);
-      picked.push(event.id);
+      picked.push(event);
     }
 
-    const byTemplate = picked.reduce<Record<string, number>>((acc, id) => {
+    const pickedIds = picked.map((event) => event.id);
+    const byTemplate = pickedIds.reduce<Record<string, number>>((acc, id) => {
       acc[id] = (acc[id] ?? 0) + 1;
+      return acc;
+    }, {});
+    const byType = picked.reduce<Record<string, number>>((acc, event) => {
+      acc[event.type] = (acc[event.type] ?? 0) + 1;
       return acc;
     }, {});
 
     const maxRepeats = Math.max(...Object.values(byTemplate));
     expect(maxRepeats).toBeLessThanOrEqual(8);
+
+    const maxTypeShare = Math.max(...Object.values(byType)) / picked.length;
+    expect(maxTypeShare).toBeLessThanOrEqual(0.4);
+
+    for (let start = 0; start <= pickedIds.length - 4; start += 1) {
+      const window = pickedIds.slice(start, start + 4);
+      const counts = window.reduce<Record<string, number>>((acc, id) => {
+        acc[id] = (acc[id] ?? 0) + 1;
+        return acc;
+      }, {});
+      expect(Math.max(...Object.values(counts))).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('falls back to phase candidates when anti-repetition fully saturates', () => {
+    const selected = selectCatalogEvent(
+      [{ id: 'day-only', type: 'resource', base_weight: 1, phases: ['day'] }],
+      'day',
+      ['day-only', 'day-only'],
+      createSeededRng('saturated'),
+      2
+    );
+
+    expect(selected.id).toBe('day-only');
   });
 
   it('throws when no template can run in the current phase', () => {

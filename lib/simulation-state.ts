@@ -114,6 +114,22 @@ function countRecentAppearances(recentTemplateIds: string[], templateId: string)
   return recentTemplateIds.filter((id) => id === templateId).length;
 }
 
+function countRecentTypeAppearances(
+  recentTemplateIds: string[],
+  templateType: EventType,
+  templateById: Map<string, EventTemplate>
+): number {
+  let typeCount = 0;
+  for (const templateId of recentTemplateIds) {
+    const template = templateById.get(templateId);
+    if (template?.type === templateType) {
+      typeCount += 1;
+    }
+  }
+
+  return typeCount;
+}
+
 export function selectCatalogEvent(
   templates: EventTemplate[],
   phase: CyclePhase,
@@ -121,34 +137,65 @@ export function selectCatalogEvent(
   rng: SeededRng,
   repeatCap = 2
 ): EventTemplate {
-  const weightedCandidates = templates
-    .filter((template) => template.phases.includes(phase))
-    .map((template) => {
-      const recentAppearances = countRecentAppearances(recentTemplateIds, template.id);
-      const allowedWeight =
-        recentAppearances >= repeatCap
-          ? 0
-          : template.base_weight / (1 + recentAppearances * 2);
-      return { template, weight: allowedWeight };
-    })
-    .filter((candidate) => candidate.weight > 0);
-
-  if (weightedCandidates.length === 0) {
+  const templateById = new Map(templates.map((template) => [template.id, template]));
+  const phaseCandidates = templates.filter((template) => template.phases.includes(phase));
+  if (phaseCandidates.length === 0) {
     throw new Error(`No event templates available for phase "${phase}"`);
   }
 
-  const totalWeight = weightedCandidates.reduce((sum, candidate) => sum + candidate.weight, 0);
+  const scoredCandidates = phaseCandidates
+    .map((template) => {
+      const recentAppearances = countRecentAppearances(recentTemplateIds, template.id);
+      const recentTypeAppearances = countRecentTypeAppearances(
+        recentTemplateIds,
+        template.type,
+        templateById
+      );
+      const weight =
+        recentAppearances >= repeatCap || recentTypeAppearances >= repeatCap
+          ? 0
+          : template.base_weight / ((1 + recentAppearances * 2) * (1 + recentTypeAppearances * 3));
+
+      return { template, weight, recentAppearances, recentTypeAppearances };
+    });
+
+  const weightedCandidates = scoredCandidates
+    .filter((candidate) => candidate.weight > 0)
+    .map((candidate) => ({ template: candidate.template, weight: candidate.weight }));
+
+  let selectableCandidates = weightedCandidates;
+  if (selectableCandidates.length === 0) {
+    const minTypeAppearances = Math.min(
+      ...scoredCandidates.map((candidate) => candidate.recentTypeAppearances)
+    );
+    const leastRepeatedTypes = scoredCandidates.filter(
+      (candidate) => candidate.recentTypeAppearances === minTypeAppearances
+    );
+    const minTemplateAppearances = Math.min(
+      ...leastRepeatedTypes.map((candidate) => candidate.recentAppearances)
+    );
+    const leastRepeatedTemplates = leastRepeatedTypes.filter(
+      (candidate) => candidate.recentAppearances === minTemplateAppearances
+    );
+
+    selectableCandidates = leastRepeatedTemplates.map((candidate) => ({
+      template: candidate.template,
+      weight: candidate.template.base_weight > 0 ? candidate.template.base_weight : 1
+    }));
+  }
+
+  const totalWeight = selectableCandidates.reduce((sum, candidate) => sum + candidate.weight, 0);
   const roll = rng() * totalWeight;
   let cumulative = 0;
 
-  for (const candidate of weightedCandidates) {
+  for (const candidate of selectableCandidates) {
     cumulative += candidate.weight;
     if (roll <= cumulative) {
       return candidate.template;
     }
   }
 
-  return weightedCandidates[weightedCandidates.length - 1].template;
+  return selectableCandidates[selectableCandidates.length - 1].template;
 }
 
 export function nextTurn(state: MatchState): MatchState {
