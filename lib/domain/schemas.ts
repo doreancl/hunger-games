@@ -90,8 +90,21 @@ export const matchSnapshotSchema = z
 
 export const createMatchRequestSchema = z
   .object({
-    roster_character_ids: z.array(z.string().min(1)).min(1),
-    settings: matchSettingsSchema
+    roster_character_ids: z.array(z.string().min(1)).min(10).max(48),
+    settings: z
+      .object({
+        surprise_level: surpriseLevelSchema.default('normal'),
+        event_profile: eventProfileSchema.default('balanced'),
+        simulation_speed: simulationSpeedSchema.default('1x'),
+        seed: z.string().min(1).nullable().default(null)
+      })
+      .strict()
+      .default({
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      })
   })
   .strict();
 
@@ -99,6 +112,28 @@ export const createMatchResponseSchema = z
   .object({
     match_id: z.string().min(1),
     phase: z.literal('setup')
+  })
+  .strict();
+
+export const startMatchResponseSchema = z
+  .object({
+    match_id: z.string().min(1),
+    phase: z.literal('running'),
+    cycle_phase: z.literal('bloodbath'),
+    turn_number: z.literal(0)
+  })
+  .strict();
+
+export const getMatchStateResponseSchema = z
+  .object({
+    match_id: z.string().min(1),
+    phase: matchPhaseSchema,
+    cycle_phase: cyclePhaseSchema,
+    turn_number: z.number().int().min(0),
+    tension_level: z.number().min(0),
+    settings: matchSettingsSchema,
+    participants: z.array(participantStateSchema),
+    recent_events: z.array(eventSchema)
   })
   .strict();
 
@@ -118,7 +153,9 @@ export const apiErrorSchema = z
           'UNSUPPORTED_MEDIA_TYPE',
           'INVALID_JSON',
           'INVALID_REQUEST_PAYLOAD',
-          'INTERNAL_CONTRACT_ERROR'
+          'INTERNAL_CONTRACT_ERROR',
+          'MATCH_NOT_FOUND',
+          'MATCH_STATE_CONFLICT'
         ]),
         message: z.string(),
         details: z
