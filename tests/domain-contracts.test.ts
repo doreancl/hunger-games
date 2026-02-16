@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   createMatchRequestSchema,
+  getMatchStateResponseSchema,
   matchSnapshotSchema,
-  rulesetVersionSchema
+  rulesetVersionSchema,
+  startMatchResponseSchema
 } from '@/lib/domain/schemas';
 
 describe('ruleset and snapshot versioning', () => {
@@ -47,7 +49,7 @@ describe('ruleset and snapshot versioning', () => {
 describe('create_match request contract', () => {
   it('accepts payload with unambiguous required fields', () => {
     const payload = {
-      roster_character_ids: ['char-1', 'char-2'],
+      roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
       settings: {
         surprise_level: 'normal',
         event_profile: 'balanced',
@@ -61,7 +63,24 @@ describe('create_match request contract', () => {
 
   it('rejects payload with missing settings', () => {
     const payload = {
-      roster_character_ids: ['char-1']
+      roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`)
+    };
+
+    const result = createMatchRequestSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.settings).toEqual({
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      });
+    }
+  });
+
+  it('rejects payload below minimum roster size', () => {
+    const payload = {
+      roster_character_ids: ['char-1', 'char-2']
     };
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
@@ -69,7 +88,7 @@ describe('create_match request contract', () => {
 
   it('rejects payload with unexpected fields', () => {
     const payload = {
-      roster_character_ids: ['char-1'],
+      roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
       settings: {
         surprise_level: 'normal',
         event_profile: 'balanced',
@@ -81,5 +100,38 @@ describe('create_match request contract', () => {
     };
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
+  });
+});
+
+describe('match lifecycle response contracts', () => {
+  it('accepts start_match response contract', () => {
+    const payload = {
+      match_id: 'match-1',
+      phase: 'running',
+      cycle_phase: 'bloodbath',
+      turn_number: 0
+    };
+
+    expect(startMatchResponseSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('accepts get_match_state response contract', () => {
+    const payload = {
+      match_id: 'match-1',
+      phase: 'setup',
+      cycle_phase: 'bloodbath',
+      turn_number: 0,
+      tension_level: 0,
+      settings: {
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      },
+      participants: [],
+      recent_events: []
+    };
+
+    expect(getMatchStateResponseSchema.parse(payload)).toEqual(payload);
   });
 });

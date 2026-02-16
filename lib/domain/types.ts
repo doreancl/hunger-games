@@ -25,7 +25,9 @@ export type ErrorCode =
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'INVALID_JSON'
   | 'INVALID_REQUEST_PAYLOAD'
-  | 'INTERNAL_CONTRACT_ERROR';
+  | 'INTERNAL_CONTRACT_ERROR'
+  | 'MATCH_NOT_FOUND'
+  | 'MATCH_STATE_CONFLICT';
 
 export type MatchSettings = {
   surprise_level: SurpriseLevel;
@@ -93,6 +95,24 @@ export type CreateMatchRequest = {
 export type CreateMatchResponse = {
   match_id: string;
   phase: 'setup';
+};
+
+export type StartMatchResponse = {
+  match_id: string;
+  phase: 'running';
+  cycle_phase: 'bloodbath';
+  turn_number: 0;
+};
+
+export type GetMatchStateResponse = {
+  match_id: string;
+  phase: MatchPhase;
+  cycle_phase: CyclePhase;
+  turn_number: number;
+  tension_level: number;
+  settings: MatchSettings;
+  participants: ParticipantState[];
+  recent_events: Event[];
 };
 
 export type ApiError = {
