@@ -27,71 +27,107 @@ export const rulesetVersionSchema = z
   .regex(/^v\d+\.\d+\.\d+$/, 'ruleset_version must follow v<major>.<minor>.<patch>')
   .default(RULESET_VERSION);
 
-export const matchSettingsSchema = z.object({
-  surprise_level: surpriseLevelSchema,
-  event_profile: eventProfileSchema,
-  simulation_speed: simulationSpeedSchema,
-  seed: z.string().min(1).nullable()
-});
-
-export const participantStateSchema = z.object({
-  id: z.string().min(1),
-  match_id: z.string().min(1),
-  character_id: z.string().min(1),
-  current_health: z.number().int().min(0),
-  status: participantStatusSchema,
-  streak_score: z.number().int().min(0)
-});
-
-export const eventSchema = z.object({
-  id: z.string().min(1),
-  match_id: z.string().min(1),
-  template_id: z.string().min(1),
-  turn_number: z.number().int().min(0),
-  type: eventTypeSchema,
-  phase: cyclePhaseSchema,
-  participant_count: z.number().int().min(0),
-  intensity: z.number().min(0),
-  narrative_text: z.string().min(1),
-  lethal: z.boolean(),
-  created_at: z.string().datetime()
-});
-
-export const matchSchema = z.object({
-  id: z.string().min(1),
-  seed: z.string().min(1).nullable(),
-  ruleset_version: rulesetVersionSchema,
-  phase: matchPhaseSchema,
-  cycle_phase: cyclePhaseSchema,
-  turn_number: z.number().int().min(0),
-  tension_level: z.number().min(0),
-  created_at: z.string().datetime(),
-  ended_at: z.string().datetime().nullable()
-});
-
-export const matchSnapshotSchema = z.object({
-  snapshot_version: z.literal(SNAPSHOT_VERSION),
-  ruleset_version: rulesetVersionSchema,
-  match: matchSchema,
-  settings: matchSettingsSchema,
-  participants: z.array(participantStateSchema),
-  recent_events: z.array(eventSchema)
-});
-
-export const createMatchRequestSchema = z.object({
-  roster_character_ids: z.array(z.string().min(1)).min(1),
-  settings: matchSettingsSchema
-});
-
-export const createMatchResponseSchema = z.object({
-  match_id: z.string().min(1),
-  phase: z.literal('setup')
-});
-
-export const apiErrorSchema = z.object({
-  error: z.object({
-    code: z.enum(['INVALID_JSON', 'INVALID_REQUEST_PAYLOAD', 'INTERNAL_CONTRACT_ERROR']),
-    message: z.string(),
-    details: z.unknown().optional()
+export const matchSettingsSchema = z
+  .object({
+    surprise_level: surpriseLevelSchema,
+    event_profile: eventProfileSchema,
+    simulation_speed: simulationSpeedSchema,
+    seed: z.string().min(1).nullable()
   })
-});
+  .strict();
+
+export const participantStateSchema = z
+  .object({
+    id: z.string().min(1),
+    match_id: z.string().min(1),
+    character_id: z.string().min(1),
+    current_health: z.number().int().min(0),
+    status: participantStatusSchema,
+    streak_score: z.number().int().min(0)
+  })
+  .strict();
+
+export const eventSchema = z
+  .object({
+    id: z.string().min(1),
+    match_id: z.string().min(1),
+    template_id: z.string().min(1),
+    turn_number: z.number().int().min(0),
+    type: eventTypeSchema,
+    phase: cyclePhaseSchema,
+    participant_count: z.number().int().min(0),
+    intensity: z.number().min(0),
+    narrative_text: z.string().min(1),
+    lethal: z.boolean(),
+    created_at: z.string().datetime()
+  })
+  .strict();
+
+export const matchSchema = z
+  .object({
+    id: z.string().min(1),
+    seed: z.string().min(1).nullable(),
+    ruleset_version: rulesetVersionSchema,
+    phase: matchPhaseSchema,
+    cycle_phase: cyclePhaseSchema,
+    turn_number: z.number().int().min(0),
+    tension_level: z.number().min(0),
+    created_at: z.string().datetime(),
+    ended_at: z.string().datetime().nullable()
+  })
+  .strict();
+
+export const matchSnapshotSchema = z
+  .object({
+    snapshot_version: z.literal(SNAPSHOT_VERSION),
+    ruleset_version: rulesetVersionSchema,
+    match: matchSchema,
+    settings: matchSettingsSchema,
+    participants: z.array(participantStateSchema),
+    recent_events: z.array(eventSchema)
+  })
+  .strict();
+
+export const createMatchRequestSchema = z
+  .object({
+    roster_character_ids: z.array(z.string().min(1)).min(1),
+    settings: matchSettingsSchema
+  })
+  .strict();
+
+export const createMatchResponseSchema = z
+  .object({
+    match_id: z.string().min(1),
+    phase: z.literal('setup')
+  })
+  .strict();
+
+const validationIssueSchema = z
+  .object({
+    path: z.array(z.union([z.string(), z.number()])),
+    code: z.string(),
+    message: z.string()
+  })
+  .strict();
+
+export const apiErrorSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.enum([
+          'UNSUPPORTED_MEDIA_TYPE',
+          'INVALID_JSON',
+          'INVALID_REQUEST_PAYLOAD',
+          'INTERNAL_CONTRACT_ERROR'
+        ]),
+        message: z.string(),
+        details: z
+          .object({
+            issues: z.array(validationIssueSchema)
+          })
+          .strict()
+          .optional()
+      })
+      .strict()
+  })
+  .strict();

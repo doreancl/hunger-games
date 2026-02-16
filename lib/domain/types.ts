@@ -15,7 +15,14 @@ export type EventType =
   | 'hazard'
   | 'surprise';
 export type EventParticipantRole = 'initiator' | 'target' | 'ally' | 'observer';
+export type ValidationIssue = {
+  path: Array<string | number>;
+  code: string;
+  message: string;
+};
+
 export type ErrorCode =
+  | 'UNSUPPORTED_MEDIA_TYPE'
   | 'INVALID_JSON'
   | 'INVALID_REQUEST_PAYLOAD'
   | 'INTERNAL_CONTRACT_ERROR';
@@ -92,6 +99,8 @@ export type ApiError = {
   error: {
     code: ErrorCode;
     message: string;
-    details?: unknown;
+    details?: {
+      issues: ValidationIssue[];
+    };
   };
 };

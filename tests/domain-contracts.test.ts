@@ -66,4 +66,20 @@ describe('create_match request contract', () => {
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
   });
+
+  it('rejects payload with unexpected fields', () => {
+    const payload = {
+      roster_character_ids: ['char-1'],
+      settings: {
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null,
+        extra: 'unexpected'
+      },
+      extra_root: true
+    };
+
+    expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
+  });
 });

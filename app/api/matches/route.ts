@@ -4,13 +4,17 @@ import {
   createMatchRequestSchema,
   createMatchResponseSchema
 } from '@/lib/domain/schemas';
-import type { ApiError, CreateMatchResponse } from '@/lib/domain/types';
+import type {
+  ApiError,
+  CreateMatchResponse,
+  ValidationIssue
+} from '@/lib/domain/types';
 
 function jsonError(
   code: ApiError['error']['code'],
   message: string,
   status: number,
-  details?: unknown
+  details?: ApiError['error']['details']
 ) {
   const payload: ApiError = {
     error: {
@@ -24,7 +28,24 @@ function jsonError(
   return NextResponse.json(safePayload, { status });
 }
 
+function toValidationIssues(issues: ReadonlyArray<{ path: (string | number)[]; code: string; message: string }>): ValidationIssue[] {
+  return issues.map((issue) => ({
+    path: [...issue.path],
+    code: issue.code,
+    message: issue.message
+  }));
+}
+
 export async function POST(request: Request) {
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+  if (!contentType.includes('application/json')) {
+    return jsonError(
+      'UNSUPPORTED_MEDIA_TYPE',
+      'Content-Type must be application/json.',
+      415
+    );
+  }
+
   let body: unknown;
 
   try {
@@ -36,7 +57,7 @@ export async function POST(request: Request) {
   const parsedRequest = createMatchRequestSchema.safeParse(body);
   if (!parsedRequest.success) {
     return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid create_match payload.', 400, {
-      issues: parsedRequest.error.issues
+      issues: toValidationIssues(parsedRequest.error.issues)
     });
   }
 
@@ -48,7 +69,7 @@ export async function POST(request: Request) {
   const parsedResponse = createMatchResponseSchema.safeParse(response);
   if (!parsedResponse.success) {
     return jsonError('INTERNAL_CONTRACT_ERROR', 'Response contract validation failed.', 500, {
-      issues: parsedResponse.error.issues
+      issues: toValidationIssues(parsedResponse.error.issues)
     });
   }
 
