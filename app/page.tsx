@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createLocalMatchFromSetup,
   getSetupValidation,
-  LOCAL_MATCHES_STORAGE_KEY,
-  parseLocalMatches,
-  serializeLocalMatches,
+  loadLocalMatchesFromStorage,
+  saveLocalMatchesToStorage,
   type LocalMatchSummary
 } from '@/lib/local-matches';
 
@@ -24,17 +23,23 @@ const CHARACTER_OPTIONS = [
   { id: 'char-11', name: 'Vex' },
   { id: 'char-12', name: 'Sage' }
 ];
+const DEFAULT_CHARACTERS = CHARACTER_OPTIONS.slice(0, 10).map((character) => character.id);
+const DEFAULT_SIMULATION_SPEED = '1x' as const;
+const DEFAULT_EVENT_PROFILE = 'balanced' as const;
+const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
 
 export default function Home() {
-  const [selectedCharacters, setSelectedCharacters] = useState<string[]>(
-    CHARACTER_OPTIONS.slice(0, 10).map((character) => character.id)
-  );
+  const [selectedCharacters, setSelectedCharacters] = useState<string[]>(DEFAULT_CHARACTERS);
   const [seed, setSeed] = useState('');
-  const [simulationSpeed, setSimulationSpeed] = useState<'1x' | '2x' | '4x'>('1x');
-  const [eventProfile, setEventProfile] = useState<'balanced' | 'aggressive' | 'chaotic'>(
-    'balanced'
+  const [simulationSpeed, setSimulationSpeed] = useState<'1x' | '2x' | '4x'>(
+    DEFAULT_SIMULATION_SPEED
   );
-  const [surpriseLevel, setSurpriseLevel] = useState<'low' | 'normal' | 'high'>('normal');
+  const [eventProfile, setEventProfile] = useState<'balanced' | 'aggressive' | 'chaotic'>(
+    DEFAULT_EVENT_PROFILE
+  );
+  const [surpriseLevel, setSurpriseLevel] = useState<'low' | 'normal' | 'high'>(
+    DEFAULT_SURPRISE_LEVEL
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
   const [openedMatchId, setOpenedMatchId] = useState<string | null>(null);
@@ -49,10 +54,33 @@ export default function Home() {
   const tensionPreview = Math.min(100, 10 + selectedCharacters.length * 4);
 
   useEffect(() => {
-    const storedMatches = parseLocalMatches(window.localStorage.getItem(LOCAL_MATCHES_STORAGE_KEY));
-    setLocalMatches(storedMatches);
-    setOpenedMatchId(storedMatches[0]?.id ?? null);
+    const { matches, error } = loadLocalMatchesFromStorage(window.localStorage);
+    setLocalMatches(matches);
+    setOpenedMatchId(matches[0]?.id ?? null);
+    if (error) {
+      setInfoMessage(error);
+      return;
+    }
+    if (matches[0]) {
+      applySetupFromMatch(matches[0]);
+    }
   }, []);
+
+  function applySetupFromMatch(match: LocalMatchSummary) {
+    setSelectedCharacters(match.roster_character_ids);
+    setSeed(match.settings.seed ?? '');
+    setSimulationSpeed(match.settings.simulation_speed);
+    setEventProfile(match.settings.event_profile);
+    setSurpriseLevel(match.settings.surprise_level);
+  }
+
+  function resetSetupToDefaults() {
+    setSelectedCharacters(DEFAULT_CHARACTERS);
+    setSeed('');
+    setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
+    setEventProfile(DEFAULT_EVENT_PROFILE);
+    setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
+  }
 
   function toggleCharacter(characterId: string) {
     setSelectedCharacters((previous) => {
@@ -87,13 +115,27 @@ export default function Home() {
     );
 
     const nextMatches = [newMatch, ...localMatches];
-    window.localStorage.setItem(
-      LOCAL_MATCHES_STORAGE_KEY,
-      serializeLocalMatches(nextMatches)
-    );
+    const saveResult = saveLocalMatchesToStorage(window.localStorage, nextMatches);
+    if (!saveResult.ok) {
+      setInfoMessage(saveResult.error);
+      return;
+    }
+
     setLocalMatches(nextMatches);
     setOpenedMatchId(newMatch.id);
     setInfoMessage(`Partida creada (${newMatch.id.slice(0, 8)}).`);
+  }
+
+  function onOpenMatch(matchId: string) {
+    const match = localMatches.find((item) => item.id === matchId);
+    if (!match) {
+      setInfoMessage('No se encontro la partida seleccionada.');
+      return;
+    }
+
+    setOpenedMatchId(match.id);
+    applySetupFromMatch(match);
+    setInfoMessage(`Partida abierta (${match.id.slice(0, 8)}).`);
   }
 
   return (
@@ -235,7 +277,10 @@ export default function Home() {
           )}
 
           <button type="button" disabled={!setupValidation.is_valid} onClick={onStartMatch}>
-            Iniciar partida
+            Iniciar partida nueva
+          </button>
+          <button type="button" onClick={resetSetupToDefaults} style={{ marginLeft: 8 }}>
+            Nuevo setup
           </button>
           {infoMessage ? <p style={{ marginBottom: 0 }}>{infoMessage}</p> : null}
         </div>
@@ -265,8 +310,11 @@ export default function Home() {
                   Vivos: {match.alive_count}/{match.total_participants} | Seed:{' '}
                   {match.settings.seed ?? 'sin seed'}
                 </p>
-                <button type="button" onClick={() => setOpenedMatchId(match.id)}>
-                  Abrir partida
+                <button
+                  type="button"
+                  onClick={() => onOpenMatch(match.id)}
+                >
+                  Abrir partida y cargar setup
                 </button>
               </li>
             ))}

@@ -16,6 +16,7 @@ export type LocalMatchSummary = {
   id: string;
   created_at: string;
   updated_at: string;
+  roster_character_ids: string[];
   cycle_phase: CyclePhase | 'setup';
   turn_number: number;
   alive_count: number;
@@ -33,8 +34,48 @@ export type SetupValidation = {
   issues: string[];
 };
 
+export type LocalMatchesLoadResult = {
+  matches: LocalMatchSummary[];
+  error: string | null;
+};
+
+export type LocalMatchesSaveResult = {
+  ok: boolean;
+  error: string | null;
+};
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isValidIsoDateString(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return false;
+  }
+
+  return new Date(parsed).toISOString() === value;
+}
+
+function isRosterCharacterIds(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= MIN_ROSTER_SIZE &&
+    value.length <= MAX_ROSTER_SIZE &&
+    value.every((characterId) => isNonEmptyString(characterId))
+  );
 }
 
 function isCyclePhaseOrSetup(phase: unknown): phase is LocalMatchSummary['cycle_phase'] {
@@ -65,13 +106,16 @@ function toLocalMatchSummary(raw: unknown): LocalMatchSummary | null {
   }
 
   if (
-    typeof raw.id !== 'string' ||
-    typeof raw.created_at !== 'string' ||
-    typeof raw.updated_at !== 'string' ||
+    !isNonEmptyString(raw.id) ||
+    !isValidIsoDateString(raw.created_at) ||
+    !isValidIsoDateString(raw.updated_at) ||
+    !isRosterCharacterIds(raw.roster_character_ids) ||
     !isCyclePhaseOrSetup(raw.cycle_phase) ||
-    typeof raw.turn_number !== 'number' ||
-    typeof raw.alive_count !== 'number' ||
-    typeof raw.total_participants !== 'number' ||
+    !isNonNegativeInteger(raw.turn_number) ||
+    !isNonNegativeInteger(raw.alive_count) ||
+    !isNonNegativeInteger(raw.total_participants) ||
+    raw.alive_count > raw.total_participants ||
+    raw.total_participants !== raw.roster_character_ids.length ||
     !isObject(raw.settings)
   ) {
     return null;
@@ -80,7 +124,7 @@ function toLocalMatchSummary(raw: unknown): LocalMatchSummary | null {
   const settings = raw.settings;
   const seed = settings.seed;
   if (
-    (seed !== null && typeof seed !== 'string') ||
+    (seed !== null && !isNonEmptyString(seed)) ||
     !isSimulationSpeed(settings.simulation_speed) ||
     !isEventProfile(settings.event_profile) ||
     !isSurpriseLevel(settings.surprise_level)
@@ -92,6 +136,7 @@ function toLocalMatchSummary(raw: unknown): LocalMatchSummary | null {
     id: raw.id,
     created_at: raw.created_at,
     updated_at: raw.updated_at,
+    roster_character_ids: raw.roster_character_ids,
     cycle_phase: raw.cycle_phase,
     turn_number: raw.turn_number,
     alive_count: raw.alive_count,
@@ -136,7 +181,7 @@ export function parseLocalMatches(raw: string | null): LocalMatchSummary[] {
     return parsed
       .map(toLocalMatchSummary)
       .filter((match): match is LocalMatchSummary => match !== null)
-      .sort((left, right) => right.updated_at.localeCompare(left.updated_at));
+      .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
   } catch {
     return [];
   }
@@ -144,6 +189,37 @@ export function parseLocalMatches(raw: string | null): LocalMatchSummary[] {
 
 export function serializeLocalMatches(matches: LocalMatchSummary[]): string {
   return JSON.stringify(matches);
+}
+
+export function loadLocalMatchesFromStorage(
+  storage: Pick<Storage, 'getItem'>
+): LocalMatchesLoadResult {
+  try {
+    return {
+      matches: parseLocalMatches(storage.getItem(LOCAL_MATCHES_STORAGE_KEY)),
+      error: null
+    };
+  } catch {
+    return {
+      matches: [],
+      error: 'No fue posible leer partidas locales en este navegador.'
+    };
+  }
+}
+
+export function saveLocalMatchesToStorage(
+  storage: Pick<Storage, 'setItem'>,
+  matches: LocalMatchSummary[]
+): LocalMatchesSaveResult {
+  try {
+    storage.setItem(LOCAL_MATCHES_STORAGE_KEY, serializeLocalMatches(matches));
+    return { ok: true, error: null };
+  } catch {
+    return {
+      ok: false,
+      error: 'No fue posible guardar la partida en este navegador.'
+    };
+  }
 }
 
 export function createLocalMatchFromSetup(
@@ -155,6 +231,7 @@ export function createLocalMatchFromSetup(
     id,
     created_at: nowIso,
     updated_at: nowIso,
+    roster_character_ids: [...config.roster_character_ids],
     cycle_phase: 'setup',
     turn_number: 0,
     alive_count: config.roster_character_ids.length,
