@@ -163,6 +163,41 @@ describe('parseLocalMatches', () => {
 
     expect(parseLocalMatches(raw)).toEqual([]);
   });
+
+  it('drops entries with unexpected keys to keep strict local contract', () => {
+    const raw = JSON.stringify([
+      {
+        id: 'm1',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-02T00:00:00.000Z',
+        roster_character_ids: [
+          'char-01',
+          'char-02',
+          'char-03',
+          'char-04',
+          'char-05',
+          'char-06',
+          'char-07',
+          'char-08',
+          'char-09',
+          'char-10'
+        ],
+        cycle_phase: 'setup',
+        turn_number: 0,
+        alive_count: 10,
+        total_participants: 10,
+        settings: {
+          seed: null,
+          simulation_speed: '1x',
+          event_profile: 'balanced',
+          surprise_level: 'normal'
+        },
+        unexpected: true
+      }
+    ]);
+
+    expect(parseLocalMatches(raw)).toEqual([]);
+  });
 });
 
 describe('local match serialization helpers', () => {

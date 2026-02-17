@@ -1,4 +1,5 @@
 import type { CyclePhase, EventProfile, SimulationSpeed, SurpriseLevel } from '@/lib/domain/types';
+import { z } from 'zod';
 
 export const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
 export const MIN_ROSTER_SIZE = 10;
@@ -44,110 +45,65 @@ export type LocalMatchesSaveResult = {
   error: string | null;
 };
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== '';
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
-function isValidIsoDateString(value: unknown): value is string {
-  if (typeof value !== 'string') {
-    return false;
-  }
-
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return false;
-  }
-
-  return new Date(parsed).toISOString() === value;
-}
-
-function isRosterCharacterIds(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) &&
-    value.length >= MIN_ROSTER_SIZE &&
-    value.length <= MAX_ROSTER_SIZE &&
-    value.every((characterId) => isNonEmptyString(characterId))
-  );
-}
-
-function isCyclePhaseOrSetup(phase: unknown): phase is LocalMatchSummary['cycle_phase'] {
-  return (
-    phase === 'setup' ||
-    phase === 'bloodbath' ||
-    phase === 'day' ||
-    phase === 'night' ||
-    phase === 'finale'
-  );
-}
-
-function isSimulationSpeed(value: unknown): value is SimulationSpeed {
-  return value === '1x' || value === '2x' || value === '4x';
-}
-
-function isEventProfile(value: unknown): value is EventProfile {
-  return value === 'balanced' || value === 'aggressive' || value === 'chaotic';
-}
-
-function isSurpriseLevel(value: unknown): value is SurpriseLevel {
-  return value === 'low' || value === 'normal' || value === 'high';
-}
+const nonEmptyStringSchema = z.string().trim().min(1);
+const nonNegativeIntegerSchema = z.number().int().min(0);
+const cyclePhaseOrSetupSchema = z.enum(['setup', 'bloodbath', 'day', 'night', 'finale']);
+const simulationSpeedSchema = z.enum(['1x', '2x', '4x']);
+const eventProfileSchema = z.enum(['balanced', 'aggressive', 'chaotic']);
+const surpriseLevelSchema = z.enum(['low', 'normal', 'high']);
+const localMatchSettingsSchema = z
+  .object({
+    seed: z.union([nonEmptyStringSchema, z.null()]),
+    simulation_speed: simulationSpeedSchema,
+    event_profile: eventProfileSchema,
+    surprise_level: surpriseLevelSchema
+  })
+  .strict();
+const localMatchSummarySchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    created_at: z.string().datetime(),
+    updated_at: z.string().datetime(),
+    roster_character_ids: z.array(nonEmptyStringSchema).min(MIN_ROSTER_SIZE).max(MAX_ROSTER_SIZE),
+    cycle_phase: cyclePhaseOrSetupSchema,
+    turn_number: nonNegativeIntegerSchema,
+    alive_count: nonNegativeIntegerSchema,
+    total_participants: nonNegativeIntegerSchema,
+    settings: localMatchSettingsSchema
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.alive_count > value.total_participants) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'alive_count must be <= total_participants',
+        path: ['alive_count']
+      });
+    }
+    if (value.total_participants !== value.roster_character_ids.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'total_participants must match roster_character_ids length',
+        path: ['total_participants']
+      });
+    }
+  });
 
 function toLocalMatchSummary(raw: unknown): LocalMatchSummary | null {
-  if (!isObject(raw)) {
-    return null;
+  const parsed = localMatchSummarySchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseStoredPayload(raw: string | null): unknown {
+  if (!raw) {
+    return [];
   }
 
-  if (
-    !isNonEmptyString(raw.id) ||
-    !isValidIsoDateString(raw.created_at) ||
-    !isValidIsoDateString(raw.updated_at) ||
-    !isRosterCharacterIds(raw.roster_character_ids) ||
-    !isCyclePhaseOrSetup(raw.cycle_phase) ||
-    !isNonNegativeInteger(raw.turn_number) ||
-    !isNonNegativeInteger(raw.alive_count) ||
-    !isNonNegativeInteger(raw.total_participants) ||
-    raw.alive_count > raw.total_participants ||
-    raw.total_participants !== raw.roster_character_ids.length ||
-    !isObject(raw.settings)
-  ) {
-    return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return [];
   }
-
-  const settings = raw.settings;
-  const seed = settings.seed;
-  if (
-    (seed !== null && !isNonEmptyString(seed)) ||
-    !isSimulationSpeed(settings.simulation_speed) ||
-    !isEventProfile(settings.event_profile) ||
-    !isSurpriseLevel(settings.surprise_level)
-  ) {
-    return null;
-  }
-
-  return {
-    id: raw.id,
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
-    roster_character_ids: raw.roster_character_ids,
-    cycle_phase: raw.cycle_phase,
-    turn_number: raw.turn_number,
-    alive_count: raw.alive_count,
-    total_participants: raw.total_participants,
-    settings: {
-      seed,
-      simulation_speed: settings.simulation_speed,
-      event_profile: settings.event_profile,
-      surprise_level: settings.surprise_level
-    }
-  };
 }
 
 export function getSetupValidation(rosterCharacterIds: string[]): SetupValidation {
@@ -168,23 +124,17 @@ export function getSetupValidation(rosterCharacterIds: string[]): SetupValidatio
 }
 
 export function parseLocalMatches(raw: string | null): LocalMatchSummary[] {
-  if (!raw) {
+  const payload = parseStoredPayload(raw);
+  if (!Array.isArray(payload)) {
     return [];
   }
 
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+  const matches = payload
+    .map(toLocalMatchSummary)
+    .filter((match): match is LocalMatchSummary => match !== null);
+  matches.sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 
-    return parsed
-      .map(toLocalMatchSummary)
-      .filter((match): match is LocalMatchSummary => match !== null)
-      .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
-  } catch {
-    return [];
-  }
+  return matches;
 }
 
 export function serializeLocalMatches(matches: LocalMatchSummary[]): string {
