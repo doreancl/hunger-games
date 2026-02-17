@@ -104,6 +104,24 @@ export type StartMatchResponse = {
   turn_number: 0;
 };
 
+export type AdvanceTurnEventResponse = {
+  id: string;
+  type: EventType;
+  narrative_text: string;
+  participant_ids: string[];
+};
+
+export type AdvanceTurnResponse = {
+  turn_number: number;
+  cycle_phase: CyclePhase;
+  tension_level: number;
+  event: AdvanceTurnEventResponse;
+  survivors_count: number;
+  eliminated_ids: string[];
+  finished: boolean;
+  winner_id: string | null;
+};
+
 export type GetMatchStateResponse = {
   match_id: string;
   phase: MatchPhase;

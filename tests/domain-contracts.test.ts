@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceTurnResponseSchema,
   createMatchRequestSchema,
   getMatchStateResponseSchema,
   matchSnapshotSchema,
@@ -133,5 +134,25 @@ describe('match lifecycle response contracts', () => {
     };
 
     expect(getMatchStateResponseSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('accepts advance_turn response contract', () => {
+    const payload = {
+      turn_number: 1,
+      cycle_phase: 'day',
+      tension_level: 12,
+      event: {
+        id: 'event-1',
+        type: 'combat',
+        narrative_text: 'Evento combat-1 en fase bloodbath con 2 participante(s). Hubo 1 eliminacion.',
+        participant_ids: ['participant-1', 'participant-2']
+      },
+      survivors_count: 9,
+      eliminated_ids: ['participant-2'],
+      finished: false,
+      winner_id: null
+    };
+
+    expect(advanceTurnResponseSchema.parse(payload)).toEqual(payload);
   });
 });
