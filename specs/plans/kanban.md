@@ -4,7 +4,6 @@
 - `US-002` Ciclo de vida base
 - `US-003A` Motor + director + catalogo
 - `US-003B` Setup UX + menu local
-- `US-004` Avance de turnos
 - `US-005A` UX simulacion en vivo
 - `US-005B` Continuidad local
 - `US-006A` Final + replay
@@ -21,3 +20,4 @@
 
 ## DONE
 - `US-001` Contratos y modelo base
+- `US-004` Avance de turnos

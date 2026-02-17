@@ -66,7 +66,7 @@
 - Story file: `specs/plans/stories/03-US-003B.md`
 
 ### 04 - US-004 - Avance de turnos server-authoritative
-- Estado: `TODO`
+- Estado: `DONE`
 - As a jugador, I want avance consistente por turno, so that la partida termine con ganador unico.
 - Acceptance criteria:
   - Given partida running, when `POST /turns/advance`, then genera 1 evento y actualiza estado.

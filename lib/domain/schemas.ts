@@ -124,6 +124,51 @@ export const startMatchResponseSchema = z
   })
   .strict();
 
+export const advanceTurnResponseSchema = z
+  .object({
+    turn_number: z.number().int().min(1),
+    cycle_phase: cyclePhaseSchema,
+    tension_level: z.number().min(0),
+    event: z
+      .object({
+        id: z.string().min(1),
+        type: eventTypeSchema,
+        narrative_text: z.string().min(1),
+        participant_ids: z.array(z.string().min(1)).min(1)
+      })
+      .strict(),
+    survivors_count: z.number().int().min(1),
+    eliminated_ids: z.array(z.string().min(1)),
+    finished: z.boolean(),
+    winner_id: z.string().min(1).nullable()
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.finished && value.survivors_count !== 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'finished=true requires survivors_count=1',
+        path: ['survivors_count']
+      });
+    }
+
+    if (!value.finished && value.winner_id !== null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'winner_id must be null when finished=false',
+        path: ['winner_id']
+      });
+    }
+
+    if (value.finished && value.winner_id === null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'winner_id is required when finished=true',
+        path: ['winner_id']
+      });
+    }
+  });
+
 export const getMatchStateResponseSchema = z
   .object({
     match_id: z.string().min(1),
