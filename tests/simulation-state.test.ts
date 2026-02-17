@@ -52,13 +52,25 @@ describe('canResumeFromLocalStorage', () => {
 
 describe('seeded RNG reproducibility', () => {
   it('creates same sequence for the same seed', () => {
-    const runSequence = (seed: string) => {
+    const runSequence = (seed: string | null | undefined) => {
       const rng = createSeededRng(seed);
       return Array.from({ length: 12 }, () => Number(rng().toFixed(8)));
     };
 
     expect(runSequence('seed-123')).toEqual(runSequence('seed-123'));
     expect(runSequence('seed-123')).not.toEqual(runSequence('seed-456'));
+  });
+
+  it('sanitizes empty and null seeds into a deterministic fallback', () => {
+    const runSequence = (seed: string | null | undefined) => {
+      const rng = createSeededRng(seed);
+      return Array.from({ length: 8 }, () => Number(rng().toFixed(8)));
+    };
+
+    expect(runSequence('')).toEqual(runSequence('   '));
+    expect(runSequence('')).toEqual(runSequence(null));
+    expect(runSequence('')).toEqual(runSequence(undefined));
+    expect(runSequence('')).not.toEqual(runSequence('seed-123'));
   });
 
   it('keeps full simulation flow reproducible for the same seed', () => {

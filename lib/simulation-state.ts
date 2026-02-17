@@ -7,6 +7,7 @@ export type MatchState = {
 import type { CyclePhase, EventType } from '@/lib/domain/types';
 
 const MAX_MULTI_PARTICIPANT_CHANCE = 0.02;
+const DEFAULT_SEEDED_RNG_SEED = 'hunger-games-default-seed';
 
 export type SeededRng = () => number;
 
@@ -24,10 +25,20 @@ export type EventTemplate = {
   phases: CyclePhase[];
 };
 
-export function createSeededRng(seed: string): SeededRng {
-  let hash = 1779033703 ^ seed.length;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = Math.imul(hash ^ seed.charCodeAt(index), 3432918353);
+function normalizeSeed(seed: string | null | undefined): string {
+  if (typeof seed !== 'string') {
+    return DEFAULT_SEEDED_RNG_SEED;
+  }
+
+  const normalizedSeed = seed.trim();
+  return normalizedSeed === '' ? DEFAULT_SEEDED_RNG_SEED : normalizedSeed;
+}
+
+export function createSeededRng(seed: string | null | undefined): SeededRng {
+  const normalizedSeed = normalizeSeed(seed);
+  let hash = 1779033703 ^ normalizedSeed.length;
+  for (let index = 0; index < normalizedSeed.length; index += 1) {
+    hash = Math.imul(hash ^ normalizedSeed.charCodeAt(index), 3432918353);
     hash = (hash << 13) | (hash >>> 19);
   }
 

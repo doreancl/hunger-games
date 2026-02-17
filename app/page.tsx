@@ -28,6 +28,17 @@ const DEFAULT_SIMULATION_SPEED = '1x' as const;
 const DEFAULT_EVENT_PROFILE = 'balanced' as const;
 const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
 
+function createBrowserUuid(): string | null {
+  if (typeof window === 'undefined' || typeof crypto === 'undefined') {
+    return null;
+  }
+  if (typeof crypto.randomUUID !== 'function') {
+    return null;
+  }
+
+  return crypto.randomUUID();
+}
+
 export default function Home() {
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>(DEFAULT_CHARACTERS);
   const [seed, setSeed] = useState('');
@@ -44,16 +55,26 @@ export default function Home() {
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
   const [openedMatchId, setOpenedMatchId] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
     [selectedCharacters]
   );
-  const openedMatch =
-    localMatches.find((match) => match.id === openedMatchId) ?? localMatches[0] ?? null;
+  const openedMatch = hasHydrated
+    ? localMatches.find((match) => match.id === openedMatchId) ?? localMatches[0] ?? null
+    : null;
   const tensionPreview = Math.min(100, 10 + selectedCharacters.length * 4);
 
   useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
     const { matches, error } = loadLocalMatchesFromStorage(window.localStorage);
     setLocalMatches(matches);
     setOpenedMatchId(matches[0]?.id ?? null);
@@ -64,7 +85,7 @@ export default function Home() {
     if (matches[0]) {
       applySetupFromMatch(matches[0]);
     }
-  }, []);
+  }, [hasHydrated]);
 
   function applySetupFromMatch(match: LocalMatchSummary) {
     setSelectedCharacters(match.roster_character_ids);
@@ -92,12 +113,24 @@ export default function Home() {
   }
 
   function generateSeed() {
-    setSeed(crypto.randomUUID().slice(0, 8));
+    const generatedSeed = createBrowserUuid();
+    if (!generatedSeed) {
+      setInfoMessage('No fue posible generar seed automaticamente en este navegador.');
+      return;
+    }
+
+    setSeed(generatedSeed.slice(0, 8));
   }
 
   function onStartMatch() {
     if (!setupValidation.is_valid) {
       setInfoMessage('Config invalida. Revisa el roster antes de iniciar.');
+      return;
+    }
+
+    const newMatchId = createBrowserUuid();
+    if (!newMatchId) {
+      setInfoMessage('No fue posible crear el identificador de la partida.');
       return;
     }
 
@@ -111,7 +144,7 @@ export default function Home() {
         surprise_level: surpriseLevel
       },
       nowIso,
-      crypto.randomUUID()
+      newMatchId
     );
 
     const nextMatches = [newMatch, ...localMatches];
