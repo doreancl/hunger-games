@@ -2,8 +2,10 @@ import type { CyclePhase, EventProfile, SimulationSpeed, SurpriseLevel } from '@
 import { z } from 'zod';
 
 export const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
+export const LOCAL_MATCHES_SNAPSHOT_VERSION = 1 as const;
 export const MIN_ROSTER_SIZE = 10;
 export const MAX_ROSTER_SIZE = 48;
+const UNRECOVERABLE_LOCAL_MATCH_MESSAGE = 'partida no recuperable. Inicia una nueva partida.';
 
 export type SetupConfig = {
   roster_character_ids: string[];
@@ -43,6 +45,13 @@ export type LocalMatchesLoadResult = {
 export type LocalMatchesSaveResult = {
   ok: boolean;
   error: string | null;
+};
+
+type LocalMatchesParseFailure = 'corrupted' | 'incompatible';
+
+type LocalMatchesParseResult = {
+  matches: LocalMatchSummary[];
+  failure: LocalMatchesParseFailure | null;
 };
 
 const nonEmptyStringSchema = z.string().trim().min(1);
@@ -89,21 +98,114 @@ const localMatchSummarySchema = z
     }
   });
 
-function toLocalMatchSummary(raw: unknown): LocalMatchSummary | null {
-  const parsed = localMatchSummarySchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+const localMatchesSnapshotEnvelopeSchema = z
+  .object({
+    snapshot_version: z.literal(LOCAL_MATCHES_SNAPSHOT_VERSION),
+    checksum: nonEmptyStringSchema,
+    matches: z.array(localMatchSummarySchema)
+  })
+  .strict();
+
+const localMatchesSnapshotVersionSchema = z
+  .object({
+    snapshot_version: z.number().int().min(1)
+  })
+  .passthrough();
+
+type LocalMatchesSnapshotEnvelope = z.infer<typeof localMatchesSnapshotEnvelopeSchema>;
+
+function sortMatchesByUpdatedAt(matches: LocalMatchSummary[]): LocalMatchSummary[] {
+  return matches.sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
 
-function parseStoredPayload(raw: string | null): unknown {
-  if (!raw) {
-    return [];
+function checksumFNV1a(raw: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < raw.length; index += 1) {
+    hash ^= raw.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
   }
 
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return [];
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function buildSnapshotChecksum(
+  snapshotVersion: typeof LOCAL_MATCHES_SNAPSHOT_VERSION,
+  matches: LocalMatchSummary[]
+): string {
+  return checksumFNV1a(
+    JSON.stringify({
+      snapshot_version: snapshotVersion,
+      matches
+    })
+  );
+}
+
+function buildSnapshotEnvelope(matches: LocalMatchSummary[]): LocalMatchesSnapshotEnvelope {
+  const checksum = buildSnapshotChecksum(LOCAL_MATCHES_SNAPSHOT_VERSION, matches);
+  return {
+    snapshot_version: LOCAL_MATCHES_SNAPSHOT_VERSION,
+    checksum,
+    matches
+  };
+}
+
+function parseLocalMatchesWithDiagnostics(raw: string | null): LocalMatchesParseResult {
+  if (raw === null) {
+    return {
+      matches: [],
+      failure: null
+    };
   }
+
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(raw) as unknown;
+  } catch {
+    return {
+      matches: [],
+      failure: 'corrupted'
+    };
+  }
+
+  const parsedVersion = localMatchesSnapshotVersionSchema.safeParse(payload);
+  if (!parsedVersion.success) {
+    return {
+      matches: [],
+      failure: 'incompatible'
+    };
+  }
+
+  if (parsedVersion.data.snapshot_version !== LOCAL_MATCHES_SNAPSHOT_VERSION) {
+    return {
+      matches: [],
+      failure: 'incompatible'
+    };
+  }
+
+  const parsedEnvelope = localMatchesSnapshotEnvelopeSchema.safeParse(payload);
+  if (!parsedEnvelope.success) {
+    return {
+      matches: [],
+      failure: 'corrupted'
+    };
+  }
+
+  const expectedChecksum = buildSnapshotChecksum(
+    parsedEnvelope.data.snapshot_version,
+    parsedEnvelope.data.matches
+  );
+  if (expectedChecksum !== parsedEnvelope.data.checksum) {
+    return {
+      matches: [],
+      failure: 'corrupted'
+    };
+  }
+
+  return {
+    matches: sortMatchesByUpdatedAt([...parsedEnvelope.data.matches]),
+    failure: null
+  };
 }
 
 export function getSetupValidation(rosterCharacterIds: string[]): SetupValidation {
@@ -124,29 +226,27 @@ export function getSetupValidation(rosterCharacterIds: string[]): SetupValidatio
 }
 
 export function parseLocalMatches(raw: string | null): LocalMatchSummary[] {
-  const payload = parseStoredPayload(raw);
-  if (!Array.isArray(payload)) {
-    return [];
-  }
-
-  const matches = payload
-    .map(toLocalMatchSummary)
-    .filter((match): match is LocalMatchSummary => match !== null);
-  matches.sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
-
-  return matches;
+  return parseLocalMatchesWithDiagnostics(raw).matches;
 }
 
 export function serializeLocalMatches(matches: LocalMatchSummary[]): string {
-  return JSON.stringify(matches);
+  return JSON.stringify(buildSnapshotEnvelope(matches));
 }
 
 export function loadLocalMatchesFromStorage(
   storage: Pick<Storage, 'getItem'>
 ): LocalMatchesLoadResult {
   try {
+    const parsed = parseLocalMatchesWithDiagnostics(storage.getItem(LOCAL_MATCHES_STORAGE_KEY));
+    if (parsed.failure) {
+      return {
+        matches: [],
+        error: UNRECOVERABLE_LOCAL_MATCH_MESSAGE
+      };
+    }
+
     return {
-      matches: parseLocalMatches(storage.getItem(LOCAL_MATCHES_STORAGE_KEY)),
+      matches: parsed.matches,
       error: null
     };
   } catch {
