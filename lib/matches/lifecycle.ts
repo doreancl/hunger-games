@@ -15,7 +15,20 @@ type StoredMatch = {
   recent_events: GetMatchStateResponse['recent_events'];
 };
 
-const matches = new Map<string, StoredMatch>();
+const MATCHES_STORE_KEY = '__hunger_games_matches_store_v1__' as const;
+type GlobalMatchesStore = typeof globalThis & {
+  [MATCHES_STORE_KEY]?: Map<string, StoredMatch>;
+};
+
+function getMatchesStore() {
+  const globalStore = globalThis as GlobalMatchesStore;
+  if (!globalStore[MATCHES_STORE_KEY]) {
+    globalStore[MATCHES_STORE_KEY] = new Map<string, StoredMatch>();
+  }
+  return globalStore[MATCHES_STORE_KEY];
+}
+
+const matches = getMatchesStore();
 
 type StartMatchErrorCode = 'MATCH_NOT_FOUND' | 'MATCH_STATE_CONFLICT';
 
