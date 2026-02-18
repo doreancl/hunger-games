@@ -455,4 +455,135 @@ describe('match lifecycle routes', () => {
     expect(body.match_id).toBe(matchId);
     expect(body.turn_number).toBe(0);
   });
+
+  it('preserves settings and deterministic continuity after resume', async () => {
+    const buildSnapshotEnvelope = async (matchId: string) => {
+      const stateResponse = await getMatchState(
+        new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+        { params: Promise.resolve({ matchId }) }
+      );
+      const stateBody = await stateResponse.json();
+      const snapshot = {
+        snapshot_version: SNAPSHOT_VERSION,
+        ruleset_version: RULESET_VERSION,
+        match: {
+          id: matchId,
+          seed: stateBody.settings.seed,
+          ruleset_version: RULESET_VERSION,
+          phase: stateBody.phase,
+          cycle_phase: stateBody.cycle_phase,
+          turn_number: stateBody.turn_number,
+          tension_level: stateBody.tension_level,
+          created_at: '2026-02-18T00:00:00.000Z',
+          ended_at: null
+        },
+        settings: stateBody.settings,
+        participants: stateBody.participants,
+        recent_events: stateBody.recent_events
+      };
+
+      return {
+        stateBody,
+        envelope: {
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: buildSnapshotChecksum(snapshot),
+          snapshot
+        }
+      };
+    };
+
+    const createAndReachTurn = async (seed: string, targetTurn: number) => {
+      const createResponse = await createMatch(
+        new Request('http://localhost/api/matches', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            roster_character_ids: roster(10),
+            settings: {
+              surprise_level: 'normal',
+              event_profile: 'balanced',
+              simulation_speed: '1x',
+              seed
+            }
+          })
+        })
+      );
+      const createBody = await createResponse.json();
+      const matchId = createBody.match_id as string;
+
+      await startMatch(
+        new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+        { params: Promise.resolve({ matchId }) }
+      );
+
+      for (let index = 0; index < targetTurn; index += 1) {
+        await advanceTurn(
+          new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+          { params: Promise.resolve({ matchId }) }
+        );
+      }
+
+      return matchId;
+    };
+
+    const matchA = await createAndReachTurn('resume-deterministic-seed', 4);
+    const matchB = await createAndReachTurn('resume-deterministic-seed', 4);
+    const { stateBody: stateA, envelope: envelopeA } = await buildSnapshotEnvelope(matchA);
+    const { stateBody: stateB, envelope: envelopeB } = await buildSnapshotEnvelope(matchB);
+
+    const resumeResponse = await resumeMatch(
+      new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeB)
+      })
+    );
+    const resumeBody = await resumeResponse.json();
+
+    expect(resumeResponse.status).toBe(200);
+    expect(resumeBody.settings).toEqual(stateB.settings);
+    expect(resumeBody.turn_number).toBe(stateB.turn_number);
+
+    const advanceAfterResumeResponse = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchB}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeB)
+      }),
+      { params: Promise.resolve({ matchId: matchB }) }
+    );
+    const advanceControlResponse = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchA}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeA)
+      }),
+      { params: Promise.resolve({ matchId: matchA }) }
+    );
+
+    const advancedAfterResume = await advanceAfterResumeResponse.json();
+    const advancedControl = await advanceControlResponse.json();
+    expect(advanceAfterResumeResponse.status).toBe(200);
+    expect(advanceControlResponse.status).toBe(200);
+
+    const toCharacterIds = (
+      ids: string[],
+      participants: Array<{ id: string; character_id: string }>
+    ) => {
+      const byId = new Map(participants.map((participant) => [participant.id, participant.character_id]));
+      return ids.map((id) => byId.get(id)).sort();
+    };
+
+    expect(advancedAfterResume.turn_number).toBe(advancedControl.turn_number);
+    expect(advancedAfterResume.cycle_phase).toBe(advancedControl.cycle_phase);
+    expect(advancedAfterResume.tension_level).toBe(advancedControl.tension_level);
+    expect(advancedAfterResume.event.type).toBe(advancedControl.event.type);
+    expect(advancedAfterResume.event.narrative_text).toBe(advancedControl.event.narrative_text);
+    expect(
+      toCharacterIds(advancedAfterResume.eliminated_ids, stateB.participants)
+    ).toEqual(toCharacterIds(advancedControl.eliminated_ids, stateA.participants));
+    expect(
+      toCharacterIds(advancedAfterResume.event.participant_ids, stateB.participants)
+    ).toEqual(toCharacterIds(advancedControl.event.participant_ids, stateA.participants));
+  });
 });

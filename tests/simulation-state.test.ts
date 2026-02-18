@@ -160,6 +160,36 @@ describe('director phases and tension', () => {
     expect(nextTensionLevel(99, false, 24)).toBe(100);
     expect(nextTensionLevel(3, true, 24)).toBe(0);
   });
+
+  it('holds director invariants across randomized transitions', () => {
+    const rng = createSeededRng('director-invariants');
+
+    for (let index = 0; index < 1000; index += 1) {
+      const turn = Math.floor(rng() * 40);
+      const alive = Math.floor(rng() * 24) + 1;
+      const tension = Math.floor(rng() * 101);
+      const hadElimination = rng() < 0.5;
+      const nextAlive = Math.max(1, alive - (hadElimination ? 1 : 0));
+      const cycle = nextCyclePhase(turn, alive);
+
+      const next = advanceDirector(
+        {
+          turn_number: turn,
+          cycle_phase: cycle,
+          alive_count: alive,
+          tension_level: tension
+        },
+        hadElimination,
+        nextAlive
+      );
+
+      expect(next.turn_number).toBe(turn + 1);
+      expect(next.alive_count).toBe(nextAlive);
+      expect(next.tension_level).toBeGreaterThanOrEqual(0);
+      expect(next.tension_level).toBeLessThanOrEqual(100);
+      expect(next.cycle_phase).toBe(nextAlive <= 2 ? 'finale' : (turn + 1) % 2 === 1 ? 'day' : 'night');
+    }
+  });
 });
 
 describe('multi-participant distribution', () => {
