@@ -11,9 +11,11 @@ import {
 } from '@/lib/local-matches';
 import {
   clearLocalRuntimeFromStorage,
+  estimateLocalRuntimeSnapshotBytes,
   loadLocalRuntimeFromStorage,
   saveLocalRuntimeToStorage
 } from '@/lib/local-runtime';
+import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
 import type {
   AdvanceTurnResponse,
@@ -71,6 +73,9 @@ const SPEED_INTERVAL_MS: Record<SimulationSpeed, number> = {
   '4x': 560
 };
 
+const SESSION_SIZE_HIGH_BYTES = 1024 * 1024;
+const SESSION_SIZE_CRITICAL_BYTES = 1536 * 1024;
+
 type PlaybackSpeed = SimulationSpeed | 'pause';
 
 type FeedEvent = {
@@ -112,6 +117,26 @@ function createBrowserUuid(): string | null {
 
 function shortId(value: string): string {
   return value.slice(0, 8);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${Math.round((bytes / 1024) * 10) / 10} KB`;
+  }
+  return `${Math.round((bytes / (1024 * 1024)) * 100) / 100} MB`;
+}
+
+function sessionSizeTone(bytes: number): 'ok' | 'high' | 'critical' {
+  if (bytes >= SESSION_SIZE_CRITICAL_BYTES) {
+    return 'critical';
+  }
+  if (bytes >= SESSION_SIZE_HIGH_BYTES) {
+    return 'high';
+  }
+  return 'ok';
 }
 
 function countAlive(participants: ParticipantState[]): number {
@@ -317,6 +342,7 @@ export default function Home() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
   const [runtime, setRuntime] = useState<SimulationRuntime | null>(null);
+  const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>('pause');
   const [filterCharacterId, setFilterCharacterId] = useState<'all' | string>('all');
   const [filterEventType, setFilterEventType] = useState<'all' | EventType>('all');
@@ -342,6 +368,9 @@ export default function Home() {
   const tensionValue = runtime?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
 
   const feed = runtime?.feed ?? EMPTY_FEED;
+  const currentSessionSizeBytes = runtime ? estimateLocalRuntimeSnapshotBytes(runtime) : 0;
+  const currentSessionSizeLabel = formatBytes(currentSessionSizeBytes);
+  const currentSessionSizeTone = sessionSizeTone(currentSessionSizeBytes);
   const filteredFeed = useMemo(
     () =>
       feed.filter((event) => {
@@ -413,8 +442,13 @@ export default function Home() {
       return;
     }
 
+    const prefs = loadLocalPrefsFromStorage(window.localStorage);
+    setAutosaveEnabled(prefs.autosave_enabled);
+
     const { matches, error } = loadLocalMatchesFromStorage(window.localStorage);
-    const runtimeLoad = loadLocalRuntimeFromStorage(window.localStorage);
+    const runtimeLoad = prefs.autosave_enabled
+      ? loadLocalRuntimeFromStorage(window.localStorage)
+      : { runtime: null, error: null };
     setLocalMatches(matches);
     setRuntime(runtimeLoad.runtime);
 
@@ -447,7 +481,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!hasHydrated || !runtime) {
+    if (!hasHydrated || !runtime || !autosaveEnabled) {
       return;
     }
 
@@ -455,7 +489,7 @@ export default function Home() {
     if (!saveRuntimeResult.ok) {
       setInfoMessage(saveRuntimeResult.error);
     }
-  }, [hasHydrated, runtime]);
+  }, [autosaveEnabled, hasHydrated, runtime]);
 
   function applySetupFromMatch(match: LocalMatchSummary) {
     setSelectedCharacters(match.roster_character_ids);
@@ -471,6 +505,34 @@ export default function Home() {
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
     setEventProfile(DEFAULT_EVENT_PROFILE);
     setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
+  }
+
+  function onToggleAutosave(nextValue: boolean) {
+    if (!nextValue) {
+      const confirmed = window.confirm(
+        'Si desactivas guardado local, cualquier refresh o reinicio perdera la partida actual. Continuar?'
+      );
+      if (!confirmed) {
+        return;
+      }
+      clearLocalRuntimeFromStorage(window.localStorage);
+      if (runtime) {
+        const nextMatches = localMatches.filter((match) => match.id !== runtime.match_id);
+        persistLocalMatches(nextMatches);
+      }
+      setInfoMessage('Guardado local desactivado para la sesion actual.');
+    } else {
+      setInfoMessage('Guardado local activado.');
+      if (runtime) {
+        const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtime);
+        if (!saveRuntimeResult.ok) {
+          setInfoMessage(saveRuntimeResult.error);
+        }
+      }
+    }
+
+    setAutosaveEnabled(nextValue);
+    saveLocalPrefsToStorage(window.localStorage, { autosave_enabled: nextValue });
   }
 
   function toggleCharacter(characterId: string) {
@@ -540,9 +602,11 @@ export default function Home() {
       };
 
       setRuntime(runtimeState);
-      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtimeState);
-      if (!saveRuntimeResult.ok) {
-        setInfoMessage(saveRuntimeResult.error);
+      if (autosaveEnabled) {
+        const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtimeState);
+        if (!saveRuntimeResult.ok) {
+          setInfoMessage(saveRuntimeResult.error);
+        }
       }
       setPlaybackSpeed(simulationSpeed);
       setFilterCharacterId('all');
@@ -570,8 +634,10 @@ export default function Home() {
         updated_at: nowIso
       };
 
-      const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
-      persistLocalMatches(nextMatches);
+      if (autosaveEnabled) {
+        const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
+        persistLocalMatches(nextMatches);
+      }
       setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
@@ -592,7 +658,9 @@ export default function Home() {
     applySetupFromMatch(match);
     setPlaybackSpeed('pause');
     setIsBusy(true);
-    const runtimeLoad = loadLocalRuntimeFromStorage(window.localStorage);
+    const runtimeLoad = autosaveEnabled
+      ? loadLocalRuntimeFromStorage(window.localStorage)
+      : { runtime: null, error: null };
 
     try {
       const state = await requestJson<GetMatchStateResponse>(`/api/matches/${match.id}`);
@@ -611,13 +679,15 @@ export default function Home() {
             : null
       };
       setRuntime(nextRuntime);
-      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
-      if (!saveRuntimeResult.ok) {
-        setInfoMessage(saveRuntimeResult.error);
+      if (autosaveEnabled) {
+        const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
+        if (!saveRuntimeResult.ok) {
+          setInfoMessage(saveRuntimeResult.error);
+        }
       }
       setInfoMessage(`Partida abierta en vivo (${shortId(match.id)}).`);
     } catch {
-      if (runtimeLoad.runtime?.match_id === match.id) {
+      if (autosaveEnabled && runtimeLoad.runtime?.match_id === match.id) {
         setRuntime(runtimeLoad.runtime);
         setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
       } else {
@@ -663,14 +733,16 @@ export default function Home() {
       };
 
       setRuntime(nextRuntime);
-      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
-      if (!saveRuntimeResult.ok) {
-        setInfoMessage(saveRuntimeResult.error);
+      if (autosaveEnabled) {
+        const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
+        if (!saveRuntimeResult.ok) {
+          setInfoMessage(saveRuntimeResult.error);
+        }
       }
       setLatestFeedEventId(event.id);
 
       const summary = localMatches.find((match) => match.id === runtime.match_id);
-      if (summary) {
+      if (autosaveEnabled && summary) {
         const nowIso = new Date().toISOString();
         const updatedSummary: LocalMatchSummary = {
           ...summary,
@@ -713,7 +785,7 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
-  }, [isBusy, localMatches, persistLocalMatches, runtime]);
+  }, [autosaveEnabled, isBusy, localMatches, persistLocalMatches, runtime]);
 
   useEffect(() => {
     if (!runtime || runtime.phase !== 'running' || playbackSpeed === 'pause' || isBusy) {
@@ -755,6 +827,10 @@ export default function Home() {
       setInfoMessage('No hay simulacion activa para guardar.');
       return;
     }
+    if (!autosaveEnabled) {
+      setInfoMessage('Guardado local desactivado. Activalo para guardar esta partida.');
+      return;
+    }
 
     const existing = localMatches.find((match) => match.id === runtime.match_id);
     const nowIso = new Date().toISOString();
@@ -791,6 +867,39 @@ export default function Home() {
           <p className={styles.heroMeta}>
             Fase actual: <strong>{phaseLabel(currentPhase)}</strong>
           </p>
+          <div className={styles.sessionBar}>
+            <span>
+              Sesion actual: <strong>{currentSessionSizeLabel}</strong>
+            </span>
+            <span
+              className={`${styles.sessionTone} ${
+                currentSessionSizeTone === 'critical'
+                  ? styles.sessionToneCritical
+                  : currentSessionSizeTone === 'high'
+                    ? styles.sessionToneHigh
+                    : styles.sessionToneOk
+              }`}
+            >
+              {currentSessionSizeTone === 'critical'
+                ? 'Critico'
+                : currentSessionSizeTone === 'high'
+                  ? 'Alto'
+                  : 'OK'}
+            </span>
+          </div>
+          <label className={styles.autosaveToggle}>
+            <input
+              type="checkbox"
+              checked={autosaveEnabled}
+              onChange={(event) => onToggleAutosave(event.target.checked)}
+            />
+            Guardar local
+          </label>
+          {!autosaveEnabled ? (
+            <p className={styles.autosaveWarning}>
+              Guardado local OFF: cualquier refresh o reinicio borra esta partida.
+            </p>
+          ) : null}
 
           <div className={styles.kpis}>
             <div className={styles.kpi}>
@@ -1000,7 +1109,7 @@ export default function Home() {
                   type="button"
                   className={styles.speedButton}
                   onClick={onSaveSnapshot}
-                  disabled={!runtime || isBusy}
+                  disabled={!runtime || isBusy || !autosaveEnabled}
                 >
                   Guardar
                 </button>

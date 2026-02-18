@@ -157,6 +157,16 @@ function buildChecksum(runtime: LocalRuntimeSnapshot): string {
   );
 }
 
+export function estimateLocalRuntimeSnapshotBytes(runtime: LocalRuntimeSnapshot): number {
+  return new TextEncoder().encode(
+    JSON.stringify({
+      snapshot_version: LOCAL_RUNTIME_SNAPSHOT_VERSION,
+      checksum: buildChecksum(runtime),
+      runtime
+    })
+  ).length;
+}
+
 function parseRuntime(raw: string | null): { runtime: LocalRuntimeSnapshot | null; failure: boolean } {
   if (raw === null) {
     return { runtime: null, failure: false };

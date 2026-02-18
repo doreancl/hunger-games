@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearLocalRuntimeFromStorage,
+  estimateLocalRuntimeSnapshotBytes,
   LOCAL_RUNTIME_SNAPSHOT_VERSION,
   LOCAL_RUNTIME_STORAGE_KEY,
   loadLocalRuntimeFromStorage,
@@ -209,5 +210,10 @@ describe('local runtime storage', () => {
         }
       })
     ).not.toThrow();
+  });
+
+  it('estimates snapshot size in bytes', () => {
+    const bytes = estimateLocalRuntimeSnapshotBytes(buildRuntime());
+    expect(bytes).toBeGreaterThan(100);
   });
 });
