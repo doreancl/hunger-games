@@ -235,8 +235,9 @@
 }
 
 .rosterItem {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid #ebc48c;
   border-radius: 10px;
   padding: 8px;
@@ -244,14 +245,15 @@
 }
 
 .characterToggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid #ecc188;
-  border-radius: 9px;
-  padding: 6px 8px;
-  background: #fffbf3;
-  min-height: 38px;
+  width: 16px;
+  height: 16px;
+  accent-color: #b16a2c;
+  margin: 0;
+}
+
+.rosterNameInput {
+  flex: 1;
+  min-width: 0;
 }
 
 .controlsGrid {
