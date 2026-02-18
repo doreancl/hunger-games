@@ -18,10 +18,6 @@ function stableKey(metric: string, dimensions?: TelemetryDimensions): string {
 }
 
 function percentile95(samples: number[]): number {
-  if (samples.length === 0) {
-    return 0;
-  }
-
   const ordered = [...samples].sort((left, right) => left - right);
   const index = Math.max(0, Math.ceil(ordered.length * 0.95) - 1);
   return ordered[index] ?? 0;
