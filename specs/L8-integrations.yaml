@@ -33,9 +33,25 @@ contracts:
         phase: running
         cycle_phase: bloodbath
         turn_number: 0
+    - name: resume_match
+      method: POST
+      path: /api/matches/resume
+      request:
+        snapshot: "MatchSnapshot"
+      response:
+        match_id: string
+        phase: string
+        cycle_phase: string
+        turn_number: number
+        tension_level: number
+        settings: "MatchSettings"
+        participants: "ParticipantState[]"
+        recent_events: "Event[]"
     - name: advance_turn
       method: POST
       path: /api/matches/{matchId}/turns/advance
+      request:
+        snapshot: "MatchSnapshot"
       response:
         turn_number: number
         cycle_phase: string
@@ -48,6 +64,7 @@ contracts:
         survivors_count: number
         eliminated_ids: "string[]"
         finished: boolean
+        snapshot: "MatchSnapshot"
     - name: get_match_state
       method: GET
       path: /api/matches/{matchId}
@@ -69,4 +86,10 @@ contracts:
 notes:
   - "Sin contratos de share code en V1."
   - "Sin lectura de partidas entre dispositivos en V1."
-  - "Continuidad de sesión basada en localStorage del cliente."
+  - "Continuidad de sesión basada en snapshot completo en localStorage del cliente."
+  - "La rehidratación no depende de estado previo en server."
+errors:
+  - code: SNAPSHOT_INVALID
+    when: "Checksum/payload inválido o snapshot incompleto."
+  - code: SNAPSHOT_VERSION_UNSUPPORTED
+    when: "Versión de snapshot incompatible con la release actual."

@@ -21,7 +21,9 @@ requirements:
     - metric: api_success_rate
       target: ">= 99.9% respuestas 2xx/3xx"
     - metric: resumable_match_recovery
-      target: ">= 99% partidas en curso recuperables tras refresh/reconexión"
+      target: ">= 99% reanudaciones exitosas tras refresh con snapshot local valido"
+    - metric: stateless_rehydration_success_rate
+      target: ">= 99% de rehidrataciones sin depender de estado previo en server"
   observability:
     - metric: structured_event_coverage
       target: "100% de eventos de partida con logs estructurados"

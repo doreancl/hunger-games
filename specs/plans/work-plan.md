@@ -65,13 +65,13 @@
 - Priority: `P0`
 - Story file: `specs/plans/stories/03-US-003B.md`
 
-### 04 - US-004 - Avance de turnos server-authoritative
+### 04 - US-004 - Avance de turnos stateless con snapshot
 - Estado: `DONE`
 - As a jugador, I want avance consistente por turno, so that la partida termine con ganador unico.
 - Acceptance criteria:
-  - Given partida running, when `POST /turns/advance`, then genera 1 evento y actualiza estado.
+  - Given snapshot valido de partida running, when `POST /turns/advance`, then genera 1 evento y actualiza estado.
   - Given cambios de vivos, when avanza, then fase/tension se actualizan correctamente.
-  - Given 1 vivo restante, when termina, then `finished=true` y ganador unico.
+  - Given 1 vivo restante, when termina, then `finished=true`, ganador unico y snapshot actualizado.
 - Spec traceability: `specs/L1-functional.md`, `specs/L7-architecture.md`, `specs/L8-integrations.yaml`
 - Dependencies: `US-003A`, `US-003B`
 - Priority: `P0`
@@ -94,8 +94,8 @@
 - As a jugador, I want continuar tras refresh desde localStorage, so that no pierda progreso.
 - Acceptance criteria:
   - Given turno/evento, when ocurre, then guarda snapshot versionado en localStorage.
-  - Given refresh, when reabre app, then carga ultima partida disponible.
-  - Given snapshot corrupto/incompatible, when recupero, then muestra `partida no recuperable` y nueva partida.
+  - Given refresh, when reabre app, then rehidrata via endpoint `resume` usando ultimo snapshot local.
+  - Given snapshot corrupto/incompatible, when recupero, then muestra `partida no recuperable` sin fallback adicional.
 - Spec traceability: `specs/spec.md`, `specs/L1-functional.md`, `specs/L5-security.yaml`, `specs/L6-testing.yaml`
 - Dependencies: `US-004`
 - Priority: `P0`
@@ -142,7 +142,7 @@
 - Acceptance criteria:
   - Given motor, when corro unit + property-based, then invariantes criticos pasan.
   - Given APIs, when corro integration/contract, then contratos L8 estables.
-  - Given flujo E2E, when corro setup->final + refresh/recovery, then escenarios nominal/error pasan.
+  - Given flujo E2E, when corro setup->final + refresh/resume stateless, then escenarios nominal/error pasan.
 - Spec traceability: `specs/L6-testing.yaml`, `specs/L2-non-functional.yaml`, `specs/L8-integrations.yaml`
 - Dependencies: `US-006A`, `US-006B`, `US-006C`
 - Priority: `P0`
@@ -181,8 +181,9 @@
 - Riesgos:
   - Concurrencia objetivo (`>=500`) puede requerir tuning de runtime/plataforma.
   - Balance narrativo requerira iteraciones de pesos.
-  - Sin persistencia server-side, continuidad depende de recuperacion local.
+  - Continuidad depende de snapshot local valido y version compatible.
 - Supuestos:
   - V1 sin cuentas ni sync multi-dispositivo.
-  - Compatibilidad entre versiones de snapshot es best-effort.
+  - Compatibilidad entre versiones de snapshot se rechaza si es incompatible.
+  - Snapshot local incluye estado RNG y settings para continuidad exacta.
   - Compartir en V1 se limita a export local JSON.

@@ -3,8 +3,8 @@ name: testing-strategy
 strategy:
   pyramid:
     - "Unit: motor de reglas/probabilidades, transiciones de estado, tensión y relaciones."
-    - "Integration: APIs de creación/inicio/avance/lectura de estado en memoria de servidor."
-    - "E2E: flujo completo setup -> simulacion -> ganador -> refresh -> reanudacion local."
+    - "Integration: APIs de creación/inicio/avance/rehidratación con snapshot cliente."
+    - "E2E: flujo completo setup -> simulacion -> ganador -> refresh -> resume stateless."
   stochastic_validation:
     - "Pruebas estadísticas sobre miles de simulaciones para validar distribuciones esperadas."
     - "Control por seed para escenarios deterministas de regresión."
@@ -12,12 +12,13 @@ strategy:
     - "Property-based tests para invariantes (nunca revivir eliminados, ganador único, fin garantizado)."
   local_state_recovery:
     - "Pruebas de autosave en cada turno/evento en localStorage."
-    - "Pruebas de reanudación al recargar página desde localStorage."
-    - "Pruebas de manejo de corrupción de estado local con mensaje y fallback a nueva partida."
-    - "Pruebas de incompatibilidad de versión de estado local (best effort, sin garantía)."
+    - "Pruebas de reanudación al recargar página enviando snapshot local al server."
+    - "Pruebas de continuidad exacta conservando settings y estado RNG."
+    - "Pruebas de manejo de corrupción de estado local con `partida no recuperable`."
+    - "Pruebas de incompatibilidad de versión con rechazo explícito (sin fallback)."
   contracts:
-    - "Contract tests de payloads API (create/start/advance/get_state/settings)."
+    - "Contract tests de payloads API (create/start/resume/advance/get_state/settings)."
   exit_criteria:
     - "Sin regresiones en reglas core de interacción."
     - "Cobertura alta en motor de simulación y contratos API críticos."
-    - "Refresh del navegador mantiene continuidad desde localStorage en escenario nominal."
+    - "Refresh del navegador mantiene continuidad stateless desde snapshot local en escenario nominal."

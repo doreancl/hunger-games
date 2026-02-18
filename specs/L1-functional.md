@@ -6,7 +6,7 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 ## Alcance V1
 - Simulación automática turno a turno (sin decisiones tácticas durante la partida).
 - Foco en narrativa emergente, tensión progresiva y alta rejugabilidad.
-- Continuidad de sesión en el mismo navegador/dispositivo usando `localStorage`.
+- Continuidad de sesión en el mismo navegador/dispositivo usando snapshot completo en `localStorage`.
 
 ## Usuario objetivo
 - Jugador casual que disfruta drama emergente, sorpresas y decisiones de roster.
@@ -16,7 +16,7 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 1. Seleccionar personajes participantes.
 2. Presionar `Iniciar` para bloquear roster y arrancar simulación.
 3. Ver eventos turno a turno con interacciones entre personajes hasta fin de partida.
-4. Al recargar, continuar desde el último estado local disponible.
+4. Al recargar, rehidratar enviando el snapshot local al server para continuar.
 
 ## Reglas funcionales del juego
 
@@ -54,11 +54,13 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 - Seed opcional (manual o aleatoria).
 - Velocidad de simulación (`1x`, `2x`, `4x`, `pausa`, paso a paso).
 - Ajustes avanzados: perfil de pesos de eventos y nivel de sorpresa.
+- Toggle `Guardar local` (`ON/OFF`) para controlar persistencia de la sesión actual.
 
 ### Salidas visibles al jugador
 - Feed narrativo cronológico por turnos.
 - Contador de vivos/eliminados.
 - Estado actualizado de cada personaje.
+- Tamaño visible de la sesión actual guardable en local.
 - Pantalla final con ganador y resumen de momentos clave.
 - Re-simulación con mismo roster y misma o nueva seed.
 - Menú local para reabrir partidas guardadas en `localStorage`.
@@ -70,5 +72,7 @@ Crear un simulador web de supervivencia social tipo battle royale narrativo, don
 - Las relaciones cambian y afectan eventos posteriores.
 - La partida siempre termina con un único ganador.
 - El jugador percibe variedad entre partidas con mismo roster.
-- El jugador puede reanudar en el mismo navegador/dispositivo desde `localStorage`.
+- El jugador puede reanudar desde `localStorage` sin consultar estado previo del server.
+- La reanudación conserva settings y estado RNG para continuidad exacta de la simulación.
+- Si `Guardar local` está en `OFF`, la UI advierte pérdida de continuidad ante refresh/reinicio.
 - Si el estado local está corrupto, se informa `partida no recuperable` y se permite iniciar una nueva.

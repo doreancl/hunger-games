@@ -9,7 +9,7 @@
 - `US-002` -> `SEB-6` -> https://linear.app/sebacode/issue/SEB-6/02-us-002-ciclo-de-vida-base-de-partida
 - `US-003A` -> `SEB-7` -> https://linear.app/sebacode/issue/SEB-7/03-us-003a-motor-director-catalogo
 - `US-003B` -> `SEB-8` -> https://linear.app/sebacode/issue/SEB-8/03-us-003b-setup-ux-menu-partidas-locales
-- `US-004` -> `SEB-9` -> https://linear.app/sebacode/issue/SEB-9/04-us-004-avance-de-turnos-server-authoritative
+- `US-004` -> `SEB-9` -> https://linear.app/sebacode/issue/SEB-9/04-us-004-avance-de-turnos-server-authoritative (title pendiente de renombre en Linear)
 - `US-005A` -> `SEB-10` -> https://linear.app/sebacode/issue/SEB-10/05-us-005a-ux-simulacion-en-vivo
 - `US-005B` -> `SEB-11` -> https://linear.app/sebacode/issue/SEB-11/05-us-005b-continuidad-local-y-recuperacion
 - `US-006A` -> `SEB-12` -> https://linear.app/sebacode/issue/SEB-12/06-us-006a-pantalla-final-replay

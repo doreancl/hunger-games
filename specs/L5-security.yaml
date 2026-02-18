@@ -11,9 +11,10 @@ requirements:
   abuse_prevention:
     - "Rate limiting en creación de partidas y avance de turnos."
     - "Validación estricta de entrada en roster y parámetros de simulación."
+    - "Validación estricta de tamaño y forma del snapshot enviado por cliente."
   integrity:
-    - "La simulación es server-authoritative mientras la instancia esté activa."
-    - "Estado local con checksum/version para detectar corrupción o incompatibilidad."
-    - "Si el estado local es inválido, bloquear recuperación y ofrecer nueva partida."
+    - "El snapshot del cliente es la fuente de estado para rehidratación en modelo stateless."
+    - "Snapshot con checksum/version para detectar corrupción o incompatibilidad."
+    - "Si el snapshot es inválido o incompatible, rechazar recuperación con `partida no recuperable`."
   privacy:
     - "Datos de partida guardados solo localmente en el navegador del usuario."

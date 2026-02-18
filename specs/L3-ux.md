@@ -14,6 +14,8 @@ Interfaz de "reality show de supervivencia": rápida, clara y dramática.
 2. `Simulación`
 - Header: vivos, eliminados, turno actual, control de velocidad (`1x`, `2x`, `4x`, `pausa`).
 - Header incluye fase actual (`bloodbath`, `day`, `night`, `finale`) y barra de tensión.
+- Header muestra tamaño de la sesión actual y estado visual (`ok`, `alto`, `crítico`).
+- Header incluye toggle `Guardar local` (`ON/OFF`) con warning persistente cuando está en `OFF`.
 - Feed central de eventos narrativos (más reciente arriba).
 - Panel lateral de estados de personajes (vida, condición, relaciones destacadas).
 - Indicador visual de tensión global.
