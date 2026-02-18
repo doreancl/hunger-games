@@ -234,6 +234,12 @@
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
+.namesGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .characterToggle {
   display: flex;
   align-items: center;

@@ -48,6 +48,7 @@ const DEFAULT_CHARACTERS = CHARACTER_OPTIONS.slice(0, 10).map((character) => cha
 const DEFAULT_SIMULATION_SPEED: SimulationSpeed = '1x';
 const DEFAULT_EVENT_PROFILE = 'balanced' as const;
 const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
+const MAX_PARTICIPANT_NAME_LENGTH = 40;
 
 const EVENT_TYPE_LABEL: Record<EventType, string> = {
   combat: 'Combate',
@@ -104,6 +105,7 @@ type SimulationRuntime = {
 
 type MatchSetupConfig = {
   roster_character_ids: string[];
+  participant_names?: string[];
   seed: string | null;
   simulation_speed: SimulationSpeed;
   event_profile: 'balanced' | 'aggressive' | 'chaotic';
@@ -171,6 +173,18 @@ function countAlive(participants: ParticipantState[]): number {
 
 function characterName(characterId: string): string {
   return CHARACTER_OPTIONS.find((candidate) => candidate.id === characterId)?.name ?? characterId;
+}
+
+function buildParticipantNamesByCharacterId(
+  rosterCharacterIds: string[],
+  source: Record<string, string> = {}
+): Record<string, string> {
+  return Object.fromEntries(
+    rosterCharacterIds.map((characterId) => [
+      characterId,
+      source[characterId] ?? characterName(characterId)
+    ])
+  );
 }
 
 function participantDisplayName(participant: ParticipantState): string {
@@ -372,6 +386,9 @@ function relationTone(score: number): string {
 
 export default function Home() {
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>(DEFAULT_CHARACTERS);
+  const [participantNamesByCharacterId, setParticipantNamesByCharacterId] = useState<
+    Record<string, string>
+  >(() => buildParticipantNamesByCharacterId(DEFAULT_CHARACTERS));
   const [seed, setSeed] = useState('');
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(DEFAULT_SIMULATION_SPEED);
   const [eventProfile, setEventProfile] = useState<'balanced' | 'aggressive' | 'chaotic'>(
@@ -396,6 +413,29 @@ export default function Home() {
     () => getSetupValidation(selectedCharacters),
     [selectedCharacters]
   );
+  const participantNames = useMemo(
+    () =>
+      selectedCharacters.map((characterId) =>
+        (participantNamesByCharacterId[characterId] ?? characterName(characterId)).trim()
+      ),
+    [participantNamesByCharacterId, selectedCharacters]
+  );
+  const participantNameValidationIssues = useMemo(() => {
+    const issues: string[] = [];
+
+    participantNames.forEach((name, index) => {
+      if (name.length === 0) {
+        issues.push(`El nombre del tributo #${index + 1} no puede estar vacio.`);
+      } else if (name.length > MAX_PARTICIPANT_NAME_LENGTH) {
+        issues.push(
+          `El nombre del tributo #${index + 1} no puede superar ${MAX_PARTICIPANT_NAME_LENGTH} caracteres.`
+        );
+      }
+    });
+
+    return issues;
+  }, [participantNames]);
+  const canStartMatch = setupValidation.is_valid && participantNameValidationIssues.length === 0;
 
   const aliveCount = runtime
     ? countAlive(runtime.participants)
@@ -409,6 +449,16 @@ export default function Home() {
   const tensionValue = runtime?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
 
   const feed = runtime?.feed ?? EMPTY_FEED;
+  const runtimeCharacterDisplayNames = useMemo(
+    () =>
+      new Map(
+        (runtime?.participants ?? []).map((participant) => [
+          participant.character_id,
+          participantDisplayName(participant)
+        ])
+      ),
+    [runtime]
+  );
   const currentSessionSizeBytes = runtime ? estimateLocalRuntimeSnapshotBytes(runtime) : 0;
   const currentSessionSizeLabel = formatBytes(currentSessionSizeBytes);
   const currentSessionSizeTone = sessionSizeTone(currentSessionSizeBytes);
@@ -571,9 +621,23 @@ export default function Home() {
     setRuntime(runtimeLoad.runtime);
 
     if (runtimeLoad.runtime) {
+      const runtimeParticipantNames = Object.fromEntries(
+        runtimeLoad.runtime.participants.map((participant) => [
+          participant.character_id,
+          participantDisplayName(participant)
+        ])
+      );
       const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
       if (runtimeMatch) {
-        applySetupFromMatch(runtimeMatch);
+        applySetupFromMatch(runtimeMatch, runtimeParticipantNames);
+      } else {
+        setSelectedCharacters(runtimeLoad.runtime.participants.map((participant) => participant.character_id));
+        setParticipantNamesByCharacterId(
+          buildParticipantNamesByCharacterId(
+            runtimeLoad.runtime.participants.map((participant) => participant.character_id),
+            runtimeParticipantNames
+          )
+        );
       }
     } else if (matches[0]) {
       applySetupFromMatch(matches[0]);
@@ -609,8 +673,14 @@ export default function Home() {
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
 
-  function applySetupFromMatch(match: LocalMatchSummary) {
+  function applySetupFromMatch(
+    match: LocalMatchSummary,
+    participantNamesSource: Record<string, string> = {}
+  ) {
     setSelectedCharacters(match.roster_character_ids);
+    setParticipantNamesByCharacterId(
+      buildParticipantNamesByCharacterId(match.roster_character_ids, participantNamesSource)
+    );
     setSeed(match.settings.seed ?? '');
     setSimulationSpeed(match.settings.simulation_speed);
     setEventProfile(match.settings.event_profile);
@@ -619,6 +689,7 @@ export default function Home() {
 
   function resetSetupToDefaults() {
     setSelectedCharacters(DEFAULT_CHARACTERS);
+    setParticipantNamesByCharacterId(buildParticipantNamesByCharacterId(DEFAULT_CHARACTERS));
     setSeed('');
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
     setEventProfile(DEFAULT_EVENT_PROFILE);
@@ -656,9 +727,18 @@ export default function Home() {
   function toggleCharacter(characterId: string) {
     setSelectedCharacters((previous) => {
       if (previous.includes(characterId)) {
+        setParticipantNamesByCharacterId((current) => {
+          const next = { ...current };
+          delete next[characterId];
+          return next;
+        });
         return previous.filter((id) => id !== characterId);
       }
 
+      setParticipantNamesByCharacterId((current) => ({
+        ...current,
+        [characterId]: current[characterId] ?? characterName(characterId)
+      }));
       return [...previous, characterId];
     });
   }
@@ -675,12 +755,27 @@ export default function Home() {
 
   async function startMatchWithSetup(config: MatchSetupConfig): Promise<void> {
     const validation = getSetupValidation(config.roster_character_ids);
-    if (!validation.is_valid) {
+    const hasInvalidParticipantNames = (config.participant_names ?? []).some(
+      (name) =>
+        name.trim().length === 0 || name.trim().length > MAX_PARTICIPANT_NAME_LENGTH
+    );
+    if (!validation.is_valid || hasInvalidParticipantNames) {
       setInfoMessage('Config invalida. Revisa el roster antes de iniciar.');
       return;
     }
 
     setSelectedCharacters(config.roster_character_ids);
+    setParticipantNamesByCharacterId(
+      buildParticipantNamesByCharacterId(
+        config.roster_character_ids,
+        Object.fromEntries(
+          config.roster_character_ids.map((characterId, index) => [
+            characterId,
+            config.participant_names?.[index] ?? characterName(characterId)
+          ])
+        )
+      )
+    );
     setSeed(config.seed ?? '');
     setSimulationSpeed(config.simulation_speed);
     setEventProfile(config.event_profile);
@@ -696,6 +791,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           roster_character_ids: config.roster_character_ids,
+          participant_names: config.participant_names,
           settings: {
             surprise_level: config.surprise_level,
             event_profile: config.event_profile,
@@ -775,6 +871,7 @@ export default function Home() {
   async function onStartMatch() {
     await startMatchWithSetup({
       roster_character_ids: selectedCharacters,
+      participant_names: participantNames,
       seed: seed.trim() === '' ? null : seed.trim(),
       simulation_speed: simulationSpeed,
       event_profile: eventProfile,
@@ -1009,6 +1106,13 @@ export default function Home() {
 
     await startMatchWithSetup({
       roster_character_ids: replayRoster,
+      participant_names:
+        rosterMode === 'same'
+          ? replayRoster.map(
+              (characterId) =>
+                runtimeCharacterDisplayNames.get(characterId) ?? characterName(characterId)
+            )
+          : replayRoster.map((characterId) => characterName(characterId)),
       seed: replaySeed,
       simulation_speed: runtime.settings.simulation_speed,
       event_profile: runtime.settings.event_profile,
@@ -1122,7 +1226,7 @@ export default function Home() {
                   <ol className={styles.finalList}>
                     {eliminationOrder.map((item) => (
                       <li key={`elim-${item.event_id}-${item.character_id}`}>
-                        {characterName(item.character_id)} · turno {item.turn_number} ·{' '}
+                        {runtimeCharacterDisplayNames.get(item.character_id) ?? characterName(item.character_id)} · turno {item.turn_number} ·{' '}
                         {phaseLabel(item.phase)}
                       </li>
                     ))}
@@ -1199,6 +1303,26 @@ export default function Home() {
                       </label>
                     );
                   })}
+                </div>
+
+                <div className={styles.namesGrid}>
+                  {selectedCharacters.map((characterId, index) => (
+                    <label key={`name-${characterId}`} className={styles.controlLabel}>
+                      Nombre tributo #{index + 1} ({characterName(characterId)})
+                      <input
+                        className={styles.input}
+                        value={participantNamesByCharacterId[characterId] ?? characterName(characterId)}
+                        onChange={(event) =>
+                          setParticipantNamesByCharacterId((current) => ({
+                            ...current,
+                            [characterId]: event.target.value
+                          }))
+                        }
+                        maxLength={MAX_PARTICIPANT_NAME_LENGTH}
+                        placeholder="Nombre personalizado"
+                      />
+                    </label>
+                  ))}
                 </div>
 
                 <div className={styles.controlsGrid}>
@@ -1278,9 +1402,9 @@ export default function Home() {
                     Roster: {selectedCharacters.length} | Seed:{' '}
                     {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
                   </strong>
-                  {setupValidation.issues.length > 0 ? (
+                  {[...setupValidation.issues, ...participantNameValidationIssues].length > 0 ? (
                     <ul>
-                      {setupValidation.issues.map((issue) => (
+                      {[...setupValidation.issues, ...participantNameValidationIssues].map((issue) => (
                         <li key={issue}>{issue}</li>
                       ))}
                     </ul>
@@ -1292,7 +1416,7 @@ export default function Home() {
                     <button
                       className={styles.button}
                       type="button"
-                      disabled={!setupValidation.is_valid || isBusy}
+                      disabled={!canStartMatch || isBusy}
                       onClick={() => {
                         void onStartMatch();
                       }}
@@ -1438,7 +1562,7 @@ export default function Home() {
                         ) : (
                           event.character_ids.map((characterId) => (
                             <span key={`${event.id}-${characterId}`} className={styles.tag}>
-                              {characterName(characterId)}
+                              {runtimeCharacterDisplayNames.get(characterId) ?? characterName(characterId)}
                             </span>
                           ))
                         )}
@@ -1466,7 +1590,7 @@ export default function Home() {
 
                       return (
                         <li key={participant.id} className={styles.participantItem}>
-                          <strong>{characterName(participant.character_id)}</strong>
+                          <strong>{participantDisplayName(participant)}</strong>
                           <div>
                             <span className={`${styles.status} ${statusClassName}`}>
                               {statusLabel(participant.status)}
@@ -1489,7 +1613,7 @@ export default function Home() {
                     relationHighlights.map((relation) => (
                       <li key={`${relation.pair[0]}-${relation.pair[1]}`} className={styles.relationItem}>
                         <strong>
-                          {characterName(relation.pair[0])} · {characterName(relation.pair[1])}
+                          {runtimeCharacterDisplayNames.get(relation.pair[0]) ?? characterName(relation.pair[0])} · {runtimeCharacterDisplayNames.get(relation.pair[1]) ?? characterName(relation.pair[1])}
                         </strong>
                         <div
                           className={
