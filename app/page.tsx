@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './page.module.css';
 import {
   createLocalMatchFromSetup,
@@ -141,6 +141,42 @@ function buildReplaySeed(): string {
   }
 
   return shortSeed(generated);
+}
+
+function normalizeParticipantName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function participantNameKey(value: string): string {
+  return normalizeParticipantName(value).toLowerCase();
+}
+
+function buildCustomCharacterId(name: string, existingIds: Set<string>): string {
+  const baseSlug = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24);
+  const safeSlug = baseSlug.length > 0 ? baseSlug : 'personaje';
+
+  const generated = createBrowserUuid();
+  if (generated) {
+    const candidate = `custom-${safeSlug}-${shortId(generated)}`;
+    if (!existingIds.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  let sequence = 1;
+  while (true) {
+    const candidate = `custom-${safeSlug}-${sequence}`;
+    if (!existingIds.has(candidate)) {
+      return candidate;
+    }
+    sequence += 1;
+  }
 }
 
 function uniqueCharacterIds(characterIds: string[]): string[] {
@@ -426,6 +462,7 @@ export default function Home() {
   const [hasHydrated, setHasHydrated] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
+  const didLoadStorageRef = useRef(false);
 
   const allCharacterOptions = useMemo(
     () => [...CHARACTER_OPTIONS, ...customCharacters],
@@ -668,9 +705,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!hasHydrated) {
+    if (!hasHydrated || didLoadStorageRef.current) {
       return;
     }
+    didLoadStorageRef.current = true;
 
     const prefs = loadLocalPrefsFromStorage(window.localStorage);
     setAutosaveEnabled(prefs.autosave_enabled);
@@ -816,20 +854,43 @@ export default function Home() {
   }
 
   function addCustomCharacter() {
-    const trimmedName = newCharacterName.trim();
-    if (trimmedName.length === 0) {
+    const normalizedName = normalizeParticipantName(newCharacterName);
+    if (normalizedName.length === 0) {
       setInfoMessage('Escribe un nombre para agregar personaje.');
       return;
     }
 
-    const customId = `custom-${crypto.randomUUID()}`;
-    setCustomCharacters((previous) => [...previous, { id: customId, name: trimmedName }]);
+    if (normalizedName.length > MAX_PARTICIPANT_NAME_LENGTH) {
+      setInfoMessage(
+        `El nombre no puede superar ${MAX_PARTICIPANT_NAME_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    const existingByName = allCharacterOptions.find(
+      (character) => participantNameKey(character.name) === participantNameKey(normalizedName)
+    );
+    if (existingByName) {
+      setSelectedCharacters((previous) =>
+        previous.includes(existingByName.id) ? previous : [...previous, existingByName.id]
+      );
+      setNewCharacterName('');
+      setInfoMessage(`"${normalizedName}" ya existe en el roster y se selecciono.`);
+      return;
+    }
+
+    const customId = buildCustomCharacterId(
+      normalizedName,
+      new Set(allCharacterOptions.map((character) => character.id))
+    );
+    setCustomCharacters((previous) => [...previous, { id: customId, name: normalizedName }]);
     setSelectedCharacters((previous) => [...previous, customId]);
     setParticipantAliasByCharacterId((current) => ({
       ...current,
-      [customId]: trimmedName
+      [customId]: normalizedName
     }));
     setNewCharacterName('');
+    setInfoMessage(null);
   }
 
   function generateSeed() {
@@ -1382,6 +1443,12 @@ export default function Home() {
                     className={styles.input}
                     value={newCharacterName}
                     onChange={(event) => setNewCharacterName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addCustomCharacter();
+                      }
+                    }}
                     placeholder="Nuevo personaje"
                   />
                   <button className={styles.button} type="button" onClick={addCustomCharacter}>
@@ -1393,7 +1460,12 @@ export default function Home() {
                   {allCharacterOptions.map((character) => {
                     const isCustomCharacter = character.id.startsWith('custom-');
                     return (
-                      <div key={character.id} className={styles.rosterItem}>
+                      <div
+                        key={character.id}
+                        className={`${styles.rosterItem} ${
+                          isCustomCharacter ? styles.rosterItemCustom : ''
+                        }`}
+                      >
                         <input
                           className={styles.characterToggle}
                           aria-label={`Seleccionar ${character.name}`}
@@ -1402,7 +1474,9 @@ export default function Home() {
                           onChange={() => toggleCharacter(character.id)}
                         />
                         <input
-                          className={`${styles.input} ${styles.rosterNameInput}`}
+                          className={`${styles.input} ${styles.rosterNameInput} ${
+                            isCustomCharacter ? styles.rosterNameInputWithRemove : ''
+                          }`}
                           aria-label={`Nombre de ${character.name}`}
                           value={participantAliasByCharacterId[character.id] ?? ''}
                           onChange={(event) =>
@@ -1416,7 +1490,7 @@ export default function Home() {
                         />
                         {isCustomCharacter ? (
                           <button
-                            className={`${styles.button} ${styles.buttonGhost}`}
+                            className={`${styles.button} ${styles.buttonGhost} ${styles.removeButton}`}
                             type="button"
                             onClick={() => removeCharacter(character.id)}
                           >
