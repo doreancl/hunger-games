@@ -173,6 +173,14 @@ function characterName(characterId: string): string {
   return CHARACTER_OPTIONS.find((candidate) => candidate.id === characterId)?.name ?? characterId;
 }
 
+function participantDisplayName(participant: ParticipantState): string {
+  if (participant.display_name.trim().length > 0) {
+    return participant.display_name;
+  }
+
+  return characterName(participant.character_id);
+}
+
 function phaseLabel(phase: CyclePhase | 'setup'): string {
   const labels: Record<CyclePhase | 'setup', string> = {
     setup: 'Setup',
@@ -297,11 +305,14 @@ function feedFromAdvance(
   const characterIds = advance.event.participant_ids
     .map((participantId) => participantsById.get(participantId)?.character_id)
     .filter((characterId): characterId is string => Boolean(characterId));
-  const actorNames = characterIds.map((characterId) => characterName(characterId));
+  const actorDisplayNames = advance.event.participant_ids
+    .map((participantId) => participantsById.get(participantId))
+    .filter((participant): participant is ParticipantState => Boolean(participant))
+    .map((participant) => participantDisplayName(participant));
   const eliminatedNames = advance.eliminated_ids
-    .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId))
-    .map((characterId) => characterName(characterId));
+    .map((participantId) => participantsById.get(participantId))
+    .filter((participant): participant is ParticipantState => Boolean(participant))
+    .map((participant) => participantDisplayName(participant));
 
   const impact =
     eliminatedNames.length > 0
@@ -313,7 +324,7 @@ function feedFromAdvance(
     turn_number: advance.turn_number,
     phase: advance.cycle_phase,
     type: advance.event.type,
-    headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
+    headline: `${summarizeActors(actorDisplayNames)} ${EVENT_ACTION[advance.event.type]}.`,
     impact,
     character_ids: characterIds,
     eliminated_character_ids: advance.eliminated_ids
@@ -469,7 +480,7 @@ export default function Home() {
       return null;
     }
 
-    return characterName(winnerParticipant.character_id);
+    return participantDisplayName(winnerParticipant);
   }, [runtime]);
 
   const keyMoments = useMemo(() => {
@@ -529,8 +540,14 @@ export default function Home() {
   }, [runtime]);
 
   const characterFilterOptions = useMemo(() => {
-    const source = runtime?.participants.map((participant) => participant.character_id) ?? selectedCharacters;
-    const unique = [...new Set(source)];
+    if (runtime) {
+      return runtime.participants.map((participant) => ({
+        id: participant.character_id,
+        name: participantDisplayName(participant)
+      }));
+    }
+
+    const unique = [...new Set(selectedCharacters)];
     return unique.map((characterId) => ({ id: characterId, name: characterName(characterId) }));
   }, [runtime, selectedCharacters]);
 
@@ -878,11 +895,10 @@ export default function Home() {
       if (advance.finished) {
         setPlaybackSpeed('pause');
         const winnerName =
-          state.participants.find((participant) => participant.id === advance.winner_id)?.character_id ??
-          null;
+          state.participants.find((participant) => participant.id === advance.winner_id) ?? null;
         setInfoMessage(
           winnerName
-            ? `Partida finalizada. Ganador: ${characterName(winnerName)}.`
+            ? `Partida finalizada. Ganador: ${participantDisplayName(winnerName)}.`
             : 'Partida finalizada.'
         );
       }

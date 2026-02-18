@@ -121,6 +121,24 @@ describe('POST /api/matches', () => {
     expect(body.match_id.length).toBeGreaterThan(0);
   });
 
+  it('accepts participant_names when creating a match', async () => {
+    const request = new Request('http://localhost/api/matches', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        roster_character_ids: roster(10),
+        participant_names: Array.from({ length: 10 }, (_, index) => `Tributo ${index + 1}`)
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.phase).toBe('setup');
+    expect(typeof body.match_id).toBe('string');
+  });
+
   it('applies defaults when settings are omitted', async () => {
     const request = new Request('http://localhost/api/matches', {
       method: 'POST',

@@ -31,6 +31,7 @@ function buildSnapshot(): MatchSnapshot {
         id: 'p1',
         match_id: 'match-1',
         character_id: 'char-1',
+        display_name: 'char-1',
         current_health: 100,
         status: 'alive',
         streak_score: 0
