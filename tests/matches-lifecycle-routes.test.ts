@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as createMatch } from '@/app/api/matches/route';
 import { GET as getMatchState } from '@/app/api/matches/[matchId]/route';
 import { POST as startMatch } from '@/app/api/matches/[matchId]/start/route';
 import { POST as advanceTurn } from '@/app/api/matches/[matchId]/turns/advance/route';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
+import { resetObservabilityForTests } from '@/lib/observability';
 import { advanceDirector } from '@/lib/simulation-state';
 
 function roster(size: number): string[] {
@@ -13,6 +14,11 @@ function roster(size: number): string[] {
 describe('match lifecycle routes', () => {
   beforeEach(() => {
     resetMatchesForTests();
+    resetObservabilityForTests();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('starts a setup match and returns running bloodbath', async () => {
@@ -155,6 +161,75 @@ describe('match lifecycle routes', () => {
     expect(stateBody.cycle_phase).toBe(advanceBody.cycle_phase);
     expect(stateBody.tension_level).toBe(advanceBody.tension_level);
     expect(stateBody.recent_events).toHaveLength(1);
+  });
+
+  it('emits deterministic replay signature for same seed and ruleset version', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    const createOne = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'replay-seed'
+          }
+        })
+      })
+    );
+    const createBodyOne = await createOne.json();
+    const matchIdOne = createBodyOne.match_id as string;
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchIdOne}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdOne }) }
+    );
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchIdOne}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdOne }) }
+    );
+
+    const createTwo = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'replay-seed'
+          }
+        })
+      })
+    );
+    const createBodyTwo = await createTwo.json();
+    const matchIdTwo = createBodyTwo.match_id as string;
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchIdTwo}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdTwo }) }
+    );
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchIdTwo}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdTwo }) }
+    );
+
+    const replayLogs = infoSpy.mock.calls
+      .map((entry) => JSON.parse(entry[0] as string) as Record<string, unknown>)
+      .filter((entry) => entry.event === 'match.turn.event');
+
+    expect(replayLogs.length).toBeGreaterThanOrEqual(2);
+    const firstReplay = replayLogs.at(-2) as Record<string, unknown>;
+    const secondReplay = replayLogs.at(-1) as Record<string, unknown>;
+
+    expect(firstReplay.seed).toBe('replay-seed');
+    expect(secondReplay.seed).toBe('replay-seed');
+    expect(firstReplay.ruleset_version).toBe(secondReplay.ruleset_version);
+    expect(firstReplay.replay_signature).toBe(secondReplay.replay_signature);
   });
 
   it('returns conflict when advancing a match outside running phase', async () => {
