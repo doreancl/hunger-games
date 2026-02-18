@@ -86,6 +86,7 @@ type FeedEvent = {
   headline: string;
   impact: string;
   character_ids: string[];
+  eliminated_character_ids?: string[];
   created_at: string;
 };
 
@@ -99,6 +100,14 @@ type SimulationRuntime = {
   participants: ParticipantState[];
   feed: FeedEvent[];
   winner_id: string | null;
+};
+
+type MatchSetupConfig = {
+  roster_character_ids: string[];
+  seed: string | null;
+  simulation_speed: SimulationSpeed;
+  event_profile: 'balanced' | 'aggressive' | 'chaotic';
+  surprise_level: 'low' | 'normal' | 'high';
 };
 
 const EMPTY_FEED: FeedEvent[] = [];
@@ -117,6 +126,23 @@ function createBrowserUuid(): string | null {
 
 function shortId(value: string): string {
   return value.slice(0, 8);
+}
+
+function shortSeed(seedValue: string): string {
+  return seedValue.slice(0, 8);
+}
+
+function buildReplaySeed(): string {
+  const generated = createBrowserUuid();
+  if (!generated) {
+    return `seed-${Date.now().toString(36)}`;
+  }
+
+  return shortSeed(generated);
+}
+
+function uniqueCharacterIds(characterIds: string[]): string[] {
+  return [...new Set(characterIds)];
 }
 
 function formatBytes(bytes: number): string {
@@ -218,6 +244,7 @@ function feedFromSnapshot(state: GetMatchStateResponse): FeedEvent[] {
         ? 'Impacto: evento letal en el ultimo intercambio.'
         : 'Impacto: tension sube sin bajas directas.',
       character_ids: [],
+      eliminated_character_ids: [],
       created_at: event.created_at
     }));
 }
@@ -289,6 +316,9 @@ function feedFromAdvance(
     headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
     impact,
     character_ids: characterIds,
+    eliminated_character_ids: advance.eliminated_ids
+      .map((participantId) => participantsById.get(participantId)?.character_id)
+      .filter((characterId): characterId is string => Boolean(characterId)),
     created_at: new Date().toISOString()
   };
 }
@@ -427,6 +457,77 @@ export default function Home() {
     });
   }, [runtime]);
 
+  const winnerName = useMemo(() => {
+    if (!runtime || runtime.phase !== 'finished') {
+      return null;
+    }
+
+    const winnerParticipant = runtime.participants.find(
+      (participant) => participant.id === runtime.winner_id
+    );
+    if (!winnerParticipant) {
+      return null;
+    }
+
+    return characterName(winnerParticipant.character_id);
+  }, [runtime]);
+
+  const keyMoments = useMemo(() => {
+    if (!runtime || runtime.feed.length === 0) {
+      return [];
+    }
+
+    const lethalMoments = runtime.feed.filter(
+      (event) => (event.eliminated_character_ids?.length ?? 0) > 0
+    );
+    const recentMoments = runtime.feed.slice(0, 6);
+    const selected = [...lethalMoments, ...recentMoments];
+    const seen = new Set<string>();
+
+    return selected
+      .filter((event) => {
+        if (seen.has(event.id)) {
+          return false;
+        }
+
+        seen.add(event.id);
+        return true;
+      })
+      .slice(0, 6);
+  }, [runtime]);
+
+  const eliminationOrder = useMemo(() => {
+    if (!runtime) {
+      return [];
+    }
+
+    const chronologicalFeed = [...runtime.feed].sort(
+      (left, right) => left.turn_number - right.turn_number
+    );
+    const ordered = new Map<
+      string,
+      { character_id: string; turn_number: number; phase: CyclePhase; event_id: string }
+    >();
+
+    for (const event of chronologicalFeed) {
+      const eliminatedIds = event.eliminated_character_ids ?? [];
+      for (const characterId of eliminatedIds) {
+        if (ordered.has(characterId)) {
+          continue;
+        }
+
+        ordered.set(characterId, {
+          character_id: characterId,
+          turn_number: event.turn_number,
+          phase: event.phase,
+          event_id: event.id
+        });
+      }
+    }
+
+    return [...ordered.values()];
+  }, [runtime]);
+
   const characterFilterOptions = useMemo(() => {
     const source = runtime?.participants.map((participant) => participant.character_id) ?? selectedCharacters;
     const unique = [...new Set(source)];
@@ -555,12 +656,18 @@ export default function Home() {
     setSeed(generatedSeed.slice(0, 8));
   }
 
-  async function onStartMatch() {
-    if (!setupValidation.is_valid) {
+  async function startMatchWithSetup(config: MatchSetupConfig): Promise<void> {
+    const validation = getSetupValidation(config.roster_character_ids);
+    if (!validation.is_valid) {
       setInfoMessage('Config invalida. Revisa el roster antes de iniciar.');
       return;
     }
 
+    setSelectedCharacters(config.roster_character_ids);
+    setSeed(config.seed ?? '');
+    setSimulationSpeed(config.simulation_speed);
+    setEventProfile(config.event_profile);
+    setSurpriseLevel(config.surprise_level);
     setIsBusy(true);
     setInfoMessage(null);
 
@@ -571,12 +678,12 @@ export default function Home() {
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          roster_character_ids: selectedCharacters,
+          roster_character_ids: config.roster_character_ids,
           settings: {
-            surprise_level: surpriseLevel,
-            event_profile: eventProfile,
-            simulation_speed: simulationSpeed,
-            seed: seed.trim() === '' ? null : seed.trim()
+            surprise_level: config.surprise_level,
+            event_profile: config.event_profile,
+            simulation_speed: config.simulation_speed,
+            seed: config.seed
           }
         })
       });
@@ -616,11 +723,11 @@ export default function Home() {
       const nowIso = new Date().toISOString();
       const newSummaryBase = createLocalMatchFromSetup(
         {
-          roster_character_ids: selectedCharacters,
-          seed: seed.trim() === '' ? null : seed.trim(),
-          simulation_speed: simulationSpeed,
-          event_profile: eventProfile,
-          surprise_level: surpriseLevel
+          roster_character_ids: config.roster_character_ids,
+          seed: config.seed,
+          simulation_speed: config.simulation_speed,
+          event_profile: config.event_profile,
+          surprise_level: config.surprise_level
         },
         nowIso,
         createResponse.match_id
@@ -646,6 +753,16 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
+  }
+
+  async function onStartMatch() {
+    await startMatchWithSetup({
+      roster_character_ids: selectedCharacters,
+      seed: seed.trim() === '' ? null : seed.trim(),
+      simulation_speed: simulationSpeed,
+      event_profile: eventProfile,
+      surprise_level: surpriseLevel
+    });
   }
 
   async function onOpenMatch(matchId: string) {
@@ -856,6 +973,33 @@ export default function Home() {
     setInfoMessage(`Progreso guardado (${shortId(summary.id)}).`);
   }
 
+  async function onReplay(seedMode: 'same' | 'new', rosterMode: 'same' | 'new') {
+    if (!runtime || isBusy) {
+      return;
+    }
+
+    const replayRoster =
+      rosterMode === 'same'
+        ? uniqueCharacterIds(runtime.participants.map((participant) => participant.character_id))
+        : DEFAULT_CHARACTERS;
+    const replaySeed =
+      seedMode === 'same' ? runtime.settings.seed : buildReplaySeed();
+
+    setRuntime(null);
+    setPlaybackSpeed('pause');
+    setFilterCharacterId('all');
+    setFilterEventType('all');
+    setLatestFeedEventId(null);
+
+    await startMatchWithSetup({
+      roster_character_ids: replayRoster,
+      seed: replaySeed,
+      simulation_speed: runtime.settings.simulation_speed,
+      event_profile: runtime.settings.event_profile,
+      surprise_level: runtime.settings.surprise_level
+    });
+  }
+
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -927,6 +1071,94 @@ export default function Home() {
             </div>
           </div>
         </header>
+
+        {runtime?.phase === 'finished' ? (
+          <section className={`${styles.card} ${styles.finalCard}`}>
+            <h2 className={styles.cardTitle}>Resumen final</h2>
+            <p className={styles.cardHint}>Ganador, momentos clave y replay inmediato.</p>
+
+            <div className={styles.finalWinner}>
+              <span>Ganador</span>
+              <strong>{winnerName ?? 'No disponible'}</strong>
+            </div>
+
+            <div className={styles.finalGrid}>
+              <div>
+                <h3 className={styles.finalSubtitle}>Momentos clave</h3>
+                {keyMoments.length === 0 ? (
+                  <p>Sin eventos suficientes para resumir.</p>
+                ) : (
+                  <ul className={styles.finalList}>
+                    {keyMoments.map((event) => (
+                      <li key={`moment-${event.id}`}>
+                        Turno {event.turn_number} ({phaseLabel(event.phase)}): {event.headline}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h3 className={styles.finalSubtitle}>Orden de eliminacion</h3>
+                {eliminationOrder.length === 0 ? (
+                  <p>No hay eliminaciones trazables en esta sesion.</p>
+                ) : (
+                  <ol className={styles.finalList}>
+                    {eliminationOrder.map((item) => (
+                      <li key={`elim-${item.event_id}-${item.character_id}`}>
+                        {characterName(item.character_id)} · turno {item.turn_number} ·{' '}
+                        {phaseLabel(item.phase)}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.replayGrid}>
+              <button
+                className={styles.button}
+                type="button"
+                onClick={() => {
+                  void onReplay('same', 'same');
+                }}
+                disabled={isBusy}
+              >
+                Replay misma seed + roster
+              </button>
+              <button
+                className={styles.button}
+                type="button"
+                onClick={() => {
+                  void onReplay('new', 'same');
+                }}
+                disabled={isBusy}
+              >
+                Replay nueva seed + mismo roster
+              </button>
+              <button
+                className={`${styles.button} ${styles.buttonGhost}`}
+                type="button"
+                onClick={() => {
+                  void onReplay('same', 'new');
+                }}
+                disabled={isBusy}
+              >
+                Jugar misma seed + nuevo roster
+              </button>
+              <button
+                className={`${styles.button} ${styles.buttonGhost}`}
+                type="button"
+                onClick={() => {
+                  void onReplay('new', 'new');
+                }}
+                disabled={isBusy}
+              >
+                Jugar nueva seed + nuevo roster
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <div className={styles.columns}>
           {!runtime ? (
