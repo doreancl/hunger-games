@@ -72,6 +72,28 @@ describe('validateSnapshotEnvelopeFromRawBody', () => {
     }
   });
 
+  it('returns validation issues when envelope and snapshot versions mismatch', () => {
+    const snapshot = buildSnapshot();
+    const result = validateSnapshotEnvelopeFromRawBody(
+      JSON.stringify({
+        snapshot_version: SNAPSHOT_VERSION,
+        checksum: buildSnapshotChecksum(snapshot),
+        snapshot: {
+          ...snapshot,
+          snapshot_version: SNAPSHOT_VERSION + 1
+        }
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('INVALID_REQUEST_PAYLOAD');
+      expect(
+        result.issues?.some((issue) => issue.path.join('.') === 'snapshot.snapshot_version')
+      ).toBe(true);
+    }
+  });
+
   it('rejects checksum mismatches', () => {
     const snapshot = buildSnapshot();
     const result = validateSnapshotEnvelopeFromRawBody(
