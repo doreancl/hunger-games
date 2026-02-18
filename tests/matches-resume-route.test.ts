@@ -130,6 +130,20 @@ describe('POST /api/matches/resume', () => {
 
     expect(lastResponse?.status).toBe(429);
     const body = await lastResponse?.json();
-    expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(body).toEqual({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Rate limit exceeded for resume_match.',
+        details: {
+          issues: [
+            {
+              path: ['request'],
+              code: 'rate_limit_exceeded',
+              message: expect.stringMatching(/^Retry after \d+ seconds\.$/)
+            }
+          ]
+        }
+      }
+    });
   });
 });
