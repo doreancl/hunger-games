@@ -747,7 +747,6 @@ export default function Home() {
       setInfoMessage(saveRuntimeResult.error);
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
-
   function resetSetupToDefaults() {
     setCustomCharacters([]);
     setSelectedCharacters(DEFAULT_CHARACTERS);
