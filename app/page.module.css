@@ -19,7 +19,7 @@
 }
 
 .shell {
-  max-width: 1180px;
+  max-width: 1360px;
   margin: 0 auto;
   display: grid;
   gap: 16px;
@@ -104,6 +104,10 @@
   display: grid;
   gap: 14px;
   grid-template-columns: minmax(0, 1fr);
+}
+
+.columns > * {
+  min-width: 0;
 }
 
 .card {
@@ -302,6 +306,7 @@
 .sideGrid {
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .participantList,
@@ -357,12 +362,16 @@
 
 @media (min-width: 980px) {
   .columns {
-    grid-template-columns: 360px minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
     align-items: start;
   }
 
+  .columns > .eventShell:only-child {
+    grid-column: 1 / -1;
+  }
+
   .eventShell {
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
     align-items: start;
   }
 }

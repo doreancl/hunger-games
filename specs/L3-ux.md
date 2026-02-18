@@ -41,3 +41,10 @@ Interfaz de "reality show de supervivencia": rápida, clara y dramática.
 - Colores semánticos consistentes para estado y riesgo.
 - Eventos sorpresa y giros deben tener tratamiento visual distintivo.
 - Contraste suficiente para lectura prolongada en desktop y móvil.
+
+## Reglas de layout desktop
+- La vista principal usa contenedor centrado con `max-width` para evitar vacío lateral desproporcionado.
+- Si `Setup` no está visible (simulación activa), el bloque `Feed + panel lateral` debe ocupar el ancho completo disponible.
+- El `Feed narrativo` siempre conserva prioridad visual frente a `Setup` y no puede quedar cubierto por paneles laterales.
+- Los controles de ritmo (`1x/2x/4x/pausa/paso`) se mantienen visibles y clicables en breakpoints desktop.
+- `Participantes`, `Relaciones destacadas` y `Partidas locales` mantienen orden vertical estable dentro del panel lateral.
