@@ -49,20 +49,6 @@ const DEFAULT_SIMULATION_SPEED: SimulationSpeed = '1x';
 const DEFAULT_EVENT_PROFILE = 'balanced' as const;
 const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
 const MAX_PARTICIPANT_NAME_LENGTH = 40;
-const RANDOM_NAME_POOL = [
-  'Aurora',
-  'Raven',
-  'Blaze',
-  'Echo',
-  'Nyx',
-  'Rune',
-  'Vega',
-  'Kira',
-  'Onyx',
-  'Jade',
-  'Pyre',
-  'Zen'
-];
 
 const EVENT_TYPE_LABEL: Record<EventType, string> = {
   combat: 'Combate',
@@ -191,12 +177,13 @@ function characterName(characterId: string): string {
 
 function buildAliasByCharacterId(
   rosterCharacterIds: string[],
-  source: Record<string, string> = {}
+  source: Record<string, string> = {},
+  resolveBaseName: (characterId: string) => string = characterName
 ): Record<string, string> {
   const aliasEntries = rosterCharacterIds
     .map((characterId) => {
       const provided = (source[characterId] ?? '').trim();
-      if (provided.length === 0 || provided === characterName(characterId)) {
+      if (provided.length === 0 || provided === resolveBaseName(characterId)) {
         return null;
       }
 
@@ -207,9 +194,13 @@ function buildAliasByCharacterId(
   return Object.fromEntries(aliasEntries);
 }
 
-function setupDisplayName(characterId: string, aliasByCharacterId: Record<string, string>): string {
+function setupDisplayName(
+  characterId: string,
+  aliasByCharacterId: Record<string, string>,
+  resolveBaseName: (characterId: string) => string = characterName
+): string {
   const alias = (aliasByCharacterId[characterId] ?? '').trim();
-  return alias.length > 0 ? alias : characterName(characterId);
+  return alias.length > 0 ? alias : resolveBaseName(characterId);
 }
 
 function participantDisplayName(participant: ParticipantState): string {
@@ -414,8 +405,8 @@ export default function Home() {
   const [participantAliasByCharacterId, setParticipantAliasByCharacterId] = useState<
     Record<string, string>
   >({});
-  const [showNameEditor, setShowNameEditor] = useState(false);
-  const [bulkPrefix, setBulkPrefix] = useState('Tributo');
+  const [customCharacters, setCustomCharacters] = useState<Array<{ id: string; name: string }>>([]);
+  const [newCharacterName, setNewCharacterName] = useState('');
   const [seed, setSeed] = useState('');
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(DEFAULT_SIMULATION_SPEED);
   const [eventProfile, setEventProfile] = useState<'balanced' | 'aggressive' | 'chaotic'>(
@@ -436,6 +427,19 @@ export default function Home() {
   const [isBusy, setIsBusy] = useState(false);
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
 
+  const allCharacterOptions = useMemo(
+    () => [...CHARACTER_OPTIONS, ...customCharacters],
+    [customCharacters]
+  );
+  const baseNameByCharacterId = useMemo(
+    () => new Map(allCharacterOptions.map((character) => [character.id, character.name])),
+    [allCharacterOptions]
+  );
+  const setupCharacterName = useCallback(
+    (characterId: string) => baseNameByCharacterId.get(characterId) ?? characterName(characterId),
+    [baseNameByCharacterId]
+  );
+
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
     [selectedCharacters]
@@ -443,9 +447,9 @@ export default function Home() {
   const participantNames = useMemo(
     () =>
       selectedCharacters.map((characterId) =>
-        setupDisplayName(characterId, participantAliasByCharacterId)
+        setupDisplayName(characterId, participantAliasByCharacterId, setupCharacterName)
       ),
-    [participantAliasByCharacterId, selectedCharacters]
+    [participantAliasByCharacterId, selectedCharacters, setupCharacterName]
   );
   const participantNameValidationIssues = useMemo(() => {
     const issues: string[] = [];
@@ -633,8 +637,8 @@ export default function Home() {
     }
 
     const unique = [...new Set(selectedCharacters)];
-    return unique.map((characterId) => ({ id: characterId, name: characterName(characterId) }));
-  }, [runtime, selectedCharacters]);
+    return unique.map((characterId) => ({ id: characterId, name: setupCharacterName(characterId) }));
+  }, [runtime, selectedCharacters, setupCharacterName]);
 
   useEffect(() => {
     setHasHydrated(true);
@@ -666,11 +670,24 @@ export default function Home() {
       if (runtimeMatch) {
         applySetupFromMatch(runtimeMatch, runtimeParticipantNames);
       } else {
-        setSelectedCharacters(runtimeLoad.runtime.participants.map((participant) => participant.character_id));
+        const rosterCharacterIds = runtimeLoad.runtime.participants.map(
+          (participant) => participant.character_id
+        );
+        const defaultIds = new Set(CHARACTER_OPTIONS.map((character) => character.id));
+        setCustomCharacters(
+          rosterCharacterIds
+            .filter((characterId) => !defaultIds.has(characterId))
+            .map((characterId) => ({
+              id: characterId,
+              name: runtimeParticipantNames[characterId] ?? characterId
+            }))
+        );
+        setSelectedCharacters(rosterCharacterIds);
         setParticipantAliasByCharacterId(
           buildAliasByCharacterId(
-            runtimeLoad.runtime.participants.map((participant) => participant.character_id),
-            runtimeParticipantNames
+            rosterCharacterIds,
+            runtimeParticipantNames,
+            setupCharacterName
           )
         );
       }
@@ -686,7 +703,7 @@ export default function Home() {
     if (runtimeLoad.error) {
       setInfoMessage(runtimeLoad.error);
     }
-  }, [hasHydrated]);
+  }, [applySetupFromMatch, hasHydrated, setupCharacterName]);
 
   const persistLocalMatches = useCallback((nextMatches: LocalMatchSummary[]) => {
     setLocalMatches(nextMatches);
@@ -708,29 +725,38 @@ export default function Home() {
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
 
-  function applySetupFromMatch(
-    match: LocalMatchSummary,
-    participantNamesSource: Record<string, string> = {}
-  ) {
-    setSelectedCharacters(match.roster_character_ids);
-    setParticipantAliasByCharacterId(
-      buildAliasByCharacterId(match.roster_character_ids, participantNamesSource)
-    );
-    setSeed(match.settings.seed ?? '');
-    setSimulationSpeed(match.settings.simulation_speed);
-    setEventProfile(match.settings.event_profile);
-    setSurpriseLevel(match.settings.surprise_level);
-    setShowNameEditor(false);
-  }
+  const applySetupFromMatch = useCallback(
+    (match: LocalMatchSummary, participantNamesSource: Record<string, string> = {}) => {
+      const defaultIds = new Set(CHARACTER_OPTIONS.map((character) => character.id));
+      const customFromRoster = match.roster_character_ids
+        .filter((characterId) => !defaultIds.has(characterId))
+        .map((characterId) => ({
+          id: characterId,
+          name: participantNamesSource[characterId] ?? characterId
+        }));
+
+      setCustomCharacters(customFromRoster);
+      setSelectedCharacters(match.roster_character_ids);
+      setParticipantAliasByCharacterId(
+        buildAliasByCharacterId(match.roster_character_ids, participantNamesSource, setupCharacterName)
+      );
+      setSeed(match.settings.seed ?? '');
+      setSimulationSpeed(match.settings.simulation_speed);
+      setEventProfile(match.settings.event_profile);
+      setSurpriseLevel(match.settings.surprise_level);
+    },
+    [setupCharacterName]
+  );
 
   function resetSetupToDefaults() {
+    setCustomCharacters([]);
     setSelectedCharacters(DEFAULT_CHARACTERS);
     setParticipantAliasByCharacterId({});
     setSeed('');
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
     setEventProfile(DEFAULT_EVENT_PROFILE);
     setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
-    setShowNameEditor(false);
+    setNewCharacterName('');
   }
 
   function onToggleAutosave(nextValue: boolean) {
@@ -780,44 +806,31 @@ export default function Home() {
     });
   }
 
-  function clearAliases() {
+  function removeCharacter(characterId: string) {
+    setCustomCharacters((previous) => previous.filter((character) => character.id !== characterId));
+    setSelectedCharacters((previous) => previous.filter((id) => id !== characterId));
     setParticipantAliasByCharacterId((current) => {
       const next = { ...current };
-      for (const characterId of selectedCharacters) {
-        delete next[characterId];
-      }
+      delete next[characterId];
       return next;
     });
   }
 
-  function applyPrefixAliases() {
-    const trimmedPrefix = bulkPrefix.trim();
-    if (trimmedPrefix.length === 0) {
-      setInfoMessage('Define un prefijo para aplicar nombres masivos.');
+  function addCustomCharacter() {
+    const trimmedName = newCharacterName.trim();
+    if (trimmedName.length === 0) {
+      setInfoMessage('Escribe un nombre para agregar personaje.');
       return;
     }
 
+    const customId = `custom-${crypto.randomUUID()}`;
+    setCustomCharacters((previous) => [...previous, { id: customId, name: trimmedName }]);
+    setSelectedCharacters((previous) => [...previous, customId]);
     setParticipantAliasByCharacterId((current) => ({
       ...current,
-      ...Object.fromEntries(
-        selectedCharacters.map((characterId, index) => [
-          characterId,
-          `${trimmedPrefix} ${index + 1}`
-        ])
-      )
+      [customId]: trimmedName
     }));
-  }
-
-  function applyRandomAliases() {
-    setParticipantAliasByCharacterId((current) => ({
-      ...current,
-      ...Object.fromEntries(
-        selectedCharacters.map((characterId, index) => [
-          characterId,
-          `${RANDOM_NAME_POOL[index % RANDOM_NAME_POOL.length]}-${index + 1}`
-        ])
-      )
-    }));
+    setNewCharacterName('');
   }
 
   function generateSeed() {
@@ -848,9 +861,10 @@ export default function Home() {
         Object.fromEntries(
           config.roster_character_ids.map((characterId, index) => [
             characterId,
-            config.participant_names?.[index] ?? characterName(characterId)
+            config.participant_names?.[index] ?? setupCharacterName(characterId)
           ])
-        )
+        ),
+        setupCharacterName
       )
     );
     setSeed(config.seed ?? '');
@@ -1092,7 +1106,7 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
-  }, [autosaveEnabled, isBusy, localMatches, persistLocalMatches, runtime]);
+  }, [applySetupFromMatch, autosaveEnabled, isBusy, localMatches, persistLocalMatches, runtime]);
 
   useEffect(() => {
     if (!runtime || runtime.phase !== 'running' || playbackSpeed === 'pause' || isBusy) {
@@ -1187,9 +1201,9 @@ export default function Home() {
         rosterMode === 'same'
           ? replayRoster.map(
               (characterId) =>
-                runtimeCharacterDisplayNames.get(characterId) ?? characterName(characterId)
+                runtimeCharacterDisplayNames.get(characterId) ?? setupCharacterName(characterId)
             )
-          : replayRoster.map((characterId) => characterName(characterId)),
+          : replayRoster.map((characterId) => setupCharacterName(characterId)),
       seed: replaySeed,
       simulation_speed: runtime.settings.simulation_speed,
       event_profile: runtime.settings.event_profile,
@@ -1364,101 +1378,58 @@ export default function Home() {
               <p className={styles.cardHint}>Define roster, seed y perfil antes de iniciar.</p>
 
               <div className={styles.setupGrid}>
-                <div className={styles.rosterGrid}>
-                  {CHARACTER_OPTIONS.map((character) => {
-                    const checkboxId = `roster-${character.id}`;
-                    return (
-                      <label key={character.id} htmlFor={checkboxId} className={styles.characterToggle}>
-                        <input
-                          id={checkboxId}
-                          aria-label={`Seleccionar ${character.name}`}
-                          type="checkbox"
-                          checked={selectedCharacters.includes(character.id)}
-                          onChange={() => toggleCharacter(character.id)}
-                        />
-                        {character.name}
-                      </label>
-                    );
-                  })}
+                <div className={styles.inlineControls}>
+                  <input
+                    className={styles.input}
+                    value={newCharacterName}
+                    onChange={(event) => setNewCharacterName(event.target.value)}
+                    placeholder="Nuevo personaje"
+                  />
+                  <button className={styles.button} type="button" onClick={addCustomCharacter}>
+                    Agregar personaje
+                  </button>
                 </div>
 
-                <div className={styles.nameSummaryCard}>
-                  <div className={styles.nameSummaryHeader}>
-                    <strong>Nombres activos ({selectedCharacters.length})</strong>
-                    <button
-                      className={`${styles.button} ${styles.buttonGhost}`}
-                      type="button"
-                      onClick={() => setShowNameEditor((current) => !current)}
-                    >
-                      {showNameEditor ? 'Ocultar editor' : 'Personalizar nombres'}
-                    </button>
-                  </div>
-
-                  <div className={styles.nameChipRow}>
-                    {selectedCharacters.map((characterId) => (
-                      <span key={`chip-${characterId}`} className={styles.tag}>
-                        {setupDisplayName(characterId, participantAliasByCharacterId)}
-                      </span>
-                    ))}
-                  </div>
-
-                  {showNameEditor ? (
-                    <div className={styles.nameEditor}>
-                      <div className={styles.inlineControls}>
+                <div className={styles.rosterGrid}>
+                  {allCharacterOptions.map((character) => {
+                    const checkboxId = `roster-${character.id}`;
+                    const isCustomCharacter = character.id.startsWith('custom-');
+                    return (
+                      <div key={character.id} className={styles.rosterItem}>
+                        <label htmlFor={checkboxId} className={styles.characterToggle}>
+                          <input
+                            id={checkboxId}
+                            aria-label={`Seleccionar ${character.name}`}
+                            type="checkbox"
+                            checked={selectedCharacters.includes(character.id)}
+                            onChange={() => toggleCharacter(character.id)}
+                          />
+                          {character.name}
+                        </label>
                         <input
                           className={styles.input}
-                          value={bulkPrefix}
-                          onChange={(event) => setBulkPrefix(event.target.value)}
-                          placeholder="Prefijo para lote"
+                          value={participantAliasByCharacterId[character.id] ?? ''}
+                          onChange={(event) =>
+                            setParticipantAliasByCharacterId((current) => ({
+                              ...current,
+                              [character.id]: event.target.value
+                            }))
+                          }
+                          maxLength={MAX_PARTICIPANT_NAME_LENGTH}
+                          placeholder={character.name}
                         />
-                        <button className={styles.button} type="button" onClick={applyPrefixAliases}>
-                          Prefijo + indice
-                        </button>
-                        <button className={styles.button} type="button" onClick={applyRandomAliases}>
-                          Randomizar
-                        </button>
-                        <button
-                          className={`${styles.button} ${styles.buttonGhost}`}
-                          type="button"
-                          onClick={clearAliases}
-                        >
-                          Usar nombres base
-                        </button>
+                        {isCustomCharacter ? (
+                          <button
+                            className={`${styles.button} ${styles.buttonGhost}`}
+                            type="button"
+                            onClick={() => removeCharacter(character.id)}
+                          >
+                            Quitar
+                          </button>
+                        ) : null}
                       </div>
-
-                      <div className={styles.nameTableWrap}>
-                        <table className={styles.nameTable}>
-                          <thead>
-                            <tr>
-                              <th>Base</th>
-                              <th>Alias</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedCharacters.map((characterId) => (
-                              <tr key={`name-row-${characterId}`}>
-                                <td>{characterName(characterId)}</td>
-                                <td>
-                                  <input
-                                    className={styles.input}
-                                    value={participantAliasByCharacterId[characterId] ?? ''}
-                                    onChange={(event) =>
-                                      setParticipantAliasByCharacterId((current) => ({
-                                        ...current,
-                                        [characterId]: event.target.value
-                                      }))
-                                    }
-                                    maxLength={MAX_PARTICIPANT_NAME_LENGTH}
-                                    placeholder={characterName(characterId)}
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ) : null}
+                    );
+                  })}
                 </div>
 
                 <div className={styles.controlsGrid}>
