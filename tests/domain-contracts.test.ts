@@ -93,6 +93,7 @@ describe('create_match request contract', () => {
   it('accepts payload with unambiguous required fields', () => {
     const payload = {
       roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
+      participant_names: Array.from({ length: 10 }, (_, index) => `Tributo ${index + 1}`),
       settings: {
         surprise_level: 'normal',
         event_profile: 'balanced',
@@ -140,6 +141,15 @@ describe('create_match request contract', () => {
         extra: 'unexpected'
       },
       extra_root: true
+    };
+
+    expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('rejects payload when participant_names length does not match roster', () => {
+    const payload = {
+      roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
+      participant_names: ['Solo uno']
     };
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);

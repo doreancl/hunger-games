@@ -169,6 +169,50 @@ describe('match lifecycle routes', () => {
     expect(stateBody.recent_events).toHaveLength(1);
   });
 
+  it('uses participant_names in state and event narrative when provided', async () => {
+    const customNames = Array.from({ length: 10 }, (_, index) => `Tributo ${index + 1}`);
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          participant_names: customNames
+        })
+      })
+    );
+    const createBody = await createResponse.json();
+    const matchId = createBody.match_id as string;
+
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+
+    const stateResponse = await getMatchState(
+      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const stateBody = await stateResponse.json();
+
+    expect(stateResponse.status).toBe(200);
+    expect(stateBody.participants).toHaveLength(10);
+    expect(
+      (stateBody.participants as Array<{ display_name: string }>).every((participant) =>
+        customNames.includes(participant.display_name)
+      )
+    ).toBe(true);
+    expect(stateBody.recent_events).toHaveLength(1);
+    expect((stateBody.recent_events as Array<{ narrative_text: string }>)[0].narrative_text).toMatch(
+      /Tributo \d+/
+    );
+  });
+
   it('emits deterministic replay signature for same seed and ruleset version', async () => {
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 

@@ -84,6 +84,7 @@ const localRuntimeSnapshotSchema = z
             id: nonEmptyStringSchema,
             match_id: nonEmptyStringSchema,
             character_id: nonEmptyStringSchema,
+            display_name: nonEmptyStringSchema,
             current_health: z.number().int().min(0).max(100),
             status: participantStatusSchema,
             streak_score: z.number().int()

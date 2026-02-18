@@ -27,6 +27,7 @@ function buildRuntime(): LocalRuntimeSnapshot {
         id: 'p1',
         match_id: 'match-1',
         character_id: 'char-01',
+        display_name: 'Atlas',
         current_health: 92,
         status: 'alive',
         streak_score: 1

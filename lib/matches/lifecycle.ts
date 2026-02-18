@@ -106,14 +106,16 @@ function eliminationChance(
 function eventNarrative(
   templateId: string,
   cyclePhase: Match['cycle_phase'],
-  participantCount: number,
-  eliminatedCount: number
+  participantNames: string[],
+  eliminatedNames: string[]
 ): string {
+  const participantsLabel =
+    participantNames.length === 0 ? 'sin participantes' : participantNames.join(', ');
   const eliminationSuffix =
-    eliminatedCount > 0
-      ? ` Hubo ${eliminatedCount} eliminacion${eliminatedCount > 1 ? 'es' : ''}.`
+    eliminatedNames.length > 0
+      ? ` Eliminados: ${eliminatedNames.join(', ')}.`
       : ' Nadie fue eliminado.';
-  return `Evento ${templateId} en fase ${cyclePhase} con ${participantCount} participante(s).${eliminationSuffix}`;
+  return `Evento ${templateId} en fase ${cyclePhase} con ${participantsLabel}.${eliminationSuffix}`;
 }
 
 function resolveWinnerId(participants: ParticipantState[]): string | null {
@@ -151,15 +153,19 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
   const matchId = crypto.randomUUID();
   const now = new Date().toISOString();
   const settings = input.settings;
+  const participantNames = input.participant_names ?? input.roster_character_ids;
 
-  const participants: ParticipantState[] = input.roster_character_ids.map((characterId) => ({
-    id: crypto.randomUUID(),
-    match_id: matchId,
-    character_id: characterId,
-    current_health: 100,
-    status: 'alive',
-    streak_score: 0
-  }));
+  const participants: ParticipantState[] = input.roster_character_ids.map(
+    (characterId, index) => ({
+      id: crypto.randomUUID(),
+      match_id: matchId,
+      character_id: characterId,
+      display_name: participantNames[index] ?? characterId,
+      current_health: 100,
+      status: 'alive',
+      streak_score: 0
+    })
+  );
 
   matches.set(matchId, {
     match: {
@@ -347,12 +353,19 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   }
 
   const selectedCharacterIds = selectedParticipants.map((participant) => participant.character_id);
+  const selectedDisplayNames = selectedParticipants.map((participant) => participant.display_name);
   const eliminatedCharacterIds = eliminatedIds
     .map(
       (participantId) =>
         stored.participants.find((participant) => participant.id === participantId)?.character_id ?? null
     )
     .filter((characterId): characterId is string => characterId !== null);
+  const eliminatedDisplayNames = eliminatedIds
+    .map(
+      (participantId) =>
+        stored.participants.find((participant) => participant.id === participantId)?.display_name ?? null
+    )
+    .filter((displayName): displayName is string => displayName !== null);
   const replayEvidence = {
     ruleset_version: stored.match.ruleset_version,
     seed: stored.match.seed,
@@ -402,8 +415,8 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     narrative_text: eventNarrative(
       selectedTemplate.id,
       currentPhase,
-      selectedParticipants.length,
-      eliminatedIds.length
+      selectedDisplayNames,
+      eliminatedDisplayNames
     ),
     lethal: eliminatedIds.length > 0,
     created_at: eventCreatedAt

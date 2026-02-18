@@ -55,6 +55,7 @@ export type ParticipantState = {
   id: string;
   match_id: string;
   character_id: string;
+  display_name: string;
   current_health: number;
   status: ParticipantStatus;
   streak_score: number;
@@ -92,6 +93,7 @@ export type MatchSnapshot = {
 
 export type CreateMatchRequest = {
   roster_character_ids: string[];
+  participant_names?: string[];
   settings: MatchSettings;
 };
 

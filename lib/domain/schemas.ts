@@ -41,6 +41,7 @@ export const participantStateSchema = z
     id: z.string().min(1),
     match_id: z.string().min(1),
     character_id: z.string().min(1),
+    display_name: z.string().trim().min(1).max(40),
     current_health: z.number().int().min(0),
     status: participantStatusSchema,
     streak_score: z.number().int().min(0)
@@ -116,6 +117,7 @@ export const snapshotEnvelopeSchema = z
 export const createMatchRequestSchema = z
   .object({
     roster_character_ids: z.array(z.string().min(1)).min(10).max(48),
+    participant_names: z.array(z.string().trim().min(1).max(40)).min(10).max(48).optional(),
     settings: z
       .object({
         surprise_level: surpriseLevelSchema.default('normal'),
@@ -131,7 +133,19 @@ export const createMatchRequestSchema = z
         seed: null
       })
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.participant_names !== undefined &&
+      value.participant_names.length !== value.roster_character_ids.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'participant_names length must match roster_character_ids length',
+        path: ['participant_names']
+      });
+    }
+  });
 
 export const createMatchResponseSchema = z
   .object({
