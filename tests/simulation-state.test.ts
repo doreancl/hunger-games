@@ -48,6 +48,42 @@ describe('canResumeFromLocalStorage', () => {
       )
     ).toBe(true);
   });
+
+  it('returns false for non-finite or non-integer turn values', () => {
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: 'm1', turn: Number.NaN, active: true })
+      )
+    ).toBe(false);
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: 'm1', turn: Number.POSITIVE_INFINITY, active: true })
+      )
+    ).toBe(false);
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: 'm1', turn: 1.5, active: true })
+      )
+    ).toBe(false);
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: 'm1', turn: -1, active: true })
+      )
+    ).toBe(false);
+  });
+
+  it('returns false for blank id values', () => {
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: '', turn: 1, active: true })
+      )
+    ).toBe(false);
+    expect(
+      canResumeFromLocalStorage(
+        JSON.stringify({ id: '   ', turn: 1, active: true })
+      )
+    ).toBe(false);
+  });
 });
 
 describe('seeded RNG reproducibility', () => {
