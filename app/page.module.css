@@ -234,6 +234,15 @@
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
+.rosterItem {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #ebc48c;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fffdf5;
+}
+
 .characterToggle {
   display: flex;
   align-items: center;
