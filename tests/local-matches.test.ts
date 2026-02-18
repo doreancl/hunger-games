@@ -2,11 +2,32 @@ import { describe, expect, it } from 'vitest';
 import {
   createLocalMatchFromSetup,
   getSetupValidation,
+  LOCAL_MATCHES_SNAPSHOT_VERSION,
+  LOCAL_MATCHES_STORAGE_KEY,
   loadLocalMatchesFromStorage,
   parseLocalMatches,
   saveLocalMatchesToStorage,
   serializeLocalMatches
 } from '@/lib/local-matches';
+
+const ROSTER = Array.from({ length: 10 }, (_, index) => `char-${index + 1}`);
+
+function buildSummary(id: string, updatedAt: string) {
+  return {
+    ...createLocalMatchFromSetup(
+      {
+        roster_character_ids: ROSTER,
+        seed: null,
+        simulation_speed: '1x',
+        event_profile: 'balanced',
+        surprise_level: 'normal'
+      },
+      '2026-02-16T10:00:00.000Z',
+      id
+    ),
+    updated_at: updatedAt
+  };
+}
 
 describe('getSetupValidation', () => {
   it('fails when roster is below minimum', () => {
@@ -34,169 +55,43 @@ describe('getSetupValidation', () => {
 });
 
 describe('parseLocalMatches', () => {
-  it('returns empty list for invalid source', () => {
+  it('returns empty list for invalid, corrupted or legacy payloads', () => {
     expect(parseLocalMatches(null)).toEqual([]);
     expect(parseLocalMatches('{bad-json')).toEqual([]);
+    expect(parseLocalMatches('[]')).toEqual([]);
     expect(parseLocalMatches('{}')).toEqual([]);
   });
 
-  it('filters malformed entries and sorts by updated_at desc', () => {
-    const raw = JSON.stringify([
-      {
-        id: 'm1',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-02T00:00:00.000Z',
-        roster_character_ids: [
-          'char-01',
-          'char-02',
-          'char-03',
-          'char-04',
-          'char-05',
-          'char-06',
-          'char-07',
-          'char-08',
-          'char-09',
-          'char-10'
-        ],
-        cycle_phase: 'day',
-        turn_number: 4,
-        alive_count: 10,
-        total_participants: 10,
-        settings: {
-          seed: 'seed-1',
-          simulation_speed: '2x',
-          event_profile: 'balanced',
-          surprise_level: 'normal'
-        }
-      },
-      {
-        id: 'invalid',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-03T00:00:00.000Z'
-      },
-      {
-        id: 'm2',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-05T00:00:00.000Z',
-        roster_character_ids: [
-          'char-01',
-          'char-02',
-          'char-03',
-          'char-04',
-          'char-05',
-          'char-06',
-          'char-07',
-          'char-08',
-          'char-09',
-          'char-10'
-        ],
-        cycle_phase: 'night',
-        turn_number: 7,
-        alive_count: 8,
-        total_participants: 10,
-        settings: {
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'chaotic',
-          surprise_level: 'high'
-        }
-      }
-    ]);
+  it('parses versioned snapshots and sorts by updated_at desc', () => {
+    const older = buildSummary('m1', '2026-02-16T10:01:00.000Z');
+    const newer = buildSummary('m2', '2026-02-16T10:05:00.000Z');
 
-    const parsed = parseLocalMatches(raw);
+    const parsed = parseLocalMatches(serializeLocalMatches([older, newer]));
     expect(parsed).toHaveLength(2);
     expect(parsed[0].id).toBe('m2');
     expect(parsed[1].id).toBe('m1');
   });
 
-  it('drops entries with semantically invalid shape', () => {
-    const raw = JSON.stringify([
-      {
-        id: 'bad-date',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: 'not-an-iso-date',
-        roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index}`),
-        cycle_phase: 'setup',
-        turn_number: 0,
-        alive_count: 10,
-        total_participants: 10,
-        settings: {
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'balanced',
-          surprise_level: 'normal'
-        }
-      },
-      {
-        id: 'bad-counts',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-02T00:00:00.000Z',
-        roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index}`),
-        cycle_phase: 'setup',
-        turn_number: -1,
-        alive_count: 9.5,
-        total_participants: 10,
-        settings: {
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'balanced',
-          surprise_level: 'normal'
-        }
-      },
-      {
-        id: 'bad-total',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-03T00:00:00.000Z',
-        roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index}`),
-        cycle_phase: 'setup',
-        turn_number: 1,
-        alive_count: 11,
-        total_participants: 10,
-        settings: {
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'balanced',
-          surprise_level: 'normal'
-        }
-      }
-    ]);
+  it('returns empty list when checksum does not match payload contents', () => {
+    const envelope = JSON.parse(serializeLocalMatches([buildSummary('m1', '2026-02-16T10:01:00.000Z')])) as {
+      snapshot_version: number;
+      checksum: string;
+      matches: Array<{
+        turn_number: number;
+      }>;
+    };
+    envelope.matches[0].turn_number = 9;
 
-    expect(parseLocalMatches(raw)).toEqual([]);
+    expect(parseLocalMatches(JSON.stringify(envelope))).toEqual([]);
   });
 
-  it('drops entries with unexpected keys to keep strict local contract', () => {
-    const raw = JSON.stringify([
-      {
-        id: 'm1',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-02T00:00:00.000Z',
-        roster_character_ids: [
-          'char-01',
-          'char-02',
-          'char-03',
-          'char-04',
-          'char-05',
-          'char-06',
-          'char-07',
-          'char-08',
-          'char-09',
-          'char-10'
-        ],
-        cycle_phase: 'setup',
-        turn_number: 0,
-        alive_count: 10,
-        total_participants: 10,
-        settings: {
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'balanced',
-          surprise_level: 'normal'
-        },
-        unexpected: true
-      }
-    ]);
+  it('returns empty list for incompatible snapshot version', () => {
+    const envelope = JSON.parse(serializeLocalMatches([buildSummary('m1', '2026-02-16T10:01:00.000Z')])) as {
+      snapshot_version: number;
+    };
+    envelope.snapshot_version = LOCAL_MATCHES_SNAPSHOT_VERSION + 1;
 
-    expect(parseLocalMatches(raw)).toEqual([]);
+    expect(parseLocalMatches(JSON.stringify(envelope))).toEqual([]);
   });
 });
 
@@ -233,21 +128,19 @@ describe('local match serialization helpers', () => {
   });
 
   it('serializes without losing shape', () => {
-    const payload = [
-      createLocalMatchFromSetup(
-        {
-          roster_character_ids: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
-          seed: null,
-          simulation_speed: '1x',
-          event_profile: 'balanced',
-          surprise_level: 'low'
-        },
-        '2026-02-16T10:00:00.000Z',
-        'match-2'
-      )
-    ];
+    const payload = [buildSummary('match-2', '2026-02-16T10:00:00.000Z')];
 
     const serialized = serializeLocalMatches(payload);
+    const parsedEnvelope = JSON.parse(serialized) as {
+      snapshot_version: number;
+      checksum: string;
+      matches: unknown[];
+    };
+    expect(parsedEnvelope.snapshot_version).toBe(LOCAL_MATCHES_SNAPSHOT_VERSION);
+    expect(typeof parsedEnvelope.checksum).toBe('string');
+    expect(parsedEnvelope.checksum.length).toBeGreaterThan(0);
+    expect(parsedEnvelope.matches).toHaveLength(1);
+
     expect(parseLocalMatches(serialized)).toEqual(payload);
   });
 });
@@ -289,6 +182,60 @@ describe('local storage safety helpers', () => {
     expect(saveLocalMatchesToStorage(storage, payload)).toEqual({
       ok: false,
       error: 'No fue posible guardar la partida en este navegador.'
+    });
+  });
+
+  it('returns unrecoverable message when snapshot is corrupted', () => {
+    const storage = {
+      getItem(key: string) {
+        if (key === LOCAL_MATCHES_STORAGE_KEY) {
+          return '{bad-json';
+        }
+        return null;
+      }
+    };
+
+    expect(loadLocalMatchesFromStorage(storage)).toEqual({
+      matches: [],
+      error: 'partida no recuperable. Inicia una nueva partida.'
+    });
+  });
+
+  it('returns unrecoverable message when snapshot version is incompatible', () => {
+    const storage = {
+      getItem(key: string) {
+        if (key === LOCAL_MATCHES_STORAGE_KEY) {
+          return JSON.stringify({
+            snapshot_version: LOCAL_MATCHES_SNAPSHOT_VERSION + 1,
+            checksum: '00000000',
+            matches: []
+          });
+        }
+        return null;
+      }
+    };
+
+    expect(loadLocalMatchesFromStorage(storage)).toEqual({
+      matches: [],
+      error: 'partida no recuperable. Inicia una nueva partida.'
+    });
+  });
+
+  it('loads valid snapshots from storage', () => {
+    const newer = buildSummary('m2', '2026-02-16T10:05:00.000Z');
+    const older = buildSummary('m1', '2026-02-16T10:01:00.000Z');
+    const storage = {
+      getItem(key: string) {
+        if (key === LOCAL_MATCHES_STORAGE_KEY) {
+          return serializeLocalMatches([older, newer]);
+        }
+        return null;
+      }
+    };
+
+    expect(loadLocalMatchesFromStorage(storage)).toEqual({
+      matches: [newer, older],
+      error: null
     });
   });
 });

@@ -1,4 +1,6 @@
 import { RULESET_VERSION } from '@/lib/domain/types';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
@@ -24,6 +26,12 @@ type StoredMatch = {
 };
 
 const matches = new Map<string, StoredMatch>();
+const DEFAULT_MATCHES_STORE_FILE =
+  process.env.NODE_ENV === 'test'
+    ? null
+    : `${process.cwd()}/.hunger-games/matches-store-v1.json`;
+const MATCHES_STORE_FILE =
+  process.env.MATCHES_STORE_FILE?.trim() || DEFAULT_MATCHES_STORE_FILE;
 
 const MAX_RECENT_EVENTS = 12;
 
@@ -36,6 +44,47 @@ const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'hazard-1', type: 'hazard', base_weight: 6, phases: ['bloodbath', 'night', 'finale'] },
   { id: 'surprise-1', type: 'surprise', base_weight: 4, phases: ['day', 'night', 'finale'] }
 ];
+
+function persistMatchesToDisk() {
+  if (!MATCHES_STORE_FILE) {
+    return;
+  }
+
+  try {
+    mkdirSync(dirname(MATCHES_STORE_FILE), { recursive: true });
+    writeFileSync(MATCHES_STORE_FILE, JSON.stringify([...matches.entries()]), 'utf8');
+  } catch {
+    // Persistence is best-effort for local continuity.
+  }
+}
+
+function hydrateMatchesFromDisk() {
+  if (!MATCHES_STORE_FILE || !existsSync(MATCHES_STORE_FILE)) {
+    return;
+  }
+
+  try {
+    const raw = readFileSync(MATCHES_STORE_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+
+    matches.clear();
+    for (const entry of parsed) {
+      if (!Array.isArray(entry) || entry.length !== 2) {
+        continue;
+      }
+      const [id, value] = entry;
+      if (typeof id !== 'string' || !value || typeof value !== 'object') {
+        continue;
+      }
+      matches.set(id, value as StoredMatch);
+    }
+  } catch {
+    // Ignore invalid persisted snapshots.
+  }
+}
 
 type LifecycleErrorCode = 'MATCH_NOT_FOUND' | 'MATCH_STATE_CONFLICT';
 
@@ -154,6 +203,7 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     participants,
     recent_events: []
   });
+  persistMatchesToDisk();
 
   return {
     match_id: matchId,
@@ -189,6 +239,7 @@ export function startMatch(matchId: string): StartMatchResult {
     cycle_phase: 'bloodbath',
     turn_number: 0
   };
+  persistMatchesToDisk();
 
   return {
     ok: true,
@@ -344,6 +395,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       ended_at: eventCreatedAt
     };
   }
+  persistMatchesToDisk();
 
   return {
     ok: true,
@@ -367,4 +419,13 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
 
 export function resetMatchesForTests() {
   matches.clear();
+  if (MATCHES_STORE_FILE) {
+    try {
+      rmSync(MATCHES_STORE_FILE, { force: true });
+    } catch {
+      // ignore cleanup errors in tests
+    }
+  }
 }
+
+hydrateMatchesFromDisk();
