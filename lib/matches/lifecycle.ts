@@ -1,4 +1,4 @@
-import { RULESET_VERSION } from '@/lib/domain/types';
+import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
@@ -15,6 +15,7 @@ import {
   sampleParticipantCount,
   selectCatalogEvent
 } from '@/lib/simulation-state';
+import { emitStructuredLog, recordLatencyMetric } from '@/lib/observability';
 
 type StoredMatch = {
   match: Match;
@@ -124,6 +125,28 @@ function resolveWinnerId(participants: ParticipantState[]): string | null {
   return alive[0].id;
 }
 
+function checksumFNV1a(raw: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < raw.length; index += 1) {
+    hash ^= raw.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function replaySignature(input: {
+  ruleset_version: string;
+  seed: string | null;
+  turn_number: number;
+  cycle_phase: Match['cycle_phase'];
+  template_id: string;
+  participant_character_ids: string[];
+  eliminated_character_ids: string[];
+}): string {
+  return checksumFNV1a(JSON.stringify(input));
+}
+
 export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
   const matchId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -155,6 +178,15 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     recent_events: []
   });
 
+  emitStructuredLog('match.created', {
+    match_id: matchId,
+    phase: 'setup',
+    roster_size: participants.length,
+    seed: settings.seed,
+    ruleset_version: RULESET_VERSION,
+    snapshot_version: SNAPSHOT_VERSION
+  });
+
   return {
     match_id: matchId,
     phase: 'setup'
@@ -164,6 +196,10 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
 export function startMatch(matchId: string): StartMatchResult {
   const stored = matches.get(matchId);
   if (!stored) {
+    emitStructuredLog('match.start.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_NOT_FOUND'
+    });
     return {
       ok: false,
       error: {
@@ -174,6 +210,11 @@ export function startMatch(matchId: string): StartMatchResult {
   }
 
   if (stored.match.phase !== 'setup') {
+    emitStructuredLog('match.start.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_STATE_CONFLICT',
+      phase: stored.match.phase
+    });
     return {
       ok: false,
       error: {
@@ -189,6 +230,15 @@ export function startMatch(matchId: string): StartMatchResult {
     cycle_phase: 'bloodbath',
     turn_number: 0
   };
+
+  emitStructuredLog('match.started', {
+    match_id: stored.match.id,
+    phase: stored.match.phase,
+    cycle_phase: stored.match.cycle_phase,
+    turn_number: stored.match.turn_number,
+    seed: stored.match.seed,
+    ruleset_version: stored.match.ruleset_version
+  });
 
   return {
     ok: true,
@@ -220,8 +270,13 @@ export function getMatchState(matchId: string): GetMatchStateResponse | null {
 }
 
 export function advanceTurn(matchId: string): AdvanceTurnResult {
+  const tickStartMs = Date.now();
   const stored = matches.get(matchId);
   if (!stored) {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_NOT_FOUND'
+    });
     return {
       ok: false,
       error: {
@@ -232,6 +287,11 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   }
 
   if (stored.match.phase !== 'running') {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_STATE_CONFLICT',
+      phase: stored.match.phase
+    });
     return {
       ok: false,
       error: {
@@ -243,6 +303,10 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
 
   const alive = aliveParticipants(stored.participants);
   if (alive.length <= 1) {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_ALREADY_RESOLVED'
+    });
     return {
       ok: false,
       error: {
@@ -281,6 +345,24 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       target.current_health = 0;
     }
   }
+
+  const selectedCharacterIds = selectedParticipants.map((participant) => participant.character_id);
+  const eliminatedCharacterIds = eliminatedIds
+    .map(
+      (participantId) =>
+        stored.participants.find((participant) => participant.id === participantId)?.character_id ?? null
+    )
+    .filter((characterId): characterId is string => characterId !== null);
+  const replayEvidence = {
+    ruleset_version: stored.match.ruleset_version,
+    seed: stored.match.seed,
+    turn_number: nextTurnNumber,
+    cycle_phase: currentPhase,
+    template_id: selectedTemplate.id,
+    participant_character_ids: selectedCharacterIds,
+    eliminated_character_ids: eliminatedCharacterIds
+  };
+  const replayHash = replaySignature(replayEvidence);
 
   for (const participant of selectedParticipants) {
     if (!eliminatedIds.includes(participant.id)) {
@@ -344,6 +426,26 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       ended_at: eventCreatedAt
     };
   }
+
+  emitStructuredLog('match.turn.event', {
+    match_id: stored.match.id,
+    turn_number: stored.match.turn_number,
+    cycle_phase: stored.match.cycle_phase,
+    event_type: event.type,
+    template_id: event.template_id,
+    participant_count: selectedParticipants.length,
+    eliminated_count: eliminatedIds.length,
+    finished,
+    winner_id: winnerId,
+    ruleset_version: stored.match.ruleset_version,
+    snapshot_version: SNAPSHOT_VERSION,
+    seed: stored.match.seed,
+    replay_signature: replayHash
+  });
+
+  recordLatencyMetric('simulation.tick', Date.now() - tickStartMs, {
+    operation: 'advance_turn'
+  });
 
   return {
     ok: true,

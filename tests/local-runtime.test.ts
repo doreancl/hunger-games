@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearLocalRuntimeFromStorage,
   estimateLocalRuntimeSnapshotBytes,
@@ -49,6 +49,10 @@ function buildRuntime(): LocalRuntimeSnapshot {
 }
 
 describe('local runtime storage', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('saves and loads runtime snapshot', () => {
     let persisted: string | null = null;
     const runtime = buildRuntime();
@@ -66,6 +70,7 @@ describe('local runtime storage', () => {
   });
 
   it('returns unrecoverable message for corrupted payload', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const storage = {
       getItem(key: string) {
         if (key === LOCAL_RUNTIME_STORAGE_KEY) {
@@ -79,9 +84,14 @@ describe('local runtime storage', () => {
       runtime: null,
       error: 'partida no recuperable. Inicia una nueva partida.'
     });
+    const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
+    expect(lastLog.event).toBe('runtime.resume');
+    expect(lastLog.result).toBe('rejected');
+    expect(lastLog.reason).toBe('INVALID_JSON');
   });
 
   it('returns unrecoverable message for incompatible version', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const storage = {
       getItem() {
         return JSON.stringify({
@@ -96,6 +106,11 @@ describe('local runtime storage', () => {
       runtime: null,
       error: 'partida no recuperable. Inicia una nueva partida.'
     });
+    const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
+    expect(lastLog.event).toBe('runtime.resume');
+    expect(lastLog.result).toBe('rejected');
+    expect(lastLog.reason).toBe('SNAPSHOT_VERSION_MISMATCH');
+    expect(lastLog.snapshot_version).toBe(LOCAL_RUNTIME_SNAPSHOT_VERSION + 1);
   });
 
   it('loads snapshot when tension_level is above 100 for compatibility', () => {
@@ -148,6 +163,7 @@ describe('local runtime storage', () => {
   });
 
   it('loads runtime when checksum is invalid but payload shape is valid', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const runtime = buildRuntime();
     const storage = {
       getItem() {
@@ -163,6 +179,10 @@ describe('local runtime storage', () => {
       runtime,
       error: null
     });
+    const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
+    expect(lastLog.event).toBe('runtime.resume');
+    expect(lastLog.result).toBe('ok');
+    expect(lastLog.snapshot_version).toBe(LOCAL_RUNTIME_SNAPSHOT_VERSION);
   });
 
   it('loads runtime with replay elimination trace metadata', () => {
