@@ -9,6 +9,12 @@ import {
   saveLocalMatchesToStorage,
   type LocalMatchSummary
 } from '@/lib/local-matches';
+import {
+  clearLocalRuntimeFromStorage,
+  loadLocalRuntimeFromStorage,
+  saveLocalRuntimeToStorage
+} from '@/lib/local-runtime';
+import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -310,7 +316,6 @@ export default function Home() {
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
-  const [openedMatchId, setOpenedMatchId] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<SimulationRuntime | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>('pause');
   const [filterCharacterId, setFilterCharacterId] = useState<'all' | string>('all');
@@ -325,19 +330,15 @@ export default function Home() {
     [selectedCharacters]
   );
 
-  const openedMatch = hasHydrated
-    ? localMatches.find((match) => match.id === openedMatchId) ?? localMatches[0] ?? null
-    : null;
-
   const aliveCount = runtime
     ? countAlive(runtime.participants)
-    : openedMatch?.alive_count ?? selectedCharacters.length;
+    : selectedCharacters.length;
   const totalParticipants = runtime
     ? runtime.participants.length
-    : openedMatch?.total_participants ?? selectedCharacters.length;
+    : selectedCharacters.length;
   const eliminatedCount = Math.max(0, totalParticipants - aliveCount);
-  const currentPhase = runtime?.cycle_phase ?? openedMatch?.cycle_phase ?? 'setup';
-  const currentTurn = runtime?.turn_number ?? openedMatch?.turn_number ?? 0;
+  const currentPhase = runtime?.cycle_phase ?? 'setup';
+  const currentTurn = runtime?.turn_number ?? 0;
   const tensionValue = runtime?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
 
   const feed = runtime?.feed ?? EMPTY_FEED;
@@ -413,16 +414,26 @@ export default function Home() {
     }
 
     const { matches, error } = loadLocalMatchesFromStorage(window.localStorage);
+    const runtimeLoad = loadLocalRuntimeFromStorage(window.localStorage);
     setLocalMatches(matches);
-    setOpenedMatchId(matches[0]?.id ?? null);
+    setRuntime(runtimeLoad.runtime);
+
+    if (runtimeLoad.runtime) {
+      const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
+      if (runtimeMatch) {
+        applySetupFromMatch(runtimeMatch);
+      }
+    } else if (matches[0]) {
+      applySetupFromMatch(matches[0]);
+    }
 
     if (error) {
       setInfoMessage(error);
       return;
     }
 
-    if (matches[0]) {
-      applySetupFromMatch(matches[0]);
+    if (runtimeLoad.error) {
+      setInfoMessage(runtimeLoad.error);
     }
   }, [hasHydrated]);
 
@@ -434,6 +445,17 @@ export default function Home() {
       setInfoMessage(saveResult.error);
     }
   }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || !runtime) {
+      return;
+    }
+
+    const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtime);
+    if (!saveRuntimeResult.ok) {
+      setInfoMessage(saveRuntimeResult.error);
+    }
+  }, [hasHydrated, runtime]);
 
   function applySetupFromMatch(match: LocalMatchSummary) {
     setSelectedCharacters(match.roster_character_ids);
@@ -518,6 +540,10 @@ export default function Home() {
       };
 
       setRuntime(runtimeState);
+      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtimeState);
+      if (!saveRuntimeResult.ok) {
+        setInfoMessage(saveRuntimeResult.error);
+      }
       setPlaybackSpeed(simulationSpeed);
       setFilterCharacterId('all');
       setFilterEventType('all');
@@ -546,7 +572,6 @@ export default function Home() {
 
       const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
       persistLocalMatches(nextMatches);
-      setOpenedMatchId(newSummary.id);
       setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
@@ -564,14 +589,14 @@ export default function Home() {
       return;
     }
 
-    setOpenedMatchId(match.id);
     applySetupFromMatch(match);
     setPlaybackSpeed('pause');
     setIsBusy(true);
+    const runtimeLoad = loadLocalRuntimeFromStorage(window.localStorage);
 
     try {
       const state = await requestJson<GetMatchStateResponse>(`/api/matches/${match.id}`);
-      setRuntime({
+      const nextRuntime: SimulationRuntime = {
         match_id: match.id,
         phase: state.phase,
         cycle_phase: state.cycle_phase,
@@ -580,12 +605,28 @@ export default function Home() {
         settings: state.settings,
         participants: state.participants,
         feed: feedFromSnapshot(state),
-        winner_id: state.phase === 'finished' ? state.participants.find((p) => p.status !== 'eliminated')?.id ?? null : null
-      });
+        winner_id:
+          state.phase === 'finished'
+            ? state.participants.find((p) => p.status !== 'eliminated')?.id ?? null
+            : null
+      };
+      setRuntime(nextRuntime);
+      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
+      if (!saveRuntimeResult.ok) {
+        setInfoMessage(saveRuntimeResult.error);
+      }
       setInfoMessage(`Partida abierta en vivo (${shortId(match.id)}).`);
     } catch {
-      setRuntime(null);
-      setInfoMessage(`Setup cargado (${shortId(match.id)}). Simulacion en vivo no disponible para ese id.`);
+      if (runtimeLoad.runtime?.match_id === match.id) {
+        setRuntime(runtimeLoad.runtime);
+        setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
+      } else {
+        setRuntime(null);
+        clearLocalRuntimeFromStorage(window.localStorage);
+        setInfoMessage(
+          `Setup cargado (${shortId(match.id)}). Simulacion en vivo no disponible para ese id.`
+        );
+      }
     } finally {
       setIsBusy(false);
     }
@@ -622,6 +663,10 @@ export default function Home() {
       };
 
       setRuntime(nextRuntime);
+      const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
+      if (!saveRuntimeResult.ok) {
+        setInfoMessage(saveRuntimeResult.error);
+      }
       setLatestFeedEventId(event.id);
 
       const summary = localMatches.find((match) => match.id === runtime.match_id);
@@ -653,10 +698,18 @@ export default function Home() {
         );
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'No fue posible avanzar la simulacion.';
+      const rawMessage = error instanceof Error ? error.message : 'No fue posible avanzar la simulacion.';
+      const failureKind = classifyAdvanceFailure(rawMessage);
       setPlaybackSpeed('pause');
-      setInfoMessage(errorMessage);
+      if (failureKind === 'SESSION_LOST') {
+        const summary = localMatches.find((match) => match.id === runtime.match_id);
+        if (summary) {
+          applySetupFromMatch(summary);
+        }
+        setRuntime(null);
+        clearLocalRuntimeFromStorage(window.localStorage);
+      }
+      setInfoMessage(recoveryMessageForAdvanceFailure(failureKind, shortId(runtime.match_id)));
     } finally {
       setIsBusy(false);
     }
@@ -719,7 +772,11 @@ export default function Home() {
 
     const nextMatches = [summary, ...localMatches.filter((match) => match.id !== summary.id)];
     persistLocalMatches(nextMatches);
-    setOpenedMatchId(summary.id);
+    const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtime);
+    if (!saveRuntimeResult.ok) {
+      setInfoMessage(saveRuntimeResult.error);
+      return;
+    }
     setInfoMessage(`Progreso guardado (${shortId(summary.id)}).`);
   }
 
@@ -763,129 +820,136 @@ export default function Home() {
         </header>
 
         <div className={styles.columns}>
-          <section className={styles.card}>
-            <h2 className={styles.cardTitle}>Setup de partida</h2>
-            <p className={styles.cardHint}>Define roster, seed y perfil antes de iniciar.</p>
+          {!runtime ? (
+            <section className={styles.card}>
+              <h2 className={styles.cardTitle}>Setup de partida</h2>
+              <p className={styles.cardHint}>Define roster, seed y perfil antes de iniciar.</p>
 
-            <div className={styles.setupGrid}>
-              <div className={styles.rosterGrid}>
-                {CHARACTER_OPTIONS.map((character) => (
-                  <label key={character.id} className={styles.characterToggle}>
-                    <input
-                      type="checkbox"
-                      checked={selectedCharacters.includes(character.id)}
-                      onChange={() => toggleCharacter(character.id)}
-                    />
-                    {character.name}
+              <div className={styles.setupGrid}>
+                <div className={styles.rosterGrid}>
+                  {CHARACTER_OPTIONS.map((character) => {
+                    const checkboxId = `roster-${character.id}`;
+                    return (
+                      <label key={character.id} htmlFor={checkboxId} className={styles.characterToggle}>
+                        <input
+                          id={checkboxId}
+                          aria-label={`Seleccionar ${character.name}`}
+                          type="checkbox"
+                          checked={selectedCharacters.includes(character.id)}
+                          onChange={() => toggleCharacter(character.id)}
+                        />
+                        {character.name}
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className={styles.controlsGrid}>
+                  <label className={styles.controlLabel}>
+                    Seed (opcional)
+                    <div className={styles.inlineControls}>
+                      <input
+                        className={styles.input}
+                        value={seed}
+                        onChange={(event) => setSeed(event.target.value)}
+                        placeholder="manual o aleatoria"
+                      />
+                      <button className={styles.button} type="button" onClick={generateSeed}>
+                        Aleatoria
+                      </button>
+                    </div>
                   </label>
-                ))}
-              </div>
 
-              <div className={styles.controlsGrid}>
-                <label className={styles.controlLabel}>
-                  Seed (opcional)
+                  <label className={styles.controlLabel}>
+                    Ritmo inicial
+                    <select
+                      className={styles.select}
+                      value={simulationSpeed}
+                      onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
+                    >
+                      <option value="1x">1x</option>
+                      <option value="2x">2x</option>
+                      <option value="4x">4x</option>
+                    </select>
+                  </label>
+
+                  <button
+                    className={`${styles.button} ${styles.buttonGhost}`}
+                    type="button"
+                    onClick={() => setShowAdvanced((current) => !current)}
+                  >
+                    {showAdvanced ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
+                  </button>
+
+                  {showAdvanced ? (
+                    <>
+                      <label className={styles.controlLabel}>
+                        Perfil de eventos
+                        <select
+                          className={styles.select}
+                          value={eventProfile}
+                          onChange={(event) =>
+                            setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
+                          }
+                        >
+                          <option value="balanced">Balanced</option>
+                          <option value="aggressive">Aggressive</option>
+                          <option value="chaotic">Chaotic</option>
+                        </select>
+                      </label>
+
+                      <label className={styles.controlLabel}>
+                        Nivel de sorpresa
+                        <select
+                          className={styles.select}
+                          value={surpriseLevel}
+                          onChange={(event) =>
+                            setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')
+                          }
+                        >
+                          <option value="low">Low</option>
+                          <option value="normal">Normal</option>
+                          <option value="high">High</option>
+                        </select>
+                      </label>
+                    </>
+                  ) : null}
+                </div>
+
+                <div>
+                  <strong>
+                    Roster: {selectedCharacters.length} | Seed:{' '}
+                    {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
+                  </strong>
+                  {setupValidation.issues.length > 0 ? (
+                    <ul>
+                      {setupValidation.issues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Configuracion valida para iniciar.</p>
+                  )}
+
                   <div className={styles.inlineControls}>
-                    <input
-                      className={styles.input}
-                      value={seed}
-                      onChange={(event) => setSeed(event.target.value)}
-                      placeholder="manual o aleatoria"
-                    />
-                    <button className={styles.button} type="button" onClick={generateSeed}>
-                      Aleatoria
+                    <button
+                      className={styles.button}
+                      type="button"
+                      disabled={!setupValidation.is_valid || isBusy}
+                      onClick={() => {
+                        void onStartMatch();
+                      }}
+                    >
+                      Iniciar simulacion
+                    </button>
+                    <button className={styles.button} type="button" onClick={resetSetupToDefaults}>
+                      Nuevo setup
                     </button>
                   </div>
-                </label>
-
-                <label className={styles.controlLabel}>
-                  Ritmo inicial
-                  <select
-                    className={styles.select}
-                    value={simulationSpeed}
-                    onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
-                  >
-                    <option value="1x">1x</option>
-                    <option value="2x">2x</option>
-                    <option value="4x">4x</option>
-                  </select>
-                </label>
-
-                <button
-                  className={`${styles.button} ${styles.buttonGhost}`}
-                  type="button"
-                  onClick={() => setShowAdvanced((current) => !current)}
-                >
-                  {showAdvanced ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
-                </button>
-
-                {showAdvanced ? (
-                  <>
-                    <label className={styles.controlLabel}>
-                      Perfil de eventos
-                      <select
-                        className={styles.select}
-                        value={eventProfile}
-                        onChange={(event) =>
-                          setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
-                        }
-                      >
-                        <option value="balanced">Balanced</option>
-                        <option value="aggressive">Aggressive</option>
-                        <option value="chaotic">Chaotic</option>
-                      </select>
-                    </label>
-
-                    <label className={styles.controlLabel}>
-                      Nivel de sorpresa
-                      <select
-                        className={styles.select}
-                        value={surpriseLevel}
-                        onChange={(event) =>
-                          setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')
-                        }
-                      >
-                        <option value="low">Low</option>
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                      </select>
-                    </label>
-                  </>
-                ) : null}
-              </div>
-
-              <div>
-                <strong>
-                  Roster: {selectedCharacters.length} | Seed:{' '}
-                  {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
-                </strong>
-                {setupValidation.issues.length > 0 ? (
-                  <ul>
-                    {setupValidation.issues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Configuracion valida para iniciar.</p>
-                )}
-
-                <div className={styles.inlineControls}>
-                  <button
-                    className={styles.button}
-                    type="button"
-                    disabled={!setupValidation.is_valid || isBusy}
-                    onClick={() => {
-                      void onStartMatch();
-                    }}
-                  >
-                    Iniciar simulacion
-                  </button>
-                  <button className={styles.button} type="button" onClick={resetSetupToDefaults}>
-                    Nuevo setup
-                  </button>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           <section className={styles.eventShell}>
             <article className={styles.card}>
@@ -1106,7 +1170,7 @@ export default function Home() {
                             void onOpenMatch(match.id);
                           }}
                         >
-                          Abrir setup
+                          Continuar
                         </button>
                       </li>
                     ))}
