@@ -4,9 +4,23 @@ import {
   createMatchResponseSchema
 } from '@/lib/domain/schemas';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
+import { checkRateLimit } from '@/lib/api/rate-limit';
 import { createMatch } from '@/lib/matches/lifecycle';
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, 'create');
+  if (!rateLimit.allowed) {
+    return jsonError('RATE_LIMIT_EXCEEDED', 'Rate limit exceeded for create_match.', 429, {
+      issues: [
+        {
+          path: ['request'],
+          code: 'rate_limit_exceeded',
+          message: `Retry after ${rateLimit.retryAfterSeconds} seconds.`
+        }
+      ]
+    });
+  }
+
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
   if (!contentType.includes('application/json')) {
     return jsonError(

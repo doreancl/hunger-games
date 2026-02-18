@@ -3,8 +3,12 @@ import { POST as createMatch } from '@/app/api/matches/route';
 import { GET as getMatchState } from '@/app/api/matches/[matchId]/route';
 import { POST as startMatch } from '@/app/api/matches/[matchId]/start/route';
 import { POST as advanceTurn } from '@/app/api/matches/[matchId]/turns/advance/route';
+import { POST as resumeMatch } from '@/app/api/matches/resume/route';
+import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
 import { advanceDirector } from '@/lib/simulation-state';
+import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
 function roster(size: number): string[] {
   return Array.from({ length: size }, (_, index) => `char-${index + 1}`);
@@ -13,6 +17,7 @@ function roster(size: number): string[] {
 describe('match lifecycle routes', () => {
   beforeEach(() => {
     resetMatchesForTests();
+    resetRateLimitsForTests();
   });
 
   it('starts a setup match and returns running bloodbath', async () => {
@@ -300,5 +305,154 @@ describe('match lifecycle routes', () => {
         message: 'Match not found.'
       }
     });
+  });
+
+  it('rejects advance snapshot with invalid checksum', async () => {
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10)
+        })
+      })
+    );
+    const createBody = await createResponse.json();
+    const matchId = createBody.match_id as string;
+
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+
+    const stateResponse = await getMatchState(
+      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const stateBody = await stateResponse.json();
+    const snapshot = {
+      snapshot_version: SNAPSHOT_VERSION,
+      ruleset_version: RULESET_VERSION,
+      match: {
+        id: matchId,
+        seed: stateBody.settings.seed,
+        ruleset_version: RULESET_VERSION,
+        phase: stateBody.phase,
+        cycle_phase: stateBody.cycle_phase,
+        turn_number: stateBody.turn_number,
+        tension_level: stateBody.tension_level,
+        created_at: '2026-02-18T00:00:00.000Z',
+        ended_at: null
+      },
+      settings: stateBody.settings,
+      participants: stateBody.participants,
+      recent_events: stateBody.recent_events
+    };
+
+    const response = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: '00000000',
+          snapshot
+        })
+      }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('SNAPSHOT_INVALID');
+  });
+
+  it('rejects advance snapshot with unsupported version', async () => {
+    const matchId = 'match-id';
+    const response = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION + 1
+        })
+      }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error.code).toBe('SNAPSHOT_VERSION_UNSUPPORTED');
+  });
+
+  it('rate limits advance endpoint after threshold', async () => {
+    const matchId = 'missing';
+    let lastResponse: Response | null = null;
+
+    for (let index = 0; index < 121; index += 1) {
+      lastResponse = await advanceTurn(
+        new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+        { params: Promise.resolve({ matchId }) }
+      );
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    const body = await lastResponse?.json();
+    expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+  });
+
+  it('resumes a match from snapshot envelope', async () => {
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10)
+        })
+      })
+    );
+    const createBody = await createResponse.json();
+    const matchId = createBody.match_id as string;
+    const stateResponse = await getMatchState(
+      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const stateBody = await stateResponse.json();
+
+    const snapshot = {
+      snapshot_version: SNAPSHOT_VERSION,
+      ruleset_version: RULESET_VERSION,
+      match: {
+        id: matchId,
+        seed: stateBody.settings.seed,
+        ruleset_version: RULESET_VERSION,
+        phase: stateBody.phase,
+        cycle_phase: stateBody.cycle_phase,
+        turn_number: stateBody.turn_number,
+        tension_level: stateBody.tension_level,
+        created_at: '2026-02-18T00:00:00.000Z',
+        ended_at: null
+      },
+      settings: stateBody.settings,
+      participants: stateBody.participants,
+      recent_events: stateBody.recent_events
+    };
+
+    const response = await resumeMatch(
+      new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: buildSnapshotChecksum(snapshot),
+          snapshot
+        })
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.match_id).toBe(matchId);
+    expect(body.turn_number).toBe(0);
   });
 });
