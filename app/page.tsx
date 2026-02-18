@@ -640,6 +640,29 @@ export default function Home() {
     return unique.map((characterId) => ({ id: characterId, name: setupCharacterName(characterId) }));
   }, [runtime, selectedCharacters, setupCharacterName]);
 
+  const applySetupFromMatch = useCallback(
+    (match: LocalMatchSummary, participantNamesSource: Record<string, string> = {}) => {
+      const defaultIds = new Set(CHARACTER_OPTIONS.map((character) => character.id));
+      const customFromRoster = match.roster_character_ids
+        .filter((characterId) => !defaultIds.has(characterId))
+        .map((characterId) => ({
+          id: characterId,
+          name: participantNamesSource[characterId] ?? characterId
+        }));
+
+      setCustomCharacters(customFromRoster);
+      setSelectedCharacters(match.roster_character_ids);
+      setParticipantAliasByCharacterId(
+        buildAliasByCharacterId(match.roster_character_ids, participantNamesSource, setupCharacterName)
+      );
+      setSeed(match.settings.seed ?? '');
+      setSimulationSpeed(match.settings.simulation_speed);
+      setEventProfile(match.settings.event_profile);
+      setSurpriseLevel(match.settings.surprise_level);
+    },
+    [setupCharacterName]
+  );
+
   useEffect(() => {
     setHasHydrated(true);
   }, []);
@@ -724,30 +747,6 @@ export default function Home() {
       setInfoMessage(saveRuntimeResult.error);
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
-
-  const applySetupFromMatch = useCallback(
-    (match: LocalMatchSummary, participantNamesSource: Record<string, string> = {}) => {
-      const defaultIds = new Set(CHARACTER_OPTIONS.map((character) => character.id));
-      const customFromRoster = match.roster_character_ids
-        .filter((characterId) => !defaultIds.has(characterId))
-        .map((characterId) => ({
-          id: characterId,
-          name: participantNamesSource[characterId] ?? characterId
-        }));
-
-      setCustomCharacters(customFromRoster);
-      setSelectedCharacters(match.roster_character_ids);
-      setParticipantAliasByCharacterId(
-        buildAliasByCharacterId(match.roster_character_ids, participantNamesSource, setupCharacterName)
-      );
-      setSeed(match.settings.seed ?? '');
-      setSimulationSpeed(match.settings.simulation_speed);
-      setEventProfile(match.settings.event_profile);
-      setSurpriseLevel(match.settings.surprise_level);
-    },
-    [setupCharacterName]
-  );
-
   function resetSetupToDefaults() {
     setCustomCharacters([]);
     setSelectedCharacters(DEFAULT_CHARACTERS);
@@ -1392,22 +1391,19 @@ export default function Home() {
 
                 <div className={styles.rosterGrid}>
                   {allCharacterOptions.map((character) => {
-                    const checkboxId = `roster-${character.id}`;
                     const isCustomCharacter = character.id.startsWith('custom-');
                     return (
                       <div key={character.id} className={styles.rosterItem}>
-                        <label htmlFor={checkboxId} className={styles.characterToggle}>
-                          <input
-                            id={checkboxId}
-                            aria-label={`Seleccionar ${character.name}`}
-                            type="checkbox"
-                            checked={selectedCharacters.includes(character.id)}
-                            onChange={() => toggleCharacter(character.id)}
-                          />
-                          {character.name}
-                        </label>
                         <input
-                          className={styles.input}
+                          className={styles.characterToggle}
+                          aria-label={`Seleccionar ${character.name}`}
+                          type="checkbox"
+                          checked={selectedCharacters.includes(character.id)}
+                          onChange={() => toggleCharacter(character.id)}
+                        />
+                        <input
+                          className={`${styles.input} ${styles.rosterNameInput}`}
+                          aria-label={`Nombre de ${character.name}`}
                           value={participantAliasByCharacterId[character.id] ?? ''}
                           onChange={(event) =>
                             setParticipantAliasByCharacterId((current) => ({
