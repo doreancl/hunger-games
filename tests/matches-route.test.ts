@@ -13,42 +13,43 @@ describe('POST /api/matches', () => {
     resetRateLimitsForTests();
   });
 
-  it('returns typed error for unsupported content type', async () => {
-    const request = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'text/plain' },
-      body: 'hello'
-    });
-
+  it.each([
+    {
+      name: 'unsupported content type',
+      request: new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'hello'
+      }),
+      status: 415,
+      body: {
+        error: {
+          code: 'UNSUPPORTED_MEDIA_TYPE',
+          message: 'Content-Type must be application/json.'
+        }
+      }
+    },
+    {
+      name: 'invalid JSON body',
+      request: new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{invalid-json'
+      }),
+      status: 400,
+      body: {
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Request body must be valid JSON.'
+        }
+      }
+    }
+  ])('returns typed error for $name', async ({ request, status, body: expectedBody }) => {
     const response = await POST(request);
     const body = await response.json();
 
-    expect(response.status).toBe(415);
-    expect(body).toEqual({
-      error: {
-        code: 'UNSUPPORTED_MEDIA_TYPE',
-        message: 'Content-Type must be application/json.'
-      }
-    });
-  });
-
-  it('returns typed error for invalid JSON body', async () => {
-    const request = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{invalid-json'
-    });
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body).toEqual({
-      error: {
-        code: 'INVALID_JSON',
-        message: 'Request body must be valid JSON.'
-      }
-    });
+    expect(response.status).toBe(status);
+    expect(body).toEqual(expectedBody);
   });
 
   it('returns typed error for invalid payload', async () => {

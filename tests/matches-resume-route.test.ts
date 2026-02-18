@@ -45,32 +45,33 @@ describe('POST /api/matches/resume', () => {
     resetRateLimitsForTests();
   });
 
-  it('returns typed error for unsupported content type', async () => {
-    const response = await POST(
-      new Request('http://localhost/api/matches/resume', {
+  it.each([
+    {
+      name: 'unsupported content type',
+      request: new Request('http://localhost/api/matches/resume', {
         method: 'POST',
         headers: { 'content-type': 'text/plain' },
         body: 'x'
-      })
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(415);
-    expect(body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
-  });
-
-  it('returns typed error for invalid JSON body', async () => {
-    const response = await POST(
-      new Request('http://localhost/api/matches/resume', {
+      }),
+      status: 415,
+      code: 'UNSUPPORTED_MEDIA_TYPE'
+    },
+    {
+      name: 'invalid JSON body',
+      request: new Request('http://localhost/api/matches/resume', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: '{bad-json'
-      })
-    );
+      }),
+      status: 400,
+      code: 'INVALID_JSON'
+    }
+  ])('returns typed error for $name', async ({ request, status, code }) => {
+    const response = await POST(request);
     const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(body.error.code).toBe('INVALID_JSON');
+    expect(response.status).toBe(status);
+    expect(body.error.code).toBe(code);
   });
 
   it('returns typed error for unsupported snapshot version', async () => {
