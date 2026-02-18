@@ -4,6 +4,7 @@ import {
   createMatchResponseSchema
 } from '@/lib/domain/schemas';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
+import { checkRateLimit } from '@/lib/api/rate-limit';
 import { createMatch } from '@/lib/matches/lifecycle';
 import { recordLatencyMetric } from '@/lib/observability';
 
@@ -12,6 +13,20 @@ export async function POST(request: Request) {
   let statusCode = 500;
 
   try {
+    const rateLimit = checkRateLimit(request, 'create');
+    if (!rateLimit.allowed) {
+      statusCode = 429;
+      return jsonError('RATE_LIMIT_EXCEEDED', 'Rate limit exceeded for create_match.', 429, {
+        issues: [
+          {
+            path: ['request'],
+            code: 'rate_limit_exceeded',
+            message: `Retry after ${rateLimit.retryAfterSeconds} seconds.`
+          }
+        ]
+      });
+    }
+
     const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
     if (!contentType.includes('application/json')) {
       statusCode = 415;

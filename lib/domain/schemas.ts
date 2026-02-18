@@ -83,10 +83,35 @@ export const matchSnapshotSchema = z
     ruleset_version: rulesetVersionSchema,
     match: matchSchema,
     settings: matchSettingsSchema,
-    participants: z.array(participantStateSchema),
-    recent_events: z.array(eventSchema)
+    participants: z.array(participantStateSchema).max(48),
+    recent_events: z.array(eventSchema).max(200)
   })
   .strict();
+
+const snapshotChecksumSchema = z.string().regex(/^[a-f0-9]{8}$/i, 'checksum must be 8 hex chars');
+
+export const snapshotEnvelopeVersionSchema = z
+  .object({
+    snapshot_version: z.number().int().min(1)
+  })
+  .passthrough();
+
+export const snapshotEnvelopeSchema = z
+  .object({
+    snapshot_version: z.literal(SNAPSHOT_VERSION),
+    checksum: snapshotChecksumSchema,
+    snapshot: matchSnapshotSchema
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.snapshot.snapshot_version !== value.snapshot_version) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'snapshot version mismatch between envelope and snapshot payload',
+        path: ['snapshot', 'snapshot_version']
+      });
+    }
+  });
 
 export const createMatchRequestSchema = z
   .object({
@@ -169,6 +194,9 @@ export const advanceTurnResponseSchema = z
     }
   });
 
+export const resumeMatchRequestSchema = snapshotEnvelopeSchema;
+export const advanceTurnRequestSchema = snapshotEnvelopeSchema;
+
 export const getMatchStateResponseSchema = z
   .object({
     match_id: z.string().min(1),
@@ -181,6 +209,8 @@ export const getMatchStateResponseSchema = z
     recent_events: z.array(eventSchema)
   })
   .strict();
+
+export const resumeMatchResponseSchema = getMatchStateResponseSchema;
 
 const validationIssueSchema = z
   .object({
@@ -199,6 +229,9 @@ export const apiErrorSchema = z
           'INVALID_JSON',
           'INVALID_REQUEST_PAYLOAD',
           'INTERNAL_CONTRACT_ERROR',
+          'SNAPSHOT_INVALID',
+          'SNAPSHOT_VERSION_UNSUPPORTED',
+          'RATE_LIMIT_EXCEEDED',
           'MATCH_NOT_FOUND',
           'MATCH_STATE_CONFLICT'
         ]),

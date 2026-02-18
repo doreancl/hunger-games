@@ -28,4 +28,21 @@ describe('observability metrics', () => {
     expect(lastLog.samples).toBe(3);
     expect(lastLog.unit).toBe('ms');
   });
+
+  it('supports metrics without dimensions and trims sample window', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    for (let index = 0; index < 205; index += 1) {
+      recordLatencyMetric('simulation.tick', index);
+    }
+
+    const result = recordLatencyMetric('simulation.tick', -4);
+    expect(result.samples).toBe(200);
+
+    const lastLogRaw = infoSpy.mock.calls.at(-1)?.[0] as string;
+    const lastLog = JSON.parse(lastLogRaw) as Record<string, unknown>;
+    expect(lastLog.metric).toBe('simulation.tick');
+    expect(lastLog.duration_ms).toBe(0);
+    expect(lastLog.samples).toBe(200);
+  });
 });

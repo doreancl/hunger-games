@@ -21,6 +21,7 @@ export type RuntimeFeedEvent = {
   headline: string;
   impact: string;
   character_ids: string[];
+  eliminated_character_ids?: string[];
   created_at: string;
 };
 
@@ -100,6 +101,7 @@ const localRuntimeSnapshotSchema = z
           headline: nonEmptyStringSchema,
           impact: nonEmptyStringSchema,
           character_ids: z.array(nonEmptyStringSchema),
+          eliminated_character_ids: z.array(nonEmptyStringSchema).optional(),
           created_at: z.string().datetime()
         })
         .strict()

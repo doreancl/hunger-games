@@ -175,6 +175,54 @@
   color: var(--muted);
 }
 
+.finalCard {
+  background: linear-gradient(145deg, #fff7ea, #fffef9);
+}
+
+.finalWinner {
+  border: 1px solid #e3b165;
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+  background: #fff6de;
+}
+
+.finalWinner span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.78rem;
+}
+
+.finalWinner strong {
+  font-size: 1.25rem;
+}
+
+.finalGrid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.finalSubtitle {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.finalList {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.replayGrid {
+  display: grid;
+  gap: 8px;
+}
+
 .setupGrid {
   display: grid;
   gap: 14px;
@@ -421,6 +469,14 @@
   .eventShell {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
     align-items: start;
+  }
+
+  .finalGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .replayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
