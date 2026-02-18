@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { POST } from '@/app/api/matches/route';
+import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
 
 function roster(size: number): string[] {
@@ -9,6 +10,7 @@ function roster(size: number): string[] {
 describe('POST /api/matches', () => {
   beforeEach(() => {
     resetMatchesForTests();
+    resetRateLimitsForTests();
   });
 
   it('returns typed error for unsupported content type', async () => {
@@ -133,5 +135,25 @@ describe('POST /api/matches', () => {
     expect(response.status).toBe(201);
     expect(body.phase).toBe('setup');
     expect(typeof body.match_id).toBe('string');
+  });
+
+  it('rate limits create endpoint after threshold', async () => {
+    let lastResponse: Response | null = null;
+
+    for (let index = 0; index < 21; index += 1) {
+      lastResponse = await POST(
+        new Request('http://localhost/api/matches', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            roster_character_ids: roster(10)
+          })
+        })
+      );
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    const body = await lastResponse?.json();
+    expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 });

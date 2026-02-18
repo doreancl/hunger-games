@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceTurnResponseSchema,
+  advanceTurnRequestSchema,
   createMatchRequestSchema,
   getMatchStateResponseSchema,
   matchSnapshotSchema,
+  resumeMatchRequestSchema,
   rulesetVersionSchema,
+  snapshotEnvelopeVersionSchema,
   startMatchResponseSchema
 } from '@/lib/domain/schemas';
 
@@ -44,6 +47,45 @@ describe('ruleset and snapshot versioning', () => {
     };
 
     expect(matchSnapshotSchema.parse(snapshot).snapshot_version).toBe(1);
+  });
+
+  it('accepts snapshot envelope for resume/advance requests', () => {
+    const snapshot = {
+      snapshot_version: 1,
+      ruleset_version: 'v1.0.0',
+      match: {
+        id: 'match-1',
+        seed: null,
+        ruleset_version: 'v1.0.0',
+        phase: 'setup',
+        cycle_phase: 'bloodbath',
+        turn_number: 0,
+        tension_level: 0,
+        created_at: '2026-02-15T10:00:00.000Z',
+        ended_at: null
+      },
+      settings: {
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      },
+      participants: [],
+      recent_events: []
+    };
+
+    const envelope = {
+      snapshot_version: 1,
+      checksum: '0badc0de',
+      snapshot
+    };
+
+    expect(resumeMatchRequestSchema.safeParse(envelope).success).toBe(true);
+    expect(advanceTurnRequestSchema.safeParse(envelope).success).toBe(true);
+  });
+
+  it('accepts version-only payload for compatibility checks', () => {
+    expect(snapshotEnvelopeVersionSchema.parse({ snapshot_version: 1 }).snapshot_version).toBe(1);
   });
 });
 
