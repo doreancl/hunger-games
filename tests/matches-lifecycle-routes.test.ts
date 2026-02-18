@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as createMatch } from '@/app/api/matches/route';
 import { GET as getMatchState } from '@/app/api/matches/[matchId]/route';
 import { POST as startMatch } from '@/app/api/matches/[matchId]/start/route';
@@ -8,6 +8,7 @@ import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
 import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
+import { resetObservabilityForTests } from '@/lib/observability';
 import { advanceDirector } from '@/lib/simulation-state';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
@@ -19,6 +20,11 @@ describe('match lifecycle routes', () => {
   beforeEach(() => {
     resetMatchesForTests();
     resetRateLimitsForTests();
+    resetObservabilityForTests();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('starts a setup match and returns running bloodbath', async () => {
@@ -161,6 +167,75 @@ describe('match lifecycle routes', () => {
     expect(stateBody.cycle_phase).toBe(advanceBody.cycle_phase);
     expect(stateBody.tension_level).toBe(advanceBody.tension_level);
     expect(stateBody.recent_events).toHaveLength(1);
+  });
+
+  it('emits deterministic replay signature for same seed and ruleset version', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    const createOne = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'replay-seed'
+          }
+        })
+      })
+    );
+    const createBodyOne = await createOne.json();
+    const matchIdOne = createBodyOne.match_id as string;
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchIdOne}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdOne }) }
+    );
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchIdOne}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdOne }) }
+    );
+
+    const createTwo = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'replay-seed'
+          }
+        })
+      })
+    );
+    const createBodyTwo = await createTwo.json();
+    const matchIdTwo = createBodyTwo.match_id as string;
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchIdTwo}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdTwo }) }
+    );
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchIdTwo}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId: matchIdTwo }) }
+    );
+
+    const replayLogs = infoSpy.mock.calls
+      .map((entry) => JSON.parse(entry[0] as string) as Record<string, unknown>)
+      .filter((entry) => entry.event === 'match.turn.event');
+
+    expect(replayLogs.length).toBeGreaterThanOrEqual(2);
+    const firstReplay = replayLogs.at(-2) as Record<string, unknown>;
+    const secondReplay = replayLogs.at(-1) as Record<string, unknown>;
+
+    expect(firstReplay.seed).toBe('replay-seed');
+    expect(secondReplay.seed).toBe('replay-seed');
+    expect(firstReplay.ruleset_version).toBe(secondReplay.ruleset_version);
+    expect(firstReplay.replay_signature).toBe(secondReplay.replay_signature);
   });
 
   it('returns conflict when advancing a match outside running phase', async () => {
@@ -456,5 +531,136 @@ describe('match lifecycle routes', () => {
     expect(response.status).toBe(200);
     expect(body.match_id).toBe(matchId);
     expect(body.turn_number).toBe(0);
+  });
+
+  it('preserves settings and deterministic continuity after resume', async () => {
+    const buildSnapshotEnvelope = async (matchId: string) => {
+      const stateResponse = await getMatchState(
+        new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+        { params: Promise.resolve({ matchId }) }
+      );
+      const stateBody = await stateResponse.json();
+      const snapshot = {
+        snapshot_version: SNAPSHOT_VERSION,
+        ruleset_version: RULESET_VERSION,
+        match: {
+          id: matchId,
+          seed: stateBody.settings.seed,
+          ruleset_version: RULESET_VERSION,
+          phase: stateBody.phase,
+          cycle_phase: stateBody.cycle_phase,
+          turn_number: stateBody.turn_number,
+          tension_level: stateBody.tension_level,
+          created_at: '2026-02-18T00:00:00.000Z',
+          ended_at: null
+        },
+        settings: stateBody.settings,
+        participants: stateBody.participants,
+        recent_events: stateBody.recent_events
+      };
+
+      return {
+        stateBody,
+        envelope: {
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: buildSnapshotChecksum(snapshot),
+          snapshot
+        }
+      };
+    };
+
+    const createAndReachTurn = async (seed: string, targetTurn: number) => {
+      const createResponse = await createMatch(
+        new Request('http://localhost/api/matches', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            roster_character_ids: roster(10),
+            settings: {
+              surprise_level: 'normal',
+              event_profile: 'balanced',
+              simulation_speed: '1x',
+              seed
+            }
+          })
+        })
+      );
+      const createBody = await createResponse.json();
+      const matchId = createBody.match_id as string;
+
+      await startMatch(
+        new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+        { params: Promise.resolve({ matchId }) }
+      );
+
+      for (let index = 0; index < targetTurn; index += 1) {
+        await advanceTurn(
+          new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+          { params: Promise.resolve({ matchId }) }
+        );
+      }
+
+      return matchId;
+    };
+
+    const matchA = await createAndReachTurn('resume-deterministic-seed', 4);
+    const matchB = await createAndReachTurn('resume-deterministic-seed', 4);
+    const { stateBody: stateA, envelope: envelopeA } = await buildSnapshotEnvelope(matchA);
+    const { stateBody: stateB, envelope: envelopeB } = await buildSnapshotEnvelope(matchB);
+
+    const resumeResponse = await resumeMatch(
+      new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeB)
+      })
+    );
+    const resumeBody = await resumeResponse.json();
+
+    expect(resumeResponse.status).toBe(200);
+    expect(resumeBody.settings).toEqual(stateB.settings);
+    expect(resumeBody.turn_number).toBe(stateB.turn_number);
+
+    const advanceAfterResumeResponse = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchB}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeB)
+      }),
+      { params: Promise.resolve({ matchId: matchB }) }
+    );
+    const advanceControlResponse = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchA}/turns/advance`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelopeA)
+      }),
+      { params: Promise.resolve({ matchId: matchA }) }
+    );
+
+    const advancedAfterResume = await advanceAfterResumeResponse.json();
+    const advancedControl = await advanceControlResponse.json();
+    expect(advanceAfterResumeResponse.status).toBe(200);
+    expect(advanceControlResponse.status).toBe(200);
+
+    const toCharacterIds = (
+      ids: string[],
+      participants: Array<{ id: string; character_id: string }>
+    ) => {
+      const byId = new Map(participants.map((participant) => [participant.id, participant.character_id]));
+      return ids.map((id) => byId.get(id)).sort();
+    };
+
+    expect(advancedAfterResume.turn_number).toBe(advancedControl.turn_number);
+    expect(advancedAfterResume.cycle_phase).toBe(advancedControl.cycle_phase);
+    expect(advancedAfterResume.tension_level).toBe(advancedControl.tension_level);
+    expect(advancedAfterResume.event.type).toBe(advancedControl.event.type);
+    expect(advancedAfterResume.event.narrative_text).toBe(advancedControl.event.narrative_text);
+    expect(
+      toCharacterIds(advancedAfterResume.eliminated_ids, stateB.participants)
+    ).toEqual(toCharacterIds(advancedControl.eliminated_ids, stateA.participants));
+    expect(
+      toCharacterIds(advancedAfterResume.event.participant_ids, stateB.participants)
+    ).toEqual(toCharacterIds(advancedControl.event.participant_ids, stateA.participants));
   });
 });
