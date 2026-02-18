@@ -244,6 +244,10 @@
   background: #fffdf5;
 }
 
+.rosterItemCustom {
+  position: relative;
+}
+
 .characterToggle {
   width: 16px;
   height: 16px;
@@ -254,6 +258,26 @@
 .rosterNameInput {
   flex: 1;
   min-width: 0;
+}
+
+.rosterNameInputWithRemove {
+  padding-right: 86px;
+}
+
+.removeButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.rosterItemCustom:hover .removeButton,
+.rosterItemCustom:focus-within .removeButton {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .controlsGrid {

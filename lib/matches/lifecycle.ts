@@ -24,7 +24,24 @@ type StoredMatch = {
   recent_events: GetMatchStateResponse['recent_events'];
 };
 
-const matches = new Map<string, StoredMatch>();
+type MatchesStore = Map<string, StoredMatch>;
+
+type GlobalMatchesStore = typeof globalThis & {
+  __hungerGamesMatchesStore?: MatchesStore;
+};
+
+const matches: MatchesStore =
+  process.env.NODE_ENV === 'test'
+    ? new Map<string, StoredMatch>()
+    : (() => {
+        const globalMatchesStore = globalThis as GlobalMatchesStore;
+        const sharedStore =
+          globalMatchesStore.__hungerGamesMatchesStore ?? new Map<string, StoredMatch>();
+        if (!globalMatchesStore.__hungerGamesMatchesStore) {
+          globalMatchesStore.__hungerGamesMatchesStore = sharedStore;
+        }
+        return sharedStore;
+      })();
 
 const MAX_RECENT_EVENTS = 12;
 
