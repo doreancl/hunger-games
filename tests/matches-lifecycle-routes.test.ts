@@ -6,6 +6,7 @@ import { POST as advanceTurn } from '@/app/api/matches/[matchId]/turns/advance/r
 import { POST as resumeMatch } from '@/app/api/matches/resume/route';
 import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
 import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
 import { advanceDirector } from '@/lib/simulation-state';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
@@ -383,6 +384,7 @@ describe('match lifecycle routes', () => {
 
     expect(response.status).toBe(409);
     expect(body.error.code).toBe('SNAPSHOT_VERSION_UNSUPPORTED');
+    expect(body.error.message).toBe(UNRECOVERABLE_MATCH_MESSAGE);
   });
 
   it('rate limits advance endpoint after threshold', async () => {

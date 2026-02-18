@@ -6,11 +6,11 @@ import type {
   SimulationSpeed,
   SurpriseLevel
 } from '@/lib/domain/types';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { z } from 'zod';
 
 export const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 export const LOCAL_RUNTIME_SNAPSHOT_VERSION = 1 as const;
-const UNRECOVERABLE_LOCAL_RUNTIME_MESSAGE = 'partida no recuperable. Inicia una nueva partida.';
 
 export type RuntimeFeedEvent = {
   id: string;
@@ -203,7 +203,7 @@ export function loadLocalRuntimeFromStorage(
   try {
     const parsed = parseRuntime(storage.getItem(LOCAL_RUNTIME_STORAGE_KEY));
     if (parsed.failure) {
-      return { runtime: null, error: UNRECOVERABLE_LOCAL_RUNTIME_MESSAGE };
+      return { runtime: null, error: UNRECOVERABLE_MATCH_MESSAGE };
     }
     return { runtime: parsed.runtime, error: null };
   } catch {

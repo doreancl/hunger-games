@@ -1,11 +1,11 @@
 import type { CyclePhase, EventProfile, SimulationSpeed, SurpriseLevel } from '@/lib/domain/types';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { z } from 'zod';
 
 export const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
 export const LOCAL_MATCHES_SNAPSHOT_VERSION = 1 as const;
 export const MIN_ROSTER_SIZE = 10;
 export const MAX_ROSTER_SIZE = 48;
-const UNRECOVERABLE_LOCAL_MATCH_MESSAGE = 'partida no recuperable. Inicia una nueva partida.';
 
 export type SetupConfig = {
   roster_character_ids: string[];
@@ -241,7 +241,7 @@ export function loadLocalMatchesFromStorage(
     if (parsed.failure) {
       return {
         matches: [],
-        error: UNRECOVERABLE_LOCAL_MATCH_MESSAGE
+        error: UNRECOVERABLE_MATCH_MESSAGE
       };
     }
 

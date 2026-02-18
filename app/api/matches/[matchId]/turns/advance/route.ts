@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { advanceTurnResponseSchema } from '@/lib/domain/schemas';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
 import { checkRateLimit } from '@/lib/api/rate-limit';
 import { validateSnapshotEnvelopeFromRawBody } from '@/lib/api/snapshot-request';
@@ -43,7 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
       if (validated.reason === 'SNAPSHOT_VERSION_UNSUPPORTED') {
         return jsonError(
           'SNAPSHOT_VERSION_UNSUPPORTED',
-          'Snapshot version is incompatible with current release.',
+          UNRECOVERABLE_MATCH_MESSAGE,
           409
         );
       }
