@@ -165,6 +165,33 @@ describe('local runtime storage', () => {
     });
   });
 
+  it('loads runtime with replay elimination trace metadata', () => {
+    const runtime: LocalRuntimeSnapshot = {
+      ...buildRuntime(),
+      feed: [
+        {
+          ...buildRuntime().feed[0],
+          eliminated_character_ids: ['char-02']
+        }
+      ]
+    };
+    let persisted: string | null = null;
+    const storage = {
+      setItem(_key: string, value: string) {
+        persisted = value;
+      },
+      getItem() {
+        return persisted;
+      }
+    };
+
+    saveLocalRuntimeToStorage(storage, runtime);
+    expect(loadLocalRuntimeFromStorage(storage)).toEqual({
+      runtime,
+      error: null
+    });
+  });
+
   it('returns read error when storage throws', () => {
     const storage = {
       getItem() {
