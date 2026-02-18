@@ -49,6 +49,20 @@ const DEFAULT_SIMULATION_SPEED: SimulationSpeed = '1x';
 const DEFAULT_EVENT_PROFILE = 'balanced' as const;
 const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
 const MAX_PARTICIPANT_NAME_LENGTH = 40;
+const RANDOM_NAME_POOL = [
+  'Aurora',
+  'Raven',
+  'Blaze',
+  'Echo',
+  'Nyx',
+  'Rune',
+  'Vega',
+  'Kira',
+  'Onyx',
+  'Jade',
+  'Pyre',
+  'Zen'
+];
 
 const EVENT_TYPE_LABEL: Record<EventType, string> = {
   combat: 'Combate',
@@ -175,16 +189,27 @@ function characterName(characterId: string): string {
   return CHARACTER_OPTIONS.find((candidate) => candidate.id === characterId)?.name ?? characterId;
 }
 
-function buildParticipantNamesByCharacterId(
+function buildAliasByCharacterId(
   rosterCharacterIds: string[],
   source: Record<string, string> = {}
 ): Record<string, string> {
-  return Object.fromEntries(
-    rosterCharacterIds.map((characterId) => [
-      characterId,
-      source[characterId] ?? characterName(characterId)
-    ])
-  );
+  const aliasEntries = rosterCharacterIds
+    .map((characterId) => {
+      const provided = (source[characterId] ?? '').trim();
+      if (provided.length === 0 || provided === characterName(characterId)) {
+        return null;
+      }
+
+      return [characterId, provided] as const;
+    })
+    .filter((entry): entry is readonly [string, string] => Boolean(entry));
+
+  return Object.fromEntries(aliasEntries);
+}
+
+function setupDisplayName(characterId: string, aliasByCharacterId: Record<string, string>): string {
+  const alias = (aliasByCharacterId[characterId] ?? '').trim();
+  return alias.length > 0 ? alias : characterName(characterId);
 }
 
 function participantDisplayName(participant: ParticipantState): string {
@@ -386,9 +411,11 @@ function relationTone(score: number): string {
 
 export default function Home() {
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>(DEFAULT_CHARACTERS);
-  const [participantNamesByCharacterId, setParticipantNamesByCharacterId] = useState<
+  const [participantAliasByCharacterId, setParticipantAliasByCharacterId] = useState<
     Record<string, string>
-  >(() => buildParticipantNamesByCharacterId(DEFAULT_CHARACTERS));
+  >({});
+  const [showNameEditor, setShowNameEditor] = useState(false);
+  const [bulkPrefix, setBulkPrefix] = useState('Tributo');
   const [seed, setSeed] = useState('');
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(DEFAULT_SIMULATION_SPEED);
   const [eventProfile, setEventProfile] = useState<'balanced' | 'aggressive' | 'chaotic'>(
@@ -416,17 +443,15 @@ export default function Home() {
   const participantNames = useMemo(
     () =>
       selectedCharacters.map((characterId) =>
-        (participantNamesByCharacterId[characterId] ?? characterName(characterId)).trim()
+        setupDisplayName(characterId, participantAliasByCharacterId)
       ),
-    [participantNamesByCharacterId, selectedCharacters]
+    [participantAliasByCharacterId, selectedCharacters]
   );
   const participantNameValidationIssues = useMemo(() => {
     const issues: string[] = [];
 
     participantNames.forEach((name, index) => {
-      if (name.length === 0) {
-        issues.push(`El nombre del tributo #${index + 1} no puede estar vacio.`);
-      } else if (name.length > MAX_PARTICIPANT_NAME_LENGTH) {
+      if (name.length > MAX_PARTICIPANT_NAME_LENGTH) {
         issues.push(
           `El nombre del tributo #${index + 1} no puede superar ${MAX_PARTICIPANT_NAME_LENGTH} caracteres.`
         );
@@ -434,6 +459,16 @@ export default function Home() {
     });
 
     return issues;
+  }, [participantNames]);
+  const duplicatedParticipantNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const name of participantNames) {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name);
   }, [participantNames]);
   const canStartMatch = setupValidation.is_valid && participantNameValidationIssues.length === 0;
 
@@ -632,8 +667,8 @@ export default function Home() {
         applySetupFromMatch(runtimeMatch, runtimeParticipantNames);
       } else {
         setSelectedCharacters(runtimeLoad.runtime.participants.map((participant) => participant.character_id));
-        setParticipantNamesByCharacterId(
-          buildParticipantNamesByCharacterId(
+        setParticipantAliasByCharacterId(
+          buildAliasByCharacterId(
             runtimeLoad.runtime.participants.map((participant) => participant.character_id),
             runtimeParticipantNames
           )
@@ -678,22 +713,24 @@ export default function Home() {
     participantNamesSource: Record<string, string> = {}
   ) {
     setSelectedCharacters(match.roster_character_ids);
-    setParticipantNamesByCharacterId(
-      buildParticipantNamesByCharacterId(match.roster_character_ids, participantNamesSource)
+    setParticipantAliasByCharacterId(
+      buildAliasByCharacterId(match.roster_character_ids, participantNamesSource)
     );
     setSeed(match.settings.seed ?? '');
     setSimulationSpeed(match.settings.simulation_speed);
     setEventProfile(match.settings.event_profile);
     setSurpriseLevel(match.settings.surprise_level);
+    setShowNameEditor(false);
   }
 
   function resetSetupToDefaults() {
     setSelectedCharacters(DEFAULT_CHARACTERS);
-    setParticipantNamesByCharacterId(buildParticipantNamesByCharacterId(DEFAULT_CHARACTERS));
+    setParticipantAliasByCharacterId({});
     setSeed('');
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
     setEventProfile(DEFAULT_EVENT_PROFILE);
     setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
+    setShowNameEditor(false);
   }
 
   function onToggleAutosave(nextValue: boolean) {
@@ -727,7 +764,7 @@ export default function Home() {
   function toggleCharacter(characterId: string) {
     setSelectedCharacters((previous) => {
       if (previous.includes(characterId)) {
-        setParticipantNamesByCharacterId((current) => {
+        setParticipantAliasByCharacterId((current) => {
           const next = { ...current };
           delete next[characterId];
           return next;
@@ -735,12 +772,52 @@ export default function Home() {
         return previous.filter((id) => id !== characterId);
       }
 
-      setParticipantNamesByCharacterId((current) => ({
+      setParticipantAliasByCharacterId((current) => ({
         ...current,
-        [characterId]: current[characterId] ?? characterName(characterId)
+        [characterId]: current[characterId] ?? ''
       }));
       return [...previous, characterId];
     });
+  }
+
+  function clearAliases() {
+    setParticipantAliasByCharacterId((current) => {
+      const next = { ...current };
+      for (const characterId of selectedCharacters) {
+        delete next[characterId];
+      }
+      return next;
+    });
+  }
+
+  function applyPrefixAliases() {
+    const trimmedPrefix = bulkPrefix.trim();
+    if (trimmedPrefix.length === 0) {
+      setInfoMessage('Define un prefijo para aplicar nombres masivos.');
+      return;
+    }
+
+    setParticipantAliasByCharacterId((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        selectedCharacters.map((characterId, index) => [
+          characterId,
+          `${trimmedPrefix} ${index + 1}`
+        ])
+      )
+    }));
+  }
+
+  function applyRandomAliases() {
+    setParticipantAliasByCharacterId((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        selectedCharacters.map((characterId, index) => [
+          characterId,
+          `${RANDOM_NAME_POOL[index % RANDOM_NAME_POOL.length]}-${index + 1}`
+        ])
+      )
+    }));
   }
 
   function generateSeed() {
@@ -765,8 +842,8 @@ export default function Home() {
     }
 
     setSelectedCharacters(config.roster_character_ids);
-    setParticipantNamesByCharacterId(
-      buildParticipantNamesByCharacterId(
+    setParticipantAliasByCharacterId(
+      buildAliasByCharacterId(
         config.roster_character_ids,
         Object.fromEntries(
           config.roster_character_ids.map((characterId, index) => [
@@ -1305,24 +1382,83 @@ export default function Home() {
                   })}
                 </div>
 
-                <div className={styles.namesGrid}>
-                  {selectedCharacters.map((characterId, index) => (
-                    <label key={`name-${characterId}`} className={styles.controlLabel}>
-                      Nombre tributo #{index + 1} ({characterName(characterId)})
-                      <input
-                        className={styles.input}
-                        value={participantNamesByCharacterId[characterId] ?? characterName(characterId)}
-                        onChange={(event) =>
-                          setParticipantNamesByCharacterId((current) => ({
-                            ...current,
-                            [characterId]: event.target.value
-                          }))
-                        }
-                        maxLength={MAX_PARTICIPANT_NAME_LENGTH}
-                        placeholder="Nombre personalizado"
-                      />
-                    </label>
-                  ))}
+                <div className={styles.nameSummaryCard}>
+                  <div className={styles.nameSummaryHeader}>
+                    <strong>Nombres activos ({selectedCharacters.length})</strong>
+                    <button
+                      className={`${styles.button} ${styles.buttonGhost}`}
+                      type="button"
+                      onClick={() => setShowNameEditor((current) => !current)}
+                    >
+                      {showNameEditor ? 'Ocultar editor' : 'Personalizar nombres'}
+                    </button>
+                  </div>
+
+                  <div className={styles.nameChipRow}>
+                    {selectedCharacters.map((characterId) => (
+                      <span key={`chip-${characterId}`} className={styles.tag}>
+                        {setupDisplayName(characterId, participantAliasByCharacterId)}
+                      </span>
+                    ))}
+                  </div>
+
+                  {showNameEditor ? (
+                    <div className={styles.nameEditor}>
+                      <div className={styles.inlineControls}>
+                        <input
+                          className={styles.input}
+                          value={bulkPrefix}
+                          onChange={(event) => setBulkPrefix(event.target.value)}
+                          placeholder="Prefijo para lote"
+                        />
+                        <button className={styles.button} type="button" onClick={applyPrefixAliases}>
+                          Prefijo + indice
+                        </button>
+                        <button className={styles.button} type="button" onClick={applyRandomAliases}>
+                          Randomizar
+                        </button>
+                        <button
+                          className={`${styles.button} ${styles.buttonGhost}`}
+                          type="button"
+                          onClick={clearAliases}
+                        >
+                          Usar nombres base
+                        </button>
+                      </div>
+
+                      <div className={styles.nameTableWrap}>
+                        <table className={styles.nameTable}>
+                          <thead>
+                            <tr>
+                              <th>Base</th>
+                              <th>Alias</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedCharacters.map((characterId) => (
+                              <tr key={`name-row-${characterId}`}>
+                                <td>{characterName(characterId)}</td>
+                                <td>
+                                  <input
+                                    className={styles.input}
+                                    value={participantAliasByCharacterId[characterId] ?? ''}
+                                    onChange={(event) =>
+                                      setParticipantAliasByCharacterId((current) => ({
+                                        ...current,
+                                        [characterId]: event.target.value
+                                      }))
+                                    }
+                                    maxLength={MAX_PARTICIPANT_NAME_LENGTH}
+                                    placeholder={characterName(characterId)}
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className={styles.controlsGrid}>
@@ -1411,6 +1547,12 @@ export default function Home() {
                   ) : (
                     <p>Configuracion valida para iniciar.</p>
                   )}
+                  {duplicatedParticipantNames.length > 0 ? (
+                    <p>
+                      Aviso: hay nombres repetidos ({duplicatedParticipantNames.join(', ')}). Se permite,
+                      pero puede confundir el feed.
+                    </p>
+                  ) : null}
 
                   <div className={styles.inlineControls}>
                     <button
