@@ -72,7 +72,12 @@ export default function Home() {
           <p className={styles.cardHint}>MVP: se muestran las 5 mas recientes.</p>
 
           {latestMatches.length === 0 ? (
-            <p>No hay partidas guardadas todavia.</p>
+            <div>
+              <p>No hay partidas guardadas todavia.</p>
+              <Link className={styles.button} href="/matches/new">
+                Iniciar partida
+              </Link>
+            </div>
           ) : (
             <ul className={styles.matchList}>
               {latestMatches.map((match) => (
@@ -88,6 +93,14 @@ export default function Home() {
                     </p>
                     <p>Actualizada: {dateLabel(match.updated_at)}</p>
                   </Link>
+                  <div className={styles.inlineControls}>
+                    <Link className={styles.button} href={`/matches/new?resume=${match.id}`}>
+                      Reanudar
+                    </Link>
+                    <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
+                      Ver detalle
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

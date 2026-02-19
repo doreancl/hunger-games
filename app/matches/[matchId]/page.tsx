@@ -58,7 +58,10 @@ export default function MatchDetailPage() {
           <p className={styles.heroMeta}>Vista local para continuar una simulacion guardada.</p>
 
           <div className={styles.inlineControls}>
-            <Link className={styles.button} href="/matches/new#partidas-locales">
+            <Link className={styles.button} href={`/matches/new?resume=${matchId}`}>
+              Reanudar partida
+            </Link>
+            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/matches/new#partidas-locales">
               Ir al historial completo
             </Link>
             <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
@@ -69,7 +72,17 @@ export default function MatchDetailPage() {
 
         <section className={styles.card}>
           {!match ? (
-            <p>No se encontro esta partida en almacenamiento local.</p>
+            <div>
+              <p>No se encontro esta partida en almacenamiento local.</p>
+              <div className={styles.inlineControls}>
+                <Link className={styles.button} href="/matches/new">
+                  Iniciar nueva partida
+                </Link>
+                <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
+                  Volver al lobby
+                </Link>
+              </div>
+            </div>
           ) : (
             <>
               <h2 className={styles.cardTitle}>Resumen</h2>

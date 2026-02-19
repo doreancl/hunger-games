@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
 import {
@@ -350,6 +351,8 @@ export default function Home() {
   const [hasHydrated, setHasHydrated] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
+  const [hasAutoResumed, setHasAutoResumed] = useState(false);
+  const [resumeMatchId, setResumeMatchId] = useState<string | null>(null);
 
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
@@ -433,9 +436,26 @@ export default function Home() {
     return unique.map((characterId) => ({ id: characterId, name: characterName(characterId) }));
   }, [runtime, selectedCharacters]);
 
+  const applySetupFromMatch = useCallback((match: LocalMatchSummary) => {
+    setSelectedCharacters(match.roster_character_ids);
+    setSeed(match.settings.seed ?? '');
+    setSimulationSpeed(match.settings.simulation_speed);
+    setEventProfile(match.settings.event_profile);
+    setSurpriseLevel(match.settings.surprise_level);
+  }, []);
+
   useEffect(() => {
     setHasHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    setResumeMatchId(params.get('resume'));
+  }, [hasHydrated]);
 
   useEffect(() => {
     if (!hasHydrated) {
@@ -469,7 +489,7 @@ export default function Home() {
     if (runtimeLoad.error) {
       setInfoMessage(runtimeLoad.error);
     }
-  }, [hasHydrated]);
+  }, [applySetupFromMatch, hasHydrated]);
 
   const persistLocalMatches = useCallback((nextMatches: LocalMatchSummary[]) => {
     setLocalMatches(nextMatches);
@@ -490,14 +510,6 @@ export default function Home() {
       setInfoMessage(saveRuntimeResult.error);
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
-
-  function applySetupFromMatch(match: LocalMatchSummary) {
-    setSelectedCharacters(match.roster_character_ids);
-    setSeed(match.settings.seed ?? '');
-    setSimulationSpeed(match.settings.simulation_speed);
-    setEventProfile(match.settings.event_profile);
-    setSurpriseLevel(match.settings.surprise_level);
-  }
 
   function resetSetupToDefaults() {
     setSelectedCharacters(DEFAULT_CHARACTERS);
@@ -648,7 +660,7 @@ export default function Home() {
     }
   }
 
-  async function onOpenMatch(matchId: string) {
+  const onOpenMatch = useCallback(async (matchId: string) => {
     const match = localMatches.find((item) => item.id === matchId);
     if (!match) {
       setInfoMessage('No se encontro la partida seleccionada.');
@@ -700,7 +712,33 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
-  }
+  }, [applySetupFromMatch, autosaveEnabled, localMatches]);
+
+  useEffect(() => {
+    setHasAutoResumed(false);
+  }, [resumeMatchId]);
+
+  useEffect(() => {
+    if (!hasHydrated || !resumeMatchId || hasAutoResumed || isBusy) {
+      return;
+    }
+
+    if (runtime?.match_id === resumeMatchId) {
+      setHasAutoResumed(true);
+      return;
+    }
+
+    const targetMatch = localMatches.find((match) => match.id === resumeMatchId);
+    if (!targetMatch) {
+      setInfoMessage(`No se encontro la partida ${shortId(resumeMatchId)} para reanudar.`);
+      setHasAutoResumed(true);
+      return;
+    }
+
+    void onOpenMatch(targetMatch.id).finally(() => {
+      setHasAutoResumed(true);
+    });
+  }, [hasAutoResumed, hasHydrated, isBusy, localMatches, onOpenMatch, resumeMatchId, runtime?.match_id]);
 
   const onAdvanceStep = useCallback(async () => {
     if (!runtime || runtime.phase !== 'running' || isBusy) {
@@ -785,7 +823,7 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
-  }, [autosaveEnabled, isBusy, localMatches, persistLocalMatches, runtime]);
+  }, [applySetupFromMatch, autosaveEnabled, isBusy, localMatches, persistLocalMatches, runtime]);
 
   useEffect(() => {
     if (!runtime || runtime.phase !== 'running' || playbackSpeed === 'pause' || isBusy) {
@@ -867,6 +905,11 @@ export default function Home() {
           <p className={styles.heroMeta}>
             Fase actual: <strong>{phaseLabel(currentPhase)}</strong>
           </p>
+          <div className={styles.inlineControls}>
+            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
+              Volver al lobby
+            </Link>
+          </div>
           <div className={styles.sessionBar}>
             <span>
               Sesion actual: <strong>{currentSessionSizeLabel}</strong>
