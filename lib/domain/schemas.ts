@@ -241,6 +241,7 @@ export const apiErrorSchema = z
         code: z.enum([
           'UNSUPPORTED_MEDIA_TYPE',
           'INVALID_JSON',
+          'PAYLOAD_TOO_LARGE',
           'INVALID_REQUEST_PAYLOAD',
           'INTERNAL_CONTRACT_ERROR',
           'SNAPSHOT_INVALID',

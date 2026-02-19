@@ -163,7 +163,7 @@ describe('local runtime storage', () => {
     });
   });
 
-  it('loads runtime when checksum is invalid but payload shape is valid', () => {
+  it('rejects runtime when checksum is invalid even if payload shape is valid', () => {
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const runtime = buildRuntime();
     const storage = {
@@ -177,12 +177,13 @@ describe('local runtime storage', () => {
     };
 
     expect(loadLocalRuntimeFromStorage(storage)).toEqual({
-      runtime,
-      error: null
+      runtime: null,
+      error: 'partida no recuperable. Inicia una nueva partida.'
     });
     const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
     expect(lastLog.event).toBe('runtime.resume');
-    expect(lastLog.result).toBe('ok');
+    expect(lastLog.result).toBe('rejected');
+    expect(lastLog.reason).toBe('INVALID_CHECKSUM');
     expect(lastLog.snapshot_version).toBe(LOCAL_RUNTIME_SNAPSHOT_VERSION);
   });
 

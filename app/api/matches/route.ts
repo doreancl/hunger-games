@@ -8,6 +8,8 @@ import { checkRateLimit } from '@/lib/api/rate-limit';
 import { createMatch } from '@/lib/matches/lifecycle';
 import { recordLatencyMetric } from '@/lib/observability';
 
+const MAX_CREATE_MATCH_REQUEST_BYTES = 16_384;
+
 export async function POST(request: Request) {
   const requestStartMs = Date.now();
   let statusCode = 500;
@@ -37,10 +39,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).length > MAX_CREATE_MATCH_REQUEST_BYTES) {
+      statusCode = 413;
+      return jsonError(
+        'PAYLOAD_TOO_LARGE',
+        `Request body exceeds ${MAX_CREATE_MATCH_REQUEST_BYTES} bytes.`,
+        413
+      );
+    }
+
     let body: unknown;
 
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody) as unknown;
     } catch {
       statusCode = 400;
       return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);

@@ -75,6 +75,28 @@ describe('POST /api/matches', () => {
     expect(Array.isArray(body.error.details.issues)).toBe(true);
   });
 
+  it('returns typed error for oversized payload', async () => {
+    const oversizedBody = JSON.stringify({
+      payload: 'a'.repeat(20_000)
+    });
+    const request = new Request('http://localhost/api/matches', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: oversizedBody
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body).toEqual({
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Request body exceeds 16384 bytes.'
+      }
+    });
+  });
+
   it('returns typed error when roster size is below minimum', async () => {
     const request = new Request('http://localhost/api/matches', {
       method: 'POST',
