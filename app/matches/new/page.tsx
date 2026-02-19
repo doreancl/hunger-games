@@ -900,16 +900,16 @@ export default function Home() {
         <header className={styles.hero}>
           <div className={styles.heroTop}>
             <h1 className={styles.title}>Hunger Games Simulator</h1>
-            <strong>{runtime?.phase === 'finished' ? 'Partida cerrada' : 'Simulacion en vivo'}</strong>
+            <div className={styles.inlineControls}>
+              <strong>{runtime?.phase === 'finished' ? 'Partida cerrada' : 'Simulacion en vivo'}</strong>
+              <Link className={styles.button} href="/">
+                Volver al Lobby
+              </Link>
+            </div>
           </div>
           <p className={styles.heroMeta}>
             Fase actual: <strong>{phaseLabel(currentPhase)}</strong>
           </p>
-          <div className={styles.inlineControls}>
-            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
-              Volver al lobby
-            </Link>
-          </div>
           <div className={styles.sessionBar}>
             <span>
               Sesion actual: <strong>{currentSessionSizeLabel}</strong>
@@ -1097,6 +1097,9 @@ export default function Home() {
                     <button className={styles.button} type="button" onClick={resetSetupToDefaults}>
                       Nuevo setup
                     </button>
+                    <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
+                      Volver al Lobby
+                    </Link>
                   </div>
                 </div>
               </div>
