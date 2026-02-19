@@ -1,4 +1,4 @@
-import { RULESET_VERSION } from '@/lib/domain/types';
+import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
@@ -15,6 +15,7 @@ import {
   sampleParticipantCount,
   selectCatalogEvent
 } from '@/lib/simulation-state';
+import { emitStructuredLog, recordLatencyMetric } from '@/lib/observability';
 
 type StoredMatch = {
   match: Match;
@@ -23,7 +24,24 @@ type StoredMatch = {
   recent_events: GetMatchStateResponse['recent_events'];
 };
 
-const matches = new Map<string, StoredMatch>();
+type MatchesStore = Map<string, StoredMatch>;
+
+type GlobalMatchesStore = typeof globalThis & {
+  __hungerGamesMatchesStore?: MatchesStore;
+};
+
+const matches: MatchesStore =
+  process.env.NODE_ENV === 'test'
+    ? new Map<string, StoredMatch>()
+    : (() => {
+        const globalMatchesStore = globalThis as GlobalMatchesStore;
+        const sharedStore =
+          globalMatchesStore.__hungerGamesMatchesStore ?? new Map<string, StoredMatch>();
+        if (!globalMatchesStore.__hungerGamesMatchesStore) {
+          globalMatchesStore.__hungerGamesMatchesStore = sharedStore;
+        }
+        return sharedStore;
+      })();
 
 const MAX_RECENT_EVENTS = 12;
 
@@ -105,14 +123,16 @@ function eliminationChance(
 function eventNarrative(
   templateId: string,
   cyclePhase: Match['cycle_phase'],
-  participantCount: number,
-  eliminatedCount: number
+  participantNames: string[],
+  eliminatedNames: string[]
 ): string {
+  const participantsLabel =
+    participantNames.length === 0 ? 'sin participantes' : participantNames.join(', ');
   const eliminationSuffix =
-    eliminatedCount > 0
-      ? ` Hubo ${eliminatedCount} eliminacion${eliminatedCount > 1 ? 'es' : ''}.`
+    eliminatedNames.length > 0
+      ? ` Eliminados: ${eliminatedNames.join(', ')}.`
       : ' Nadie fue eliminado.';
-  return `Evento ${templateId} en fase ${cyclePhase} con ${participantCount} participante(s).${eliminationSuffix}`;
+  return `Evento ${templateId} en fase ${cyclePhase} con ${participantsLabel}.${eliminationSuffix}`;
 }
 
 function resolveWinnerId(participants: ParticipantState[]): string | null {
@@ -124,19 +144,45 @@ function resolveWinnerId(participants: ParticipantState[]): string | null {
   return alive[0].id;
 }
 
+function checksumFNV1a(raw: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < raw.length; index += 1) {
+    hash ^= raw.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function replaySignature(input: {
+  ruleset_version: string;
+  seed: string | null;
+  turn_number: number;
+  cycle_phase: Match['cycle_phase'];
+  template_id: string;
+  participant_character_ids: string[];
+  eliminated_character_ids: string[];
+}): string {
+  return checksumFNV1a(JSON.stringify(input));
+}
+
 export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
   const matchId = crypto.randomUUID();
   const now = new Date().toISOString();
   const settings = input.settings;
+  const participantNames = input.participant_names ?? input.roster_character_ids;
 
-  const participants: ParticipantState[] = input.roster_character_ids.map((characterId) => ({
-    id: crypto.randomUUID(),
-    match_id: matchId,
-    character_id: characterId,
-    current_health: 100,
-    status: 'alive',
-    streak_score: 0
-  }));
+  const participants: ParticipantState[] = input.roster_character_ids.map(
+    (characterId, index) => ({
+      id: crypto.randomUUID(),
+      match_id: matchId,
+      character_id: characterId,
+      display_name: participantNames[index] ?? characterId,
+      current_health: 100,
+      status: 'alive',
+      streak_score: 0
+    })
+  );
 
   matches.set(matchId, {
     match: {
@@ -155,6 +201,15 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     recent_events: []
   });
 
+  emitStructuredLog('match.created', {
+    match_id: matchId,
+    phase: 'setup',
+    roster_size: participants.length,
+    seed: settings.seed,
+    ruleset_version: RULESET_VERSION,
+    snapshot_version: SNAPSHOT_VERSION
+  });
+
   return {
     match_id: matchId,
     phase: 'setup'
@@ -164,6 +219,10 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
 export function startMatch(matchId: string): StartMatchResult {
   const stored = matches.get(matchId);
   if (!stored) {
+    emitStructuredLog('match.start.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_NOT_FOUND'
+    });
     return {
       ok: false,
       error: {
@@ -174,6 +233,11 @@ export function startMatch(matchId: string): StartMatchResult {
   }
 
   if (stored.match.phase !== 'setup') {
+    emitStructuredLog('match.start.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_STATE_CONFLICT',
+      phase: stored.match.phase
+    });
     return {
       ok: false,
       error: {
@@ -189,6 +253,15 @@ export function startMatch(matchId: string): StartMatchResult {
     cycle_phase: 'bloodbath',
     turn_number: 0
   };
+
+  emitStructuredLog('match.started', {
+    match_id: stored.match.id,
+    phase: stored.match.phase,
+    cycle_phase: stored.match.cycle_phase,
+    turn_number: stored.match.turn_number,
+    seed: stored.match.seed,
+    ruleset_version: stored.match.ruleset_version
+  });
 
   return {
     ok: true,
@@ -220,8 +293,13 @@ export function getMatchState(matchId: string): GetMatchStateResponse | null {
 }
 
 export function advanceTurn(matchId: string): AdvanceTurnResult {
+  const tickStartMs = Date.now();
   const stored = matches.get(matchId);
   if (!stored) {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_NOT_FOUND'
+    });
     return {
       ok: false,
       error: {
@@ -232,6 +310,11 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   }
 
   if (stored.match.phase !== 'running') {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_STATE_CONFLICT',
+      phase: stored.match.phase
+    });
     return {
       ok: false,
       error: {
@@ -243,6 +326,10 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
 
   const alive = aliveParticipants(stored.participants);
   if (alive.length <= 1) {
+    emitStructuredLog('match.turn.rejected', {
+      match_id: matchId,
+      reason: 'MATCH_ALREADY_RESOLVED'
+    });
     return {
       ok: false,
       error: {
@@ -282,6 +369,31 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     }
   }
 
+  const selectedCharacterIds = selectedParticipants.map((participant) => participant.character_id);
+  const selectedDisplayNames = selectedParticipants.map((participant) => participant.display_name);
+  const eliminatedCharacterIds = eliminatedIds
+    .map(
+      (participantId) =>
+        stored.participants.find((participant) => participant.id === participantId)?.character_id ?? null
+    )
+    .filter((characterId): characterId is string => characterId !== null);
+  const eliminatedDisplayNames = eliminatedIds
+    .map(
+      (participantId) =>
+        stored.participants.find((participant) => participant.id === participantId)?.display_name ?? null
+    )
+    .filter((displayName): displayName is string => displayName !== null);
+  const replayEvidence = {
+    ruleset_version: stored.match.ruleset_version,
+    seed: stored.match.seed,
+    turn_number: nextTurnNumber,
+    cycle_phase: currentPhase,
+    template_id: selectedTemplate.id,
+    participant_character_ids: selectedCharacterIds,
+    eliminated_character_ids: eliminatedCharacterIds
+  };
+  const replayHash = replaySignature(replayEvidence);
+
   for (const participant of selectedParticipants) {
     if (!eliminatedIds.includes(participant.id)) {
       const mutable = stored.participants.find((item) => item.id === participant.id);
@@ -320,8 +432,8 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     narrative_text: eventNarrative(
       selectedTemplate.id,
       currentPhase,
-      selectedParticipants.length,
-      eliminatedIds.length
+      selectedDisplayNames,
+      eliminatedDisplayNames
     ),
     lethal: eliminatedIds.length > 0,
     created_at: eventCreatedAt
@@ -344,6 +456,26 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       ended_at: eventCreatedAt
     };
   }
+
+  emitStructuredLog('match.turn.event', {
+    match_id: stored.match.id,
+    turn_number: stored.match.turn_number,
+    cycle_phase: stored.match.cycle_phase,
+    event_type: event.type,
+    template_id: event.template_id,
+    participant_count: selectedParticipants.length,
+    eliminated_count: eliminatedIds.length,
+    finished,
+    winner_id: winnerId,
+    ruleset_version: stored.match.ruleset_version,
+    snapshot_version: SNAPSHOT_VERSION,
+    seed: stored.match.seed,
+    replay_signature: replayHash
+  });
+
+  recordLatencyMetric('simulation.tick', Date.now() - tickStartMs, {
+    operation: 'advance_turn'
+  });
 
   return {
     ok: true,

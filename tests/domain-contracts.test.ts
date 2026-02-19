@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceTurnResponseSchema,
+  advanceTurnRequestSchema,
   createMatchRequestSchema,
   getMatchStateResponseSchema,
   matchSnapshotSchema,
+  resumeMatchRequestSchema,
   rulesetVersionSchema,
+  snapshotEnvelopeVersionSchema,
   startMatchResponseSchema
 } from '@/lib/domain/schemas';
 
@@ -45,12 +48,52 @@ describe('ruleset and snapshot versioning', () => {
 
     expect(matchSnapshotSchema.parse(snapshot).snapshot_version).toBe(1);
   });
+
+  it('accepts snapshot envelope for resume/advance requests', () => {
+    const snapshot = {
+      snapshot_version: 1,
+      ruleset_version: 'v1.0.0',
+      match: {
+        id: 'match-1',
+        seed: null,
+        ruleset_version: 'v1.0.0',
+        phase: 'setup',
+        cycle_phase: 'bloodbath',
+        turn_number: 0,
+        tension_level: 0,
+        created_at: '2026-02-15T10:00:00.000Z',
+        ended_at: null
+      },
+      settings: {
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      },
+      participants: [],
+      recent_events: []
+    };
+
+    const envelope = {
+      snapshot_version: 1,
+      checksum: '0badc0de',
+      snapshot
+    };
+
+    expect(resumeMatchRequestSchema.safeParse(envelope).success).toBe(true);
+    expect(advanceTurnRequestSchema.safeParse(envelope).success).toBe(true);
+  });
+
+  it('accepts version-only payload for compatibility checks', () => {
+    expect(snapshotEnvelopeVersionSchema.parse({ snapshot_version: 1 }).snapshot_version).toBe(1);
+  });
 });
 
 describe('create_match request contract', () => {
   it('accepts payload with unambiguous required fields', () => {
     const payload = {
       roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
+      participant_names: Array.from({ length: 10 }, (_, index) => `Tributo ${index + 1}`),
       settings: {
         surprise_level: 'normal',
         event_profile: 'balanced',
@@ -98,6 +141,15 @@ describe('create_match request contract', () => {
         extra: 'unexpected'
       },
       extra_root: true
+    };
+
+    expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('rejects payload when participant_names length does not match roster', () => {
+    const payload = {
+      roster_character_ids: Array.from({ length: 10 }, (_, index) => `char-${index + 1}`),
+      participant_names: ['Solo uno']
     };
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);

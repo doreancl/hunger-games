@@ -227,9 +227,16 @@ export function canResumeFromLocalStorage(raw: string | null): boolean {
 
   try {
     const parsed = JSON.parse(raw) as Partial<MatchState>;
-    return (
-      typeof parsed.id === 'string' &&
+    const hasValidId = typeof parsed.id === 'string' && parsed.id.trim().length > 0;
+    const hasValidTurn =
       typeof parsed.turn === 'number' &&
+      Number.isInteger(parsed.turn) &&
+      Number.isFinite(parsed.turn) &&
+      parsed.turn >= 0;
+
+    return (
+      hasValidId &&
+      hasValidTurn &&
       typeof parsed.active === 'boolean'
     );
   } catch {

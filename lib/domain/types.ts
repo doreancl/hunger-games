@@ -26,6 +26,9 @@ export type ErrorCode =
   | 'INVALID_JSON'
   | 'INVALID_REQUEST_PAYLOAD'
   | 'INTERNAL_CONTRACT_ERROR'
+  | 'SNAPSHOT_INVALID'
+  | 'SNAPSHOT_VERSION_UNSUPPORTED'
+  | 'RATE_LIMIT_EXCEEDED'
   | 'MATCH_NOT_FOUND'
   | 'MATCH_STATE_CONFLICT';
 
@@ -52,6 +55,7 @@ export type ParticipantState = {
   id: string;
   match_id: string;
   character_id: string;
+  display_name: string;
   current_health: number;
   status: ParticipantStatus;
   streak_score: number;
@@ -89,6 +93,7 @@ export type MatchSnapshot = {
 
 export type CreateMatchRequest = {
   roster_character_ids: string[];
+  participant_names?: string[];
   settings: MatchSettings;
 };
 

@@ -41,6 +41,7 @@ export const participantStateSchema = z
     id: z.string().min(1),
     match_id: z.string().min(1),
     character_id: z.string().min(1),
+    display_name: z.string().trim().min(1).max(40),
     current_health: z.number().int().min(0),
     status: participantStatusSchema,
     streak_score: z.number().int().min(0)
@@ -83,14 +84,40 @@ export const matchSnapshotSchema = z
     ruleset_version: rulesetVersionSchema,
     match: matchSchema,
     settings: matchSettingsSchema,
-    participants: z.array(participantStateSchema),
-    recent_events: z.array(eventSchema)
+    participants: z.array(participantStateSchema).max(48),
+    recent_events: z.array(eventSchema).max(200)
   })
   .strict();
+
+const snapshotChecksumSchema = z.string().regex(/^[a-f0-9]{8}$/i, 'checksum must be 8 hex chars');
+
+export const snapshotEnvelopeVersionSchema = z
+  .object({
+    snapshot_version: z.number().int().min(1)
+  })
+  .passthrough();
+
+export const snapshotEnvelopeSchema = z
+  .object({
+    snapshot_version: z.literal(SNAPSHOT_VERSION),
+    checksum: snapshotChecksumSchema,
+    snapshot: matchSnapshotSchema
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.snapshot.snapshot_version !== value.snapshot_version) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'snapshot version mismatch between envelope and snapshot payload',
+        path: ['snapshot', 'snapshot_version']
+      });
+    }
+  });
 
 export const createMatchRequestSchema = z
   .object({
     roster_character_ids: z.array(z.string().min(1)).min(10).max(48),
+    participant_names: z.array(z.string().trim().min(1).max(40)).min(10).max(48).optional(),
     settings: z
       .object({
         surprise_level: surpriseLevelSchema.default('normal'),
@@ -106,7 +133,19 @@ export const createMatchRequestSchema = z
         seed: null
       })
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.participant_names !== undefined &&
+      value.participant_names.length !== value.roster_character_ids.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'participant_names length must match roster_character_ids length',
+        path: ['participant_names']
+      });
+    }
+  });
 
 export const createMatchResponseSchema = z
   .object({
@@ -169,6 +208,9 @@ export const advanceTurnResponseSchema = z
     }
   });
 
+export const resumeMatchRequestSchema = snapshotEnvelopeSchema;
+export const advanceTurnRequestSchema = snapshotEnvelopeSchema;
+
 export const getMatchStateResponseSchema = z
   .object({
     match_id: z.string().min(1),
@@ -181,6 +223,8 @@ export const getMatchStateResponseSchema = z
     recent_events: z.array(eventSchema)
   })
   .strict();
+
+export const resumeMatchResponseSchema = getMatchStateResponseSchema;
 
 const validationIssueSchema = z
   .object({
@@ -199,6 +243,9 @@ export const apiErrorSchema = z
           'INVALID_JSON',
           'INVALID_REQUEST_PAYLOAD',
           'INTERNAL_CONTRACT_ERROR',
+          'SNAPSHOT_INVALID',
+          'SNAPSHOT_VERSION_UNSUPPORTED',
+          'RATE_LIMIT_EXCEEDED',
           'MATCH_NOT_FOUND',
           'MATCH_STATE_CONFLICT'
         ]),

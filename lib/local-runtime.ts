@@ -6,11 +6,12 @@ import type {
   SimulationSpeed,
   SurpriseLevel
 } from '@/lib/domain/types';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { z } from 'zod';
+import { emitStructuredLog } from '@/lib/observability';
 
 export const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 export const LOCAL_RUNTIME_SNAPSHOT_VERSION = 1 as const;
-const UNRECOVERABLE_LOCAL_RUNTIME_MESSAGE = 'partida no recuperable. Inicia una nueva partida.';
 
 export type RuntimeFeedEvent = {
   id: string;
@@ -20,6 +21,7 @@ export type RuntimeFeedEvent = {
   headline: string;
   impact: string;
   character_ids: string[];
+  eliminated_character_ids?: string[];
   created_at: string;
 };
 
@@ -82,6 +84,7 @@ const localRuntimeSnapshotSchema = z
             id: nonEmptyStringSchema,
             match_id: nonEmptyStringSchema,
             character_id: nonEmptyStringSchema,
+            display_name: nonEmptyStringSchema,
             current_health: z.number().int().min(0).max(100),
             status: participantStatusSchema,
             streak_score: z.number().int()
@@ -99,6 +102,7 @@ const localRuntimeSnapshotSchema = z
           headline: nonEmptyStringSchema,
           impact: nonEmptyStringSchema,
           character_ids: z.array(nonEmptyStringSchema),
+          eliminated_character_ids: z.array(nonEmptyStringSchema).optional(),
           created_at: z.string().datetime()
         })
         .strict()
@@ -167,44 +171,87 @@ export function estimateLocalRuntimeSnapshotBytes(runtime: LocalRuntimeSnapshot)
   ).length;
 }
 
-function parseRuntime(raw: string | null): { runtime: LocalRuntimeSnapshot | null; failure: boolean } {
+type RuntimeResumeFailureReason =
+  | 'INVALID_JSON'
+  | 'INVALID_VERSION_METADATA'
+  | 'SNAPSHOT_VERSION_MISMATCH'
+  | 'INVALID_ENVELOPE';
+
+function parseRuntime(raw: string | null): {
+  runtime: LocalRuntimeSnapshot | null;
+  failure: RuntimeResumeFailureReason | null;
+  detected_snapshot_version: number | null;
+} {
   if (raw === null) {
-    return { runtime: null, failure: false };
+    return { runtime: null, failure: null, detected_snapshot_version: null };
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(raw) as unknown;
   } catch {
-    return { runtime: null, failure: true };
+    return { runtime: null, failure: 'INVALID_JSON', detected_snapshot_version: null };
   }
 
   const parsedVersion = runtimeVersionSchema.safeParse(payload);
-  if (!parsedVersion.success || parsedVersion.data.snapshot_version !== LOCAL_RUNTIME_SNAPSHOT_VERSION) {
-    return { runtime: null, failure: true };
+  if (!parsedVersion.success) {
+    return { runtime: null, failure: 'INVALID_VERSION_METADATA', detected_snapshot_version: null };
+  }
+  if (parsedVersion.data.snapshot_version !== LOCAL_RUNTIME_SNAPSHOT_VERSION) {
+    return {
+      runtime: null,
+      failure: 'SNAPSHOT_VERSION_MISMATCH',
+      detected_snapshot_version: parsedVersion.data.snapshot_version
+    };
   }
 
   const parsedEnvelope = runtimeEnvelopeSchema.safeParse(payload);
   if (!parsedEnvelope.success) {
-    return { runtime: null, failure: true };
+    return {
+      runtime: null,
+      failure: 'INVALID_ENVELOPE',
+      detected_snapshot_version: parsedVersion.data.snapshot_version
+    };
   }
 
   // Backward compatibility: keep runtime if structure is valid even when checksum differs.
   // Older snapshots may differ only by object key order in checksum generation.
 
-  return { runtime: parsedEnvelope.data.runtime, failure: false };
+  return {
+    runtime: parsedEnvelope.data.runtime,
+    failure: null,
+    detected_snapshot_version: parsedVersion.data.snapshot_version
+  };
 }
 
 export function loadLocalRuntimeFromStorage(
   storage: Pick<Storage, 'getItem'>
 ): LocalRuntimeLoadResult {
   try {
-    const parsed = parseRuntime(storage.getItem(LOCAL_RUNTIME_STORAGE_KEY));
+    const raw = storage.getItem(LOCAL_RUNTIME_STORAGE_KEY);
+    const parsed = parseRuntime(raw);
     if (parsed.failure) {
-      return { runtime: null, error: UNRECOVERABLE_LOCAL_RUNTIME_MESSAGE };
+      emitStructuredLog('runtime.resume', {
+        result: 'rejected',
+        snapshot_version: parsed.detected_snapshot_version,
+        reason: parsed.failure
+      });
+      return { runtime: null, error: UNRECOVERABLE_MATCH_MESSAGE };
+    }
+    if (parsed.runtime) {
+      emitStructuredLog('runtime.resume', {
+        result: 'ok',
+        snapshot_version: LOCAL_RUNTIME_SNAPSHOT_VERSION,
+        match_id: parsed.runtime.match_id
+      });
     }
     return { runtime: parsed.runtime, error: null };
   } catch {
+    emitStructuredLog('runtime.resume', {
+      result: 'rejected',
+      snapshot_version: null,
+      reason: 'STORAGE_READ_ERROR'
+    });
     return { runtime: null, error: 'No fue posible leer el estado local de simulacion.' };
   }
 }

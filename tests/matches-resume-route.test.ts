@@ -1,0 +1,151 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { POST } from '@/app/api/matches/resume/route';
+import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
+import { RULESET_VERSION, SNAPSHOT_VERSION, type MatchSnapshot } from '@/lib/domain/types';
+
+function buildSnapshot(): MatchSnapshot {
+  return {
+    snapshot_version: SNAPSHOT_VERSION,
+    ruleset_version: RULESET_VERSION,
+    match: {
+      id: 'match-1',
+      seed: null,
+      ruleset_version: RULESET_VERSION,
+      phase: 'running',
+      cycle_phase: 'day',
+      turn_number: 3,
+      tension_level: 41,
+      created_at: '2026-02-18T00:00:00.000Z',
+      ended_at: null
+    },
+    settings: {
+      surprise_level: 'normal',
+      event_profile: 'balanced',
+      simulation_speed: '1x',
+      seed: null
+    },
+    participants: [
+      {
+        id: 'p1',
+        match_id: 'match-1',
+        character_id: 'char-1',
+        display_name: 'char-1',
+        current_health: 100,
+        status: 'alive',
+        streak_score: 0
+      }
+    ],
+    recent_events: []
+  };
+}
+
+describe('POST /api/matches/resume', () => {
+  beforeEach(() => {
+    resetRateLimitsForTests();
+  });
+
+  it.each([
+    {
+      name: 'unsupported content type',
+      request: new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'x'
+      }),
+      status: 415,
+      code: 'UNSUPPORTED_MEDIA_TYPE'
+    },
+    {
+      name: 'invalid JSON body',
+      request: new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{bad-json'
+      }),
+      status: 400,
+      code: 'INVALID_JSON'
+    }
+  ])('returns typed error for $name', async ({ request, status, code }) => {
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(status);
+    expect(body.error.code).toBe(code);
+  });
+
+  it('returns typed error for unsupported snapshot version', async () => {
+    const response = await POST(
+      new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION + 1
+        })
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error.code).toBe('SNAPSHOT_VERSION_UNSUPPORTED');
+    expect(body.error.message).toBe(UNRECOVERABLE_MATCH_MESSAGE);
+  });
+
+  it('returns typed error for invalid checksum', async () => {
+    const snapshot = buildSnapshot();
+    const response = await POST(
+      new Request('http://localhost/api/matches/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: '00000000',
+          snapshot
+        })
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('SNAPSHOT_INVALID');
+  });
+
+  it('rate limits endpoint after threshold', async () => {
+    const snapshot = buildSnapshot();
+    const payload = JSON.stringify({
+      snapshot_version: SNAPSHOT_VERSION,
+      checksum: buildSnapshotChecksum(snapshot),
+      snapshot
+    });
+
+    let lastResponse: Response | null = null;
+    for (let index = 0; index < 61; index += 1) {
+      lastResponse = await POST(
+        new Request('http://localhost/api/matches/resume', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: payload
+        })
+      );
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    const body = await lastResponse?.json();
+    expect(body).toEqual({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Rate limit exceeded for resume_match.',
+        details: {
+          issues: [
+            {
+              path: ['request'],
+              code: 'rate_limit_exceeded',
+              message: expect.stringMatching(/^Retry after \d+ seconds\.$/)
+            }
+          ]
+        }
+      }
+    });
+  });
+});
