@@ -352,7 +352,9 @@ export default function Home() {
   const [isBusy, setIsBusy] = useState(false);
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
+  const [hasAutoPrefilled, setHasAutoPrefilled] = useState(false);
   const [resumeMatchId, setResumeMatchId] = useState<string | null>(null);
+  const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
 
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
@@ -455,6 +457,7 @@ export default function Home() {
 
     const params = new URLSearchParams(window.location.search);
     setResumeMatchId(params.get('resume'));
+    setPrefillMatchId(params.get('prefill'));
   }, [hasHydrated]);
 
   useEffect(() => {
@@ -719,6 +722,10 @@ export default function Home() {
   }, [resumeMatchId]);
 
   useEffect(() => {
+    setHasAutoPrefilled(false);
+  }, [prefillMatchId]);
+
+  useEffect(() => {
     if (!hasHydrated || !resumeMatchId || hasAutoResumed || isBusy) {
       return;
     }
@@ -739,6 +746,34 @@ export default function Home() {
       setHasAutoResumed(true);
     });
   }, [hasAutoResumed, hasHydrated, isBusy, localMatches, onOpenMatch, resumeMatchId, runtime?.match_id]);
+
+  useEffect(() => {
+    if (!hasHydrated || !prefillMatchId || hasAutoPrefilled || isBusy || Boolean(resumeMatchId)) {
+      return;
+    }
+
+    const sourceMatch = localMatches.find((match) => match.id === prefillMatchId);
+    if (!sourceMatch) {
+      setInfoMessage(`No se encontro la partida ${shortId(prefillMatchId)} para duplicar setup.`);
+      setHasAutoPrefilled(true);
+      return;
+    }
+
+    applySetupFromMatch(sourceMatch);
+    setRuntime(null);
+    setPlaybackSpeed('pause');
+    clearLocalRuntimeFromStorage(window.localStorage);
+    setInfoMessage(`Setup duplicado desde ${shortId(sourceMatch.id)}.`);
+    setHasAutoPrefilled(true);
+  }, [
+    applySetupFromMatch,
+    hasAutoPrefilled,
+    hasHydrated,
+    isBusy,
+    localMatches,
+    prefillMatchId,
+    resumeMatchId
+  ]);
 
   const onAdvanceStep = useCallback(async () => {
     if (!runtime || runtime.phase !== 'running' || isBusy) {
