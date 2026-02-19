@@ -54,4 +54,19 @@ describe('rate limit isolation', () => {
     expect(afterReset.allowed).toBe(true);
     expect(afterReset.retryAfterSeconds).toBe(0);
   });
+
+  it('does not trust malformed forwarded headers as distinct clients', () => {
+    const requestA = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': 'not-an-ip' }
+    });
+    const requestB = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': 'still-not-an-ip' }
+    });
+
+    for (let index = 0; index < 20; index += 1) {
+      expect(checkRateLimit(requestA, 'create').allowed).toBe(true);
+    }
+
+    expect(checkRateLimit(requestB, 'create').allowed).toBe(false);
+  });
 });

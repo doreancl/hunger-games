@@ -175,7 +175,8 @@ type RuntimeResumeFailureReason =
   | 'INVALID_JSON'
   | 'INVALID_VERSION_METADATA'
   | 'SNAPSHOT_VERSION_MISMATCH'
-  | 'INVALID_ENVELOPE';
+  | 'INVALID_ENVELOPE'
+  | 'INVALID_CHECKSUM';
 
 function parseRuntime(raw: string | null): {
   runtime: LocalRuntimeSnapshot | null;
@@ -214,8 +215,14 @@ function parseRuntime(raw: string | null): {
     };
   }
 
-  // Backward compatibility: keep runtime if structure is valid even when checksum differs.
-  // Older snapshots may differ only by object key order in checksum generation.
+  const expectedChecksum = buildChecksum(parsedEnvelope.data.runtime);
+  if (expectedChecksum !== parsedEnvelope.data.checksum) {
+    return {
+      runtime: null,
+      failure: 'INVALID_CHECKSUM',
+      detected_snapshot_version: parsedVersion.data.snapshot_version
+    };
+  }
 
   return {
     runtime: parsedEnvelope.data.runtime,
