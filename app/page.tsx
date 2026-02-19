@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
 
@@ -45,6 +45,8 @@ export default function Home() {
     }
   }, []);
 
+  const quickMatches = useMemo(() => localMatches.slice(0, 6), [localMatches]);
+
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -66,10 +68,10 @@ export default function Home() {
         </header>
 
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Partidas guardadas</h2>
-          <p className={styles.cardHint}>Se muestran todas las partidas locales disponibles.</p>
+          <h2 className={styles.cardTitle}>Acceso rapido</h2>
+          <p className={styles.cardHint}>Se muestran las partidas mas recientes. Para gestión completa usa Historial.</p>
 
-          {localMatches.length === 0 ? (
+          {quickMatches.length === 0 ? (
             <div>
               <p>No hay partidas guardadas todavia.</p>
               <Link className={styles.button} href="/matches/new">
@@ -78,7 +80,7 @@ export default function Home() {
             </div>
           ) : (
             <ul className={styles.matchList}>
-              {localMatches.map((match) => (
+              {quickMatches.map((match) => (
                 <li key={match.id} className={styles.matchItem}>
                   <Link href={`/matches/${match.id}`} className={styles.matchLink}>
                     <p>
