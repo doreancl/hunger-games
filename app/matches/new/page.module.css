@@ -376,12 +376,6 @@
   background: #fffdf5;
 }
 
-.matchLink {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-}
-
 .status {
   font-weight: 700;
   text-transform: uppercase;
