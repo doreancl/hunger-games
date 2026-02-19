@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+
 type RateLimitScope = 'create' | 'advance' | 'resume';
 
 type RateLimitBucket = {
@@ -15,19 +17,8 @@ const RATE_LIMITS: Record<RateLimitScope, number> = {
 
 const buckets = new Map<string, RateLimitBucket>();
 
-const IPV4_PATTERN = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
-const IPV6_PATTERN = /^[a-f0-9:]+$/i;
-
 function isValidClientIp(value: string): boolean {
-  if (value.includes('.')) {
-    return IPV4_PATTERN.test(value);
-  }
-
-  if (value.includes(':')) {
-    return IPV6_PATTERN.test(value);
-  }
-
-  return false;
+  return isIP(value) !== 0;
 }
 
 function firstValidIp(raw: string | null): string | null {

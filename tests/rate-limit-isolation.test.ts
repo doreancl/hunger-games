@@ -69,4 +69,19 @@ describe('rate limit isolation', () => {
 
     expect(checkRateLimit(requestB, 'create').allowed).toBe(false);
   });
+
+  it('does not accept pseudo IPv6 values as valid distinct clients', () => {
+    const requestA = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': 'dead:beef' }
+    });
+    const requestB = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': '::::' }
+    });
+
+    for (let index = 0; index < 20; index += 1) {
+      expect(checkRateLimit(requestA, 'create').allowed).toBe(true);
+    }
+
+    expect(checkRateLimit(requestB, 'create').allowed).toBe(false);
+  });
 });
