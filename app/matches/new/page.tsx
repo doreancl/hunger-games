@@ -17,6 +17,7 @@ import {
   saveLocalRuntimeToStorage
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
+import { parseMatchNavigationQuery, shortId } from '@/lib/match-ux';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
 import type {
   AdvanceTurnResponse,
@@ -114,10 +115,6 @@ function createBrowserUuid(): string | null {
   }
 
   return crypto.randomUUID();
-}
-
-function shortId(value: string): string {
-  return value.slice(0, 8);
 }
 
 function formatBytes(bytes: number): string {
@@ -455,9 +452,9 @@ export default function Home() {
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    setResumeMatchId(params.get('resume'));
-    setPrefillMatchId(params.get('prefill'));
+    const query = parseMatchNavigationQuery(window.location.search);
+    setResumeMatchId(query.resumeMatchId);
+    setPrefillMatchId(query.prefillMatchId);
   }, [hasHydrated]);
 
   useEffect(() => {

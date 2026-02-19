@@ -3,35 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
+import { MatchList } from '@/app/components/match-list';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
-
-function shortId(value: string): string {
-  return value.slice(0, 8);
-}
-
-function phaseLabel(phase: LocalMatchSummary['cycle_phase']): string {
-  const labels: Record<LocalMatchSummary['cycle_phase'], string> = {
-    setup: 'Setup',
-    bloodbath: 'Bloodbath',
-    day: 'Dia',
-    night: 'Noche',
-    finale: 'Finale'
-  };
-
-  return labels[phase];
-}
-
-function dateLabel(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-
-  return new Intl.DateTimeFormat('es-ES', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(date);
-}
+import { quickAccessMatches } from '@/lib/match-ux';
 
 export default function Home() {
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
@@ -45,7 +19,7 @@ export default function Home() {
     }
   }, []);
 
-  const quickMatches = useMemo(() => localMatches.slice(0, 6), [localMatches]);
+  const quickMatches = useMemo(() => quickAccessMatches(localMatches, 6), [localMatches]);
 
   return (
     <main className={styles.page}>
@@ -71,41 +45,27 @@ export default function Home() {
           <h2 className={styles.cardTitle}>Acceso rapido</h2>
           <p className={styles.cardHint}>Se muestran las partidas mas recientes. Para gestión completa usa Historial.</p>
 
-          {quickMatches.length === 0 ? (
-            <div>
-              <p>No hay partidas guardadas todavia.</p>
-              <Link className={styles.button} href="/matches/new">
-                Iniciar partida
-              </Link>
-            </div>
-          ) : (
-            <ul className={styles.matchList}>
-              {quickMatches.map((match) => (
-                <li key={match.id} className={styles.matchItem}>
-                  <Link href={`/matches/${match.id}`} className={styles.matchLink}>
-                    <p>
-                      <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno{' '}
-                      {match.turn_number}
-                    </p>
-                    <p>
-                      Vivos: {match.alive_count}/{match.total_participants} · Seed:{' '}
-                      {match.settings.seed ?? 'sin seed'}
-                    </p>
-                    <p>Actualizada: {dateLabel(match.updated_at)}</p>
-                  </Link>
-
-                  <div className={styles.inlineControls}>
-                    <Link className={styles.button} href={`/matches/new?resume=${match.id}`}>
-                      Reanudar
-                    </Link>
-                    <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
-                      Ver detalle
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <MatchList
+            matches={quickMatches}
+            emptyState={
+              <div>
+                <p>No hay partidas guardadas todavia.</p>
+                <Link className={styles.button} href="/matches/new">
+                  Iniciar partida
+                </Link>
+              </div>
+            }
+            renderActions={(match) => (
+              <>
+                <Link className={styles.button} href={`/matches/new?resume=${match.id}`}>
+                  Reanudar
+                </Link>
+                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
+                  Ver detalle
+                </Link>
+              </>
+            )}
+          />
         </section>
 
         {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
