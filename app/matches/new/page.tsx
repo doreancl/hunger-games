@@ -77,8 +77,19 @@ const SPEED_INTERVAL_MS: Record<SimulationSpeed, number> = {
 
 const SESSION_SIZE_HIGH_BYTES = 1024 * 1024;
 const SESSION_SIZE_CRITICAL_BYTES = 1536 * 1024;
+const TRANSITION_STORAGE_KEY = 'hg_transition';
+const TRANSITION_MIN_VISIBLE_MS = 700;
+const TRANSITION_LONG_WAIT_MS = 3000;
+const TRANSITION_FADE_OUT_MS = 180;
 
 type PlaybackSpeed = SimulationSpeed | 'pause';
+type TransitionDirection = 'lobby_to_match' | 'match_to_lobby';
+
+type TransitionOverlayState = {
+  direction: TransitionDirection;
+  showLongWait: boolean;
+  isExiting: boolean;
+};
 
 type FeedEvent = {
   id: string;
@@ -125,6 +136,12 @@ function formatBytes(bytes: number): string {
     return `${Math.round((bytes / 1024) * 10) / 10} KB`;
   }
   return `${Math.round((bytes / (1024 * 1024)) * 100) / 100} MB`;
+}
+
+function waitMs(durationMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
 }
 
 function sessionSizeTone(bytes: number): 'ok' | 'high' | 'critical' {
@@ -352,6 +369,7 @@ export default function Home() {
   const [hasAutoPrefilled, setHasAutoPrefilled] = useState(false);
   const [resumeMatchId, setResumeMatchId] = useState<string | null>(null);
   const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
+  const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
 
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
@@ -373,6 +391,7 @@ export default function Home() {
   const currentSessionSizeBytes = runtime ? estimateLocalRuntimeSnapshotBytes(runtime) : 0;
   const currentSessionSizeLabel = formatBytes(currentSessionSizeBytes);
   const currentSessionSizeTone = sessionSizeTone(currentSessionSizeBytes);
+  const isTransitioning = transitionOverlay !== null;
   const filteredFeed = useMemo(
     () =>
       feed.filter((event) => {
@@ -445,6 +464,67 @@ export default function Home() {
 
   useEffect(() => {
     setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem(TRANSITION_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    let parsed: { direction?: string; startedAt?: number } | null = null;
+    try {
+      parsed = JSON.parse(raw) as { direction?: string; startedAt?: number };
+    } catch {
+      window.sessionStorage.removeItem(TRANSITION_STORAGE_KEY);
+      return;
+    }
+
+    if (parsed?.direction !== 'lobby_to_match' || typeof parsed.startedAt !== 'number') {
+      return;
+    }
+
+    window.sessionStorage.removeItem(TRANSITION_STORAGE_KEY);
+
+    const elapsedMs = Date.now() - parsed.startedAt;
+    const remainingMinMs = Math.max(0, TRANSITION_MIN_VISIBLE_MS - elapsedMs);
+    const remainingLongWaitMs = Math.max(0, TRANSITION_LONG_WAIT_MS - elapsedMs);
+    let longWaitId = 0;
+
+    setTransitionOverlay({
+      direction: 'lobby_to_match',
+      showLongWait: elapsedMs >= TRANSITION_LONG_WAIT_MS,
+      isExiting: false
+    });
+
+    if (elapsedMs < TRANSITION_LONG_WAIT_MS) {
+      longWaitId = window.setTimeout(() => {
+        setTransitionOverlay((current) => {
+          if (!current || current.direction !== 'lobby_to_match' || current.isExiting) {
+            return current;
+          }
+
+          return { ...current, showLongWait: true };
+        });
+      }, remainingLongWaitMs);
+    }
+
+    void (async () => {
+      if (remainingMinMs > 0) {
+        await waitMs(remainingMinMs);
+      }
+
+      window.clearTimeout(longWaitId);
+      setTransitionOverlay((current) =>
+        current ? { ...current, isExiting: true } : current
+      );
+      await waitMs(TRANSITION_FADE_OUT_MS);
+      setTransitionOverlay(null);
+    })();
+
+    return () => {
+      window.clearTimeout(longWaitId);
+    };
   }, []);
 
   useEffect(() => {
@@ -926,15 +1006,38 @@ export default function Home() {
     setInfoMessage(`Progreso guardado (${shortId(summary.id)}).`);
   }
 
+  function onReturnToLobby(): void {
+    const startedAt = Date.now();
+    window.sessionStorage.setItem(
+      TRANSITION_STORAGE_KEY,
+      JSON.stringify({ direction: 'match_to_lobby', startedAt })
+    );
+    setTransitionOverlay({
+      direction: 'match_to_lobby',
+      showLongWait: false,
+      isExiting: false
+    });
+
+    window.setTimeout(() => {
+      setTransitionOverlay((current) => {
+        if (!current || current.direction !== 'match_to_lobby' || current.isExiting) {
+          return current;
+        }
+
+        return { ...current, showLongWait: true };
+      });
+    }, TRANSITION_LONG_WAIT_MS);
+  }
+
   return (
-    <main className={styles.page}>
+    <main className={styles.page} aria-busy={isTransitioning}>
       <div className={styles.shell}>
         <header className={styles.hero}>
           <div className={styles.heroTop}>
             <h1 className={styles.title}>Hunger Games Simulator</h1>
             <div className={styles.inlineControls}>
               <strong>{runtime?.phase === 'finished' ? 'Partida cerrada' : 'Simulacion en vivo'}</strong>
-              <Link className={styles.button} href="/">
+              <Link className={styles.button} href="/" onClick={onReturnToLobby}>
                 Volver al Lobby
               </Link>
             </div>
@@ -1129,7 +1232,11 @@ export default function Home() {
                     <button className={styles.button} type="button" onClick={resetSetupToDefaults}>
                       Nuevo setup
                     </button>
-                    <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
+                    <Link
+                      className={`${styles.button} ${styles.buttonGhost}`}
+                      href="/"
+                      onClick={onReturnToLobby}
+                    >
                       Volver al Lobby
                     </Link>
                   </div>
@@ -1340,6 +1447,28 @@ export default function Home() {
 
         {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
       </div>
+      {transitionOverlay ? (
+        <div
+          className={`${styles.transitionOverlay} ${transitionOverlay.isExiting ? styles.transitionOverlayExit : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div className={styles.transitionContent}>
+            <div className={styles.transitionSpinner} aria-hidden="true" />
+            <p className={styles.transitionTitle}>
+              {transitionOverlay.direction === 'match_to_lobby'
+                ? 'Volviendo al lobby...'
+                : 'Preparando la arena...'}
+            </p>
+            <p className={styles.transitionHint}>
+              {transitionOverlay.showLongWait
+                ? 'Esto esta tardando mas de lo esperado. Espera un momento...'
+                : 'Sincronizando estado de la partida.'}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
