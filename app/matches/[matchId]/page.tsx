@@ -61,7 +61,7 @@ export default function MatchDetailPage() {
             <Link className={styles.button} href={`/matches/new?resume=${matchId}`}>
               Reanudar partida
             </Link>
-            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/matches/new#partidas-locales">
+            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/matches">
               Ir al historial completo
             </Link>
             <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">

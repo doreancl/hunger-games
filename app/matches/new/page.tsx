@@ -1337,36 +1337,6 @@ export default function Home() {
                 </ul>
               </section>
 
-              <section id="partidas-locales" className={styles.card}>
-                <h3 className={styles.cardTitle}>Partidas locales</h3>
-                {localMatches.length === 0 ? (
-                  <p>No hay partidas guardadas.</p>
-                ) : (
-                  <ul className={styles.matchList}>
-                    {localMatches.map((match) => (
-                      <li key={match.id} className={styles.matchItem}>
-                        <p>
-                          <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno{' '}
-                          {match.turn_number}
-                        </p>
-                        <p>
-                          Vivos: {match.alive_count}/{match.total_participants} · Seed:{' '}
-                          {match.settings.seed ?? 'sin seed'}
-                        </p>
-                        <button
-                          className={styles.button}
-                          type="button"
-                          onClick={() => {
-                            void onOpenMatch(match.id);
-                          }}
-                        >
-                          Continuar
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
             </aside>
           </section>
         </div>
