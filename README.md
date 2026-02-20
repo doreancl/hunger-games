@@ -45,6 +45,14 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 | `npm run test:coverage` | Tests con cobertura |
 | `npm run validate` | Gate completo (`lint + unit + coverage`) |
 
+## Observabilidad (Vercel Analytics)
+
+- Integracion base habilitada con `@vercel/analytics` en `app/layout.tsx`.
+- Para validar eventos en produccion:
+  1. Desplegar la app en Vercel.
+  2. Abrir el deployment y navegar por la app para generar trafico.
+  3. Ir a `Vercel Dashboard -> Project -> Analytics` y confirmar recepcion de eventos/paginas.
+
 ## Flujo funcional
 
 1. Crear setup de partida (`/matches/new`) con roster, seed opcional y perfil.
