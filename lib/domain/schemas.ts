@@ -15,6 +15,18 @@ export const eventTypeSchema = z.enum([
   'hazard',
   'surprise'
 ]);
+export const eventSourceTypeSchema = z.enum(['natural', 'god_mode']);
+export const relationshipStateSchema = z.enum(['ally', 'neutral', 'enemy']);
+export const godModeLocationSchema = z.enum([
+  'cornucopia',
+  'forest',
+  'river',
+  'lake',
+  'meadow',
+  'caves',
+  'ruins',
+  'cliffs'
+]);
 export const eventParticipantRoleSchema = z.enum([
   'initiator',
   'target',
@@ -55,6 +67,7 @@ export const eventSchema = z
     template_id: z.string().min(1),
     turn_number: z.number().int().min(0),
     type: eventTypeSchema,
+    source_type: eventSourceTypeSchema,
     phase: cyclePhaseSchema,
     participant_count: z.number().int().min(0),
     intensity: z.number().min(0),
@@ -172,6 +185,7 @@ export const advanceTurnResponseSchema = z
       .object({
         id: z.string().min(1),
         type: eventTypeSchema,
+        source_type: eventSourceTypeSchema,
         phase: cyclePhaseSchema,
         narrative_text: z.string().min(1),
         participant_ids: z.array(z.string().min(1)).min(1)
@@ -221,7 +235,96 @@ export const getMatchStateResponseSchema = z
     tension_level: z.number().min(0),
     settings: matchSettingsSchema,
     participants: z.array(participantStateSchema),
-    recent_events: z.array(eventSchema)
+    recent_events: z.array(eventSchema),
+    god_mode: z
+      .object({
+        phase: z.enum(['idle', 'god_mode']),
+        pending_actions: z.number().int().min(0)
+      })
+      .strict()
+  })
+  .strict();
+
+const globalEventActionSchema = z
+  .object({
+    kind: z.literal('global_event'),
+    event: z.enum(['extreme_weather', 'toxic_fog', 'cornucopia_resupply'])
+  })
+  .strict();
+
+const localizedFireActionSchema = z
+  .object({
+    kind: z.literal('localized_fire'),
+    location_id: godModeLocationSchema,
+    persistence_turns: z.number().int().min(1).max(4).optional()
+  })
+  .strict();
+
+const forceEncounterActionSchema = z
+  .object({
+    kind: z.literal('force_encounter'),
+    tribute_a_id: z.string().min(1),
+    tribute_b_id: z.string().min(1),
+    location_id: godModeLocationSchema.optional()
+  })
+  .strict();
+
+const separateTributesActionSchema = z
+  .object({
+    kind: z.literal('separate_tributes'),
+    tribute_ids: z.array(z.string().min(1)).min(2)
+  })
+  .strict();
+
+const resourceAdjustmentActionSchema = z
+  .object({
+    kind: z.literal('resource_adjustment'),
+    target_id: z.string().min(1),
+    resource: z.literal('health'),
+    delta: z.number().int().min(-100).max(100)
+  })
+  .strict();
+
+const reviveTributeActionSchema = z
+  .object({
+    kind: z.literal('revive_tribute'),
+    target_id: z.string().min(1),
+    revive_mode: z.enum(['standard', 'full']),
+    cost: z.number().int().min(0).optional()
+  })
+  .strict();
+
+const setRelationshipActionSchema = z
+  .object({
+    kind: z.literal('set_relationship'),
+    source_id: z.string().min(1),
+    target_id: z.string().min(1),
+    relation: z.literal('enemy')
+  })
+  .strict();
+
+export const godModeActionSchema = z.discriminatedUnion('kind', [
+  globalEventActionSchema,
+  localizedFireActionSchema,
+  forceEncounterActionSchema,
+  separateTributesActionSchema,
+  resourceAdjustmentActionSchema,
+  reviveTributeActionSchema,
+  setRelationshipActionSchema
+]);
+
+export const submitGodModeActionsRequestSchema = z
+  .object({
+    actions: z.array(godModeActionSchema).min(1).max(6)
+  })
+  .strict();
+
+export const submitGodModeActionsResponseSchema = z
+  .object({
+    match_id: z.string().min(1),
+    phase: z.literal('god_mode'),
+    accepted_actions: z.number().int().min(0),
+    pending_actions: z.number().int().min(0)
   })
   .strict();
 

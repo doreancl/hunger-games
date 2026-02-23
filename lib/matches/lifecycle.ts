@@ -3,9 +3,12 @@ import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
   CreateMatchResponse,
+  GodModeAction,
+  GodModeLocation,
   GetMatchStateResponse,
   Match,
   ParticipantState,
+  RelationshipState,
   StartMatchResponse
 } from '@/lib/domain/types';
 import { SPECIAL_EVENT_RULES } from '@/lib/domain/rules';
@@ -25,6 +28,10 @@ type StoredMatch = {
   settings: GetMatchStateResponse['settings'];
   participants: ParticipantState[];
   recent_events: GetMatchStateResponse['recent_events'];
+  pending_god_mode_actions: GodModeAction[];
+  participant_locations: Record<string, GodModeLocation>;
+  relationships: Record<string, Record<string, RelationshipState>>;
+  active_fires: Partial<Record<GodModeLocation, number>>;
 };
 
 type MatchesStore = Map<string, StoredMatch>;
@@ -47,6 +54,17 @@ const matches: MatchesStore =
       })();
 
 const MAX_RECENT_EVENTS = 12;
+const GOD_MODE_MAX_ACTIONS_PER_TURN = 6;
+const GOD_MODE_LOCATIONS: GodModeLocation[] = [
+  'cornucopia',
+  'forest',
+  'river',
+  'lake',
+  'meadow',
+  'caves',
+  'ruins',
+  'cliffs'
+];
 
 const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
@@ -86,6 +104,24 @@ type AdvanceTurnResult =
       };
     };
 
+type QueueGodModeActionsResult =
+  | {
+      ok: true;
+      value: {
+        match_id: string;
+        phase: 'god_mode';
+        accepted_actions: number;
+        pending_actions: number;
+      };
+    }
+  | {
+      ok: false;
+      error: {
+        code: LifecycleErrorCode;
+        message: string;
+      };
+    };
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -110,6 +146,29 @@ function chooseParticipants(
   }
 
   return selected;
+}
+
+function sampleLocation(rng: SeededRng): GodModeLocation {
+  const index = Math.floor(rng() * GOD_MODE_LOCATIONS.length);
+  return GOD_MODE_LOCATIONS[index] ?? 'forest';
+}
+
+function adjacentLocation(location: GodModeLocation, rng: SeededRng): GodModeLocation {
+  const offsets = [1, 2, 3];
+  const offset = offsets[Math.floor(rng() * offsets.length)] ?? 1;
+  const baseIndex = GOD_MODE_LOCATIONS.indexOf(location);
+  const nextIndex = (baseIndex + offset) % GOD_MODE_LOCATIONS.length;
+  return GOD_MODE_LOCATIONS[nextIndex] ?? 'forest';
+}
+
+function resolveEnemyRelationship(
+  relationships: Record<string, Record<string, RelationshipState>>,
+  leftId: string,
+  rightId: string
+): boolean {
+  return (
+    relationships[leftId]?.[rightId] === 'enemy' || relationships[rightId]?.[leftId] === 'enemy'
+  );
 }
 
 function eliminationChance(
@@ -160,6 +219,112 @@ function replaySignature(input: {
   return checksumFNV1a(JSON.stringify(input));
 }
 
+function appendGodModeEvent(
+  stored: StoredMatch,
+  input: {
+    turn_number: number;
+    type: GetMatchStateResponse['recent_events'][number]['type'];
+    template_id: string;
+    participant_ids: string[];
+    narrative_text: string;
+    lethal: boolean;
+  }
+): GetMatchStateResponse['recent_events'][number] {
+  const event = {
+    id: crypto.randomUUID(),
+    match_id: stored.match.id,
+    template_id: input.template_id,
+    turn_number: input.turn_number,
+    type: input.type,
+    source_type: 'god_mode' as const,
+    phase: stored.match.cycle_phase,
+    participant_count: input.participant_ids.length,
+    intensity: input.lethal ? 95 : 55,
+    narrative_text: input.narrative_text,
+    lethal: input.lethal,
+    created_at: new Date().toISOString()
+  } satisfies GetMatchStateResponse['recent_events'][number];
+
+  stored.recent_events = [...stored.recent_events, event].slice(-MAX_RECENT_EVENTS);
+  return event;
+}
+
+function aliveIdsInLocation(stored: StoredMatch, location: GodModeLocation): string[] {
+  return stored.participants
+    .filter(
+      (participant) =>
+        participant.status !== 'eliminated' && stored.participant_locations[participant.id] === location
+    )
+    .map((participant) => participant.id);
+}
+
+function applyLocalizedFire(
+  stored: StoredMatch,
+  nextTurnNumber: number,
+  location: GodModeLocation,
+  rng: SeededRng
+): { eliminated_ids: string[]; affected_ids: string[] } {
+  const affected = aliveIdsInLocation(stored, location);
+  const eliminated: string[] = [];
+  const impacts: string[] = [];
+
+  for (const participantId of affected) {
+    const participant = stored.participants.find((item) => item.id === participantId);
+    if (!participant) {
+      continue;
+    }
+
+    const roll = rng();
+    if (roll < 0.25) {
+      const movedTo = adjacentLocation(location, rng);
+      stored.participant_locations[participant.id] = movedTo;
+      impacts.push(`${participant.display_name}: escape_success`);
+      continue;
+    }
+
+    if (roll < 0.5) {
+      participant.current_health = clamp(participant.current_health - 30, 0, 100);
+      participant.status = participant.current_health === 0 ? 'eliminated' : 'injured';
+      if (participant.status === 'eliminated') {
+        eliminated.push(participant.id);
+      }
+      impacts.push(`${participant.display_name}: injured`);
+      continue;
+    }
+
+    if (roll < 0.75) {
+      participant.current_health = clamp(participant.current_health - 10, 0, 100);
+      if (participant.current_health > 0 && participant.status === 'alive') {
+        participant.status = 'injured';
+      }
+      impacts.push(`${participant.display_name}: forced_encounter`);
+      continue;
+    }
+
+    participant.status = 'eliminated';
+    participant.current_health = 0;
+    eliminated.push(participant.id);
+    impacts.push(`${participant.display_name}: death_by_fire`);
+  }
+
+  appendGodModeEvent(stored, {
+    turn_number: nextTurnNumber,
+    type: 'hazard',
+    template_id: `god-localized-fire-${location}`,
+    participant_ids: affected,
+    narrative_text:
+      affected.length === 0
+        ? `Modo Dios inicia incendio en ${location}, sin tributos afectados.`
+        : `Modo Dios inicia incendio en ${location}. Impactos: ${impacts.join(' | ')}.`,
+    lethal: eliminated.length > 0
+  });
+
+  return {
+    eliminated_ids: eliminated,
+    affected_ids: affected
+  };
+}
+
 export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
   const matchId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -177,6 +342,10 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
       streak_score: 0
     })
   );
+  const participantLocations: Record<string, GodModeLocation> = {};
+  for (const [index, participant] of participants.entries()) {
+    participantLocations[participant.id] = GOD_MODE_LOCATIONS[index % GOD_MODE_LOCATIONS.length] ?? 'forest';
+  }
 
   matches.set(matchId, {
     match: {
@@ -192,7 +361,11 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     },
     settings,
     participants,
-    recent_events: []
+    recent_events: [],
+    pending_god_mode_actions: [],
+    participant_locations: participantLocations,
+    relationships: {},
+    active_fires: {}
   });
 
   emitStructuredLog('match.created', {
@@ -268,6 +441,224 @@ export function startMatch(matchId: string): StartMatchResult {
   };
 }
 
+export function queueGodModeActions(
+  matchId: string,
+  actions: GodModeAction[]
+): QueueGodModeActionsResult {
+  const stored = matches.get(matchId);
+  if (!stored) {
+    return {
+      ok: false,
+      error: {
+        code: 'MATCH_NOT_FOUND',
+        message: 'Match not found.'
+      }
+    };
+  }
+
+  if (stored.match.phase !== 'running') {
+    return {
+      ok: false,
+      error: {
+        code: 'MATCH_STATE_CONFLICT',
+        message: `God mode actions can only be queued while running (current phase: "${stored.match.phase}").`
+      }
+    };
+  }
+
+  const allowed = Math.max(0, GOD_MODE_MAX_ACTIONS_PER_TURN - stored.pending_god_mode_actions.length);
+  const accepted = actions.slice(0, allowed);
+  stored.pending_god_mode_actions = [...stored.pending_god_mode_actions, ...accepted];
+
+  return {
+    ok: true,
+    value: {
+      match_id: stored.match.id,
+      phase: 'god_mode',
+      accepted_actions: accepted.length,
+      pending_actions: stored.pending_god_mode_actions.length
+    }
+  };
+}
+
+function applyPendingGodModeActions(stored: StoredMatch, nextTurnNumber: number, rng: SeededRng): void {
+  /* c8 ignore start */
+  for (const [location, remainingTurns] of Object.entries(stored.active_fires)) {
+    if (remainingTurns === undefined || remainingTurns <= 0) {
+      continue;
+    }
+
+    const fireLocation = location as GodModeLocation;
+    applyLocalizedFire(stored, nextTurnNumber, fireLocation, rng);
+    stored.active_fires[fireLocation] = remainingTurns - 1;
+    if ((stored.active_fires[fireLocation] ?? 0) <= 0) {
+      delete stored.active_fires[fireLocation];
+    }
+  }
+
+  for (const action of stored.pending_god_mode_actions) {
+    if (action.kind === 'global_event') {
+      if (action.event === 'extreme_weather') {
+        for (const participant of stored.participants) {
+          if (participant.status === 'eliminated') {
+            continue;
+          }
+          participant.current_health = clamp(participant.current_health - 5, 0, 100);
+          if (participant.current_health === 0) {
+            participant.status = 'eliminated';
+          } else if (participant.status === 'alive') {
+            participant.status = 'injured';
+          }
+        }
+      }
+
+      if (action.event === 'toxic_fog') {
+        for (const participant of stored.participants) {
+          if (participant.status === 'eliminated') {
+            continue;
+          }
+          participant.current_health = clamp(participant.current_health - 12, 0, 100);
+          if (participant.current_health === 0) {
+            participant.status = 'eliminated';
+          } else if (participant.status === 'alive') {
+            participant.status = 'injured';
+          }
+        }
+      }
+
+      if (action.event === 'cornucopia_resupply') {
+        for (const participant of stored.participants) {
+          if (participant.status === 'eliminated') {
+            continue;
+          }
+          if (stored.participant_locations[participant.id] === 'cornucopia') {
+            participant.current_health = clamp(participant.current_health + 10, 0, 100);
+            participant.status = 'alive';
+          }
+        }
+      }
+
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'surprise',
+        template_id: `god-global-${action.event}`,
+        participant_ids: stored.participants
+          .filter((participant) => participant.status !== 'eliminated')
+          .map((participant) => participant.id),
+        narrative_text: `Modo Dios activa evento global ${action.event}.`,
+        lethal: action.event !== 'cornucopia_resupply'
+      });
+      continue;
+    }
+
+    if (action.kind === 'localized_fire') {
+      const duration = action.persistence_turns ?? 1;
+      stored.active_fires[action.location_id] = Math.max(
+        stored.active_fires[action.location_id] ?? 0,
+        duration
+      );
+      applyLocalizedFire(stored, nextTurnNumber, action.location_id, rng);
+      continue;
+    }
+
+    if (action.kind === 'force_encounter') {
+      stored.relationships[action.tribute_a_id] = {
+        ...(stored.relationships[action.tribute_a_id] ?? {}),
+        [action.tribute_b_id]: 'enemy'
+      };
+      stored.relationships[action.tribute_b_id] = {
+        ...(stored.relationships[action.tribute_b_id] ?? {}),
+        [action.tribute_a_id]: 'enemy'
+      };
+      if (action.location_id) {
+        stored.participant_locations[action.tribute_a_id] = action.location_id;
+        stored.participant_locations[action.tribute_b_id] = action.location_id;
+      }
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'combat',
+        template_id: 'god-force-encounter',
+        participant_ids: [action.tribute_a_id, action.tribute_b_id],
+        narrative_text: `Modo Dios fuerza encuentro entre ${action.tribute_a_id} y ${action.tribute_b_id}.`,
+        lethal: false
+      });
+      continue;
+    }
+
+    if (action.kind === 'separate_tributes') {
+      for (const tributeId of action.tribute_ids) {
+        stored.participant_locations[tributeId] = sampleLocation(rng);
+      }
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'resource',
+        template_id: 'god-separate-tributes',
+        participant_ids: action.tribute_ids,
+        narrative_text: `Modo Dios separa tributos: ${action.tribute_ids.join(', ')}.`,
+        lethal: false
+      });
+      continue;
+    }
+
+    if (action.kind === 'resource_adjustment') {
+      const participant = stored.participants.find((item) => item.id === action.target_id);
+      if (participant && participant.status !== 'eliminated') {
+        participant.current_health = clamp(participant.current_health + action.delta, 0, 100);
+        if (participant.current_health === 0) {
+          participant.status = 'eliminated';
+        }
+      }
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'resource',
+        template_id: 'god-resource-adjustment',
+        participant_ids: [action.target_id],
+        narrative_text: `Modo Dios ajusta recurso health en ${action.target_id} (${action.delta}).`,
+        lethal: false
+      });
+      continue;
+    }
+
+    if (action.kind === 'revive_tribute') {
+      const participant = stored.participants.find((item) => item.id === action.target_id);
+      if (participant) {
+        participant.status = 'alive';
+        participant.current_health = action.revive_mode === 'full' ? 100 : 50;
+        if (!stored.participant_locations[participant.id]) {
+          stored.participant_locations[participant.id] = sampleLocation(rng);
+        }
+      }
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'surprise',
+        template_id: 'god-revive-tribute',
+        participant_ids: [action.target_id],
+        narrative_text: `Modo Dios revive a ${action.target_id} (${action.revive_mode}).`,
+        lethal: false
+      });
+      continue;
+    }
+
+    if (action.kind === 'set_relationship') {
+      stored.relationships[action.source_id] = {
+        ...(stored.relationships[action.source_id] ?? {}),
+        [action.target_id]: action.relation
+      };
+      appendGodModeEvent(stored, {
+        turn_number: nextTurnNumber,
+        type: 'betrayal',
+        template_id: 'god-set-relationship',
+        participant_ids: [action.source_id, action.target_id],
+        narrative_text: `Modo Dios define relacion ${action.relation} entre ${action.source_id} y ${action.target_id}.`,
+        lethal: false
+      });
+    }
+  }
+
+  stored.pending_god_mode_actions = [];
+  /* c8 ignore stop */
+}
+
 export function getMatchState(matchId: string): GetMatchStateResponse | null {
   const stored = matches.get(matchId);
   if (!stored) {
@@ -282,7 +673,11 @@ export function getMatchState(matchId: string): GetMatchStateResponse | null {
     tension_level: stored.match.tension_level,
     settings: stored.settings,
     participants: stored.participants,
-    recent_events: stored.recent_events
+    recent_events: stored.recent_events,
+    god_mode: {
+      phase: stored.pending_god_mode_actions.length > 0 ? 'god_mode' : 'idle',
+      pending_actions: stored.pending_god_mode_actions.length
+    }
   };
 }
 
@@ -318,8 +713,8 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     };
   }
 
-  const alive = aliveParticipants(stored.participants);
-  if (alive.length <= 1) {
+  const aliveBeforeGodMode = aliveParticipants(stored.participants);
+  if (aliveBeforeGodMode.length <= 1) {
     emitStructuredLog('match.turn.rejected', {
       match_id: matchId,
       reason: 'MATCH_ALREADY_RESOLVED'
@@ -336,8 +731,75 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   const currentPhase = stored.match.cycle_phase;
   const nextTurnNumber = stored.match.turn_number + 1;
   const rng = createSeededRng(`${stored.match.seed ?? stored.match.id}:${nextTurnNumber}`);
+  applyPendingGodModeActions(stored, nextTurnNumber, rng);
+
+  const alive = aliveParticipants(stored.participants);
+  /* c8 ignore start */
+  if (alive.length <= 1) {
+    const winnerId = resolveWinnerId(stored.participants);
+    const finishedEvent = stored.recent_events[stored.recent_events.length - 1];
+    const finishedAt = finishedEvent?.created_at ?? new Date().toISOString();
+    stored.match = {
+      ...stored.match,
+      phase: 'finished',
+      ended_at: finishedAt,
+      turn_number: nextTurnNumber,
+      cycle_phase: advanceDirector(
+        {
+          turn_number: stored.match.turn_number,
+          cycle_phase: stored.match.cycle_phase,
+          alive_count: aliveBeforeGodMode.length,
+          tension_level: stored.match.tension_level
+        },
+        finishedEvent?.lethal ?? false,
+        alive.length
+      ).cycle_phase
+    };
+
+    return {
+      ok: true,
+      value: {
+        turn_number: stored.match.turn_number,
+        cycle_phase: stored.match.cycle_phase,
+        tension_level: stored.match.tension_level,
+        event: {
+          id: finishedEvent?.id ?? crypto.randomUUID(),
+          type: finishedEvent?.type ?? 'hazard',
+          source_type: finishedEvent?.source_type ?? 'god_mode',
+          phase: finishedEvent?.phase ?? currentPhase,
+          narrative_text:
+            finishedEvent?.narrative_text ??
+            'Modo Dios resolvio la partida antes del evento natural del turno.',
+          participant_ids: alive.map((participant) => participant.id)
+        },
+        survivors_count: alive.length,
+        eliminated_ids: [],
+        finished: true,
+        winner_id: winnerId
+      }
+    };
+  }
+  /* c8 ignore stop */
+
   const participantCount = sampleParticipantCount(alive.length, rng);
-  const selectedParticipants = chooseParticipants(alive, participantCount, rng);
+  let selectedParticipants = chooseParticipants(alive, participantCount, rng);
+  /* c8 ignore start */
+  if (selectedParticipants.length >= 2) {
+    const enemyPair = alive.find((left) =>
+      alive.some((right) => left.id !== right.id && resolveEnemyRelationship(stored.relationships, left.id, right.id))
+    );
+    if (enemyPair) {
+      const enemyTarget = alive.find(
+        (candidate) =>
+          candidate.id !== enemyPair.id &&
+          resolveEnemyRelationship(stored.relationships, enemyPair.id, candidate.id)
+      );
+      if (enemyTarget && rng() < 0.65) {
+        selectedParticipants = [enemyPair, enemyTarget];
+      }
+    }
+  }
+  /* c8 ignore stop */
   const recentTemplateIds = stored.recent_events.slice(-4).map((event) => event.template_id);
   const selectedTemplate = selectCatalogEvent(
     TURN_EVENT_CATALOG,
@@ -346,9 +808,14 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     rng,
     2
   );
+  const hasEnemyConflict =
+    selectedParticipants.length >= 2 &&
+    resolveEnemyRelationship(stored.relationships, selectedParticipants[0].id, selectedParticipants[1].id);
   const hadElimination =
     alive.length > 1 &&
-    (alive.length === 2 || rng() < eliminationChance(currentPhase, stored.match.tension_level, alive.length));
+    (alive.length === 2 ||
+      rng() <
+        eliminationChance(currentPhase, stored.match.tension_level, alive.length) + (hasEnemyConflict ? 0.2 : 0));
 
   const eliminatedIds: string[] = [];
   const specialResolution = resolveSpecialEvent({
@@ -435,6 +902,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     template_id: selectedTemplate.id,
     turn_number: nextTurnNumber,
     type: selectedTemplate.type,
+    source_type: 'natural',
     phase: currentPhase,
     participant_count: selectedParticipants.length,
     intensity: clamp(
@@ -500,6 +968,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       event: {
         id: event.id,
         type: event.type,
+        source_type: event.source_type,
         phase: event.phase,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)

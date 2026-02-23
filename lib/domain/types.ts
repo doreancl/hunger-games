@@ -14,6 +14,17 @@ export type EventType =
   | 'resource'
   | 'hazard'
   | 'surprise';
+export type EventSourceType = 'natural' | 'god_mode';
+export type RelationshipState = 'ally' | 'neutral' | 'enemy';
+export type GodModeLocation =
+  | 'cornucopia'
+  | 'forest'
+  | 'river'
+  | 'lake'
+  | 'meadow'
+  | 'caves'
+  | 'ruins'
+  | 'cliffs';
 export type EventParticipantRole = 'initiator' | 'target' | 'ally' | 'observer';
 export type ValidationIssue = {
   path: Array<string | number>;
@@ -68,6 +79,7 @@ export type Event = {
   template_id: string;
   turn_number: number;
   type: EventType;
+  source_type: EventSourceType;
   phase: CyclePhase;
   participant_count: number;
   intensity: number;
@@ -113,9 +125,60 @@ export type StartMatchResponse = {
 export type AdvanceTurnEventResponse = {
   id: string;
   type: EventType;
+  source_type: EventSourceType;
   phase: CyclePhase;
   narrative_text: string;
   participant_ids: string[];
+};
+
+export type GodModeAction =
+  | {
+      kind: 'global_event';
+      event: 'extreme_weather' | 'toxic_fog' | 'cornucopia_resupply';
+    }
+  | {
+      kind: 'localized_fire';
+      location_id: GodModeLocation;
+      persistence_turns?: number;
+    }
+  | {
+      kind: 'force_encounter';
+      tribute_a_id: string;
+      tribute_b_id: string;
+      location_id?: GodModeLocation;
+    }
+  | {
+      kind: 'separate_tributes';
+      tribute_ids: string[];
+    }
+  | {
+      kind: 'resource_adjustment';
+      target_id: string;
+      resource: 'health';
+      delta: number;
+    }
+  | {
+      kind: 'revive_tribute';
+      target_id: string;
+      revive_mode: 'standard' | 'full';
+      cost?: number;
+    }
+  | {
+      kind: 'set_relationship';
+      source_id: string;
+      target_id: string;
+      relation: 'enemy';
+    };
+
+export type SubmitGodModeActionsRequest = {
+  actions: GodModeAction[];
+};
+
+export type SubmitGodModeActionsResponse = {
+  match_id: string;
+  phase: 'god_mode';
+  accepted_actions: number;
+  pending_actions: number;
 };
 
 export type AdvanceTurnResponse = {
@@ -138,6 +201,10 @@ export type GetMatchStateResponse = {
   settings: MatchSettings;
   participants: ParticipantState[];
   recent_events: Event[];
+  god_mode: {
+    phase: 'idle' | 'god_mode';
+    pending_actions: number;
+  };
 };
 
 export type ApiError = {

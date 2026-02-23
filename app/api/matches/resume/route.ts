@@ -61,7 +61,11 @@ export async function POST(request: Request) {
     tension_level: snapshot.match.tension_level,
     settings: snapshot.settings,
     participants: snapshot.participants,
-    recent_events: snapshot.recent_events
+    recent_events: snapshot.recent_events,
+    god_mode: {
+      phase: 'idle' as const,
+      pending_actions: 0
+    }
   };
 
   const parsedResponse = resumeMatchResponseSchema.safeParse(responsePayload);

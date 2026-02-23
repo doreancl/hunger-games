@@ -8,6 +8,8 @@ import {
   resumeMatchRequestSchema,
   rulesetVersionSchema,
   snapshotEnvelopeVersionSchema,
+  submitGodModeActionsRequestSchema,
+  submitGodModeActionsResponseSchema,
   startMatchResponseSchema
 } from '@/lib/domain/schemas';
 
@@ -80,8 +82,15 @@ describe('ruleset and snapshot versioning', () => {
       snapshot
     };
 
-    expect(resumeMatchRequestSchema.safeParse(envelope).success).toBe(true);
-    expect(advanceTurnRequestSchema.safeParse(envelope).success).toBe(true);
+    const resumeResult = resumeMatchRequestSchema.safeParse(envelope);
+    const advanceResult = advanceTurnRequestSchema.safeParse(envelope);
+    expect(resumeResult.success, JSON.stringify(resumeResult.success ? null : resumeResult.error.issues)).toBe(
+      true
+    );
+    expect(
+      advanceResult.success,
+      JSON.stringify(advanceResult.success ? null : advanceResult.error.issues)
+    ).toBe(true);
   });
 
   it('accepts version-only payload for compatibility checks', () => {
@@ -182,7 +191,11 @@ describe('match lifecycle response contracts', () => {
         seed: null
       },
       participants: [],
-      recent_events: []
+      recent_events: [],
+      god_mode: {
+        phase: 'idle',
+        pending_actions: 0
+      }
     };
 
     expect(getMatchStateResponseSchema.parse(payload)).toEqual(payload);
@@ -196,6 +209,7 @@ describe('match lifecycle response contracts', () => {
       event: {
         id: 'event-1',
         type: 'combat',
+        source_type: 'natural',
         phase: 'bloodbath',
         narrative_text: 'Evento combat-1 en fase bloodbath con 2 participante(s). Hubo 1 eliminacion.',
         participant_ids: ['participant-1', 'participant-2']
@@ -207,5 +221,32 @@ describe('match lifecycle response contracts', () => {
     };
 
     expect(advanceTurnResponseSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('accepts god_mode actions payload and response contracts', () => {
+    const requestPayload = {
+      actions: [
+        {
+          kind: 'localized_fire',
+          location_id: 'forest',
+          persistence_turns: 2
+        },
+        {
+          kind: 'set_relationship',
+          source_id: 'participant-1',
+          target_id: 'participant-2',
+          relation: 'enemy'
+        }
+      ]
+    };
+    const responsePayload = {
+      match_id: 'match-1',
+      phase: 'god_mode',
+      accepted_actions: 2,
+      pending_actions: 2
+    };
+
+    expect(submitGodModeActionsRequestSchema.parse(requestPayload)).toEqual(requestPayload);
+    expect(submitGodModeActionsResponseSchema.parse(responsePayload)).toEqual(responsePayload);
   });
 });
