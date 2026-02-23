@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-23
+
+### Added
+
+- Add typed arena location catalog (`cornucopia`, `forest`, `river`, `lake`, `meadow`, `caves`, `ruins`, `cliffs`) and expose it as a first-class event contract field.
+- Include `location` in generated turn events, match snapshots, and `advance_turn` responses.
+- Add deterministic location preferences in the event template catalog so themed events happen in coherent places.
+
+### Changed
+
+- Update event narrative builder to always mention where the event occurred, including special-event narratives.
+- Extend domain schemas/contracts and tests so every event now requires a valid typed `location`.
+
 ## [0.2.0] - 2026-02-23
 
 ### Added

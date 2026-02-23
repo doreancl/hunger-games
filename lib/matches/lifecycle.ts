@@ -2,12 +2,14 @@ import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
+  EventLocation,
   CreateMatchResponse,
   GetMatchStateResponse,
   Match,
   ParticipantState,
   StartMatchResponse
 } from '@/lib/domain/types';
+import { EVENT_LOCATION_CATALOG } from '@/lib/domain/event-locations';
 import { SPECIAL_EVENT_RULES } from '@/lib/domain/rules';
 import { buildEventNarrative } from '@/lib/matches/event-narrative';
 import { resolveSpecialEvent } from '@/lib/matches/special-events';
@@ -49,41 +51,146 @@ const matches: MatchesStore =
 const MAX_RECENT_EVENTS = 12;
 
 const TURN_EVENT_CATALOG: EventTemplate[] = [
-  { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
-  { id: 'combat-2', type: 'combat', base_weight: 8, phases: ['bloodbath', 'day', 'night'] },
-  { id: 'hazard-cornucopia-mines-1', type: 'hazard', base_weight: 4, phases: ['bloodbath'] },
+  {
+    id: 'combat-1',
+    type: 'combat',
+    base_weight: 10,
+    phases: ['bloodbath', 'day', 'night'],
+    preferred_locations: ['forest', 'river', 'ruins']
+  },
+  {
+    id: 'combat-2',
+    type: 'combat',
+    base_weight: 8,
+    phases: ['bloodbath', 'day', 'night'],
+    preferred_locations: ['forest', 'meadow', 'cliffs']
+  },
+  {
+    id: 'hazard-cornucopia-mines-1',
+    type: 'hazard',
+    base_weight: 4,
+    phases: ['bloodbath'],
+    preferred_locations: ['cornucopia']
+  },
   {
     id: SPECIAL_EVENT_RULES.early_pedestal_escape.template_id,
     type: 'hazard',
     base_weight: 3,
-    phases: ['bloodbath']
+    phases: ['bloodbath'],
+    preferred_locations: ['cornucopia']
   },
-  { id: 'hazard-fire-wave-1', type: 'hazard', base_weight: 5, phases: ['day', 'night'] },
-  { id: 'hazard-toxic-fog-1', type: 'hazard', base_weight: 5, phases: ['day', 'night'] },
-  { id: 'surprise-muttation-hunt-1', type: 'surprise', base_weight: 4, phases: ['day', 'night'] },
-  { id: 'hazard-thunderstorm-1', type: 'hazard', base_weight: 4, phases: ['day', 'night'] },
-  { id: 'hazard-rockslide-1', type: 'hazard', base_weight: 3, phases: ['day', 'night', 'finale'] },
-  { id: 'resource-sponsor-pack-1', type: 'resource', base_weight: 5, phases: ['day', 'night'] },
-  { id: 'hazard-quicksand-trap-1', type: 'hazard', base_weight: 3, phases: ['day', 'night'] },
-  { id: 'combat-route-clash-1', type: 'combat', base_weight: 6, phases: ['day', 'night', 'finale'] },
-  { id: 'surprise-risky-shelter-1', type: 'surprise', base_weight: 4, phases: ['night'] },
+  {
+    id: 'hazard-fire-wave-1',
+    type: 'hazard',
+    base_weight: 5,
+    phases: ['day', 'night'],
+    preferred_locations: ['forest', 'meadow']
+  },
+  {
+    id: 'hazard-toxic-fog-1',
+    type: 'hazard',
+    base_weight: 5,
+    phases: ['day', 'night'],
+    preferred_locations: ['forest', 'ruins']
+  },
+  {
+    id: 'surprise-muttation-hunt-1',
+    type: 'surprise',
+    base_weight: 4,
+    phases: ['day', 'night'],
+    preferred_locations: ['forest', 'caves']
+  },
+  {
+    id: 'hazard-thunderstorm-1',
+    type: 'hazard',
+    base_weight: 4,
+    phases: ['day', 'night'],
+    preferred_locations: ['meadow', 'lake', 'cliffs']
+  },
+  {
+    id: 'hazard-rockslide-1',
+    type: 'hazard',
+    base_weight: 3,
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['cliffs', 'caves']
+  },
+  {
+    id: 'resource-sponsor-pack-1',
+    type: 'resource',
+    base_weight: 5,
+    phases: ['day', 'night'],
+    preferred_locations: ['meadow', 'river', 'lake']
+  },
+  {
+    id: 'hazard-quicksand-trap-1',
+    type: 'hazard',
+    base_weight: 3,
+    phases: ['day', 'night'],
+    preferred_locations: ['river', 'lake']
+  },
+  {
+    id: 'combat-route-clash-1',
+    type: 'combat',
+    base_weight: 6,
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['river', 'ruins', 'meadow']
+  },
+  {
+    id: 'surprise-risky-shelter-1',
+    type: 'surprise',
+    base_weight: 4,
+    phases: ['night'],
+    preferred_locations: ['caves', 'ruins']
+  },
   {
     id: SPECIAL_EVENT_RULES.cornucopia_refill.template_id,
     type: 'resource',
     base_weight: 4,
-    phases: ['day', 'night', 'finale']
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['cornucopia']
   },
   {
     id: SPECIAL_EVENT_RULES.arena_escape_attempt.template_id,
     type: 'hazard',
     base_weight: 2,
-    phases: ['day', 'night', 'finale']
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['cliffs', 'ruins']
   },
-  { id: 'alliance-1', type: 'alliance', base_weight: 6, phases: ['day', 'night', 'finale'] },
-  { id: 'betrayal-1', type: 'betrayal', base_weight: 7, phases: ['day', 'night', 'finale'] },
-  { id: 'resource-1', type: 'resource', base_weight: 5, phases: ['day', 'night'] },
-  { id: 'hazard-1', type: 'hazard', base_weight: 6, phases: ['bloodbath', 'night', 'finale'] },
-  { id: 'surprise-1', type: 'surprise', base_weight: 4, phases: ['day', 'night', 'finale'] }
+  {
+    id: 'alliance-1',
+    type: 'alliance',
+    base_weight: 6,
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['forest', 'caves', 'lake']
+  },
+  {
+    id: 'betrayal-1',
+    type: 'betrayal',
+    base_weight: 7,
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['ruins', 'caves', 'forest']
+  },
+  {
+    id: 'resource-1',
+    type: 'resource',
+    base_weight: 5,
+    phases: ['day', 'night'],
+    preferred_locations: ['river', 'lake', 'meadow']
+  },
+  {
+    id: 'hazard-1',
+    type: 'hazard',
+    base_weight: 6,
+    phases: ['bloodbath', 'night', 'finale'],
+    preferred_locations: ['forest', 'caves', 'cliffs']
+  },
+  {
+    id: 'surprise-1',
+    type: 'surprise',
+    base_weight: 4,
+    phases: ['day', 'night', 'finale'],
+    preferred_locations: ['meadow', 'ruins', 'lake']
+  }
 ];
 
 type LifecycleErrorCode = 'MATCH_NOT_FOUND' | 'MATCH_STATE_CONFLICT';
@@ -186,6 +293,15 @@ function resolveWinnerId(participants: ParticipantState[]): string | null {
   }
 
   return alive[0].id;
+}
+
+function sampleEventLocation(template: EventTemplate, rng: SeededRng): EventLocation {
+  const catalog =
+    template.preferred_locations && template.preferred_locations.length > 0
+      ? template.preferred_locations
+      : EVENT_LOCATION_CATALOG;
+  const selectedIndex = Math.floor(rng() * catalog.length);
+  return catalog[selectedIndex] ?? catalog[catalog.length - 1];
 }
 
 function checksumFNV1a(raw: string): string {
@@ -397,6 +513,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     rng,
     2
   );
+  const selectedLocation = sampleEventLocation(selectedTemplate, rng);
 
   const eliminatedIds: string[] = [];
   const specialResolution = resolveSpecialEvent({
@@ -491,6 +608,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     template_id: selectedTemplate.id,
     turn_number: nextTurnNumber,
     type: selectedTemplate.type,
+    location: selectedLocation,
     phase: currentPhase,
     participant_count: selectedParticipants.length,
     intensity: clamp(
@@ -500,6 +618,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     ),
     narrative_text: buildEventNarrative({
       template_id: selectedTemplate.id,
+      location: selectedLocation,
       phase: currentPhase,
       participant_names: selectedDisplayNames,
       eliminated_names: eliminatedDisplayNames,
@@ -556,6 +675,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       event: {
         id: event.id,
         type: event.type,
+        location: event.location,
         phase: event.phase,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)

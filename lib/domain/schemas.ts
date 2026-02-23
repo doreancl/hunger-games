@@ -15,6 +15,16 @@ export const eventTypeSchema = z.enum([
   'hazard',
   'surprise'
 ]);
+export const eventLocationSchema = z.enum([
+  'cornucopia',
+  'forest',
+  'river',
+  'lake',
+  'meadow',
+  'caves',
+  'ruins',
+  'cliffs'
+]);
 export const eventParticipantRoleSchema = z.enum([
   'initiator',
   'target',
@@ -55,6 +65,7 @@ export const eventSchema = z
     template_id: z.string().min(1),
     turn_number: z.number().int().min(0),
     type: eventTypeSchema,
+    location: eventLocationSchema,
     phase: cyclePhaseSchema,
     participant_count: z.number().int().min(0),
     intensity: z.number().min(0),
@@ -172,6 +183,7 @@ export const advanceTurnResponseSchema = z
       .object({
         id: z.string().min(1),
         type: eventTypeSchema,
+        location: eventLocationSchema,
         phase: cyclePhaseSchema,
         narrative_text: z.string().min(1),
         participant_ids: z.array(z.string().min(1)).min(1)
