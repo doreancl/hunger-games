@@ -3,3 +3,4 @@ node_modules
 coverage
 .DS_Store
 .hunger-games
+package-lock.json

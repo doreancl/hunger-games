@@ -27,8 +27,8 @@ Permite crear partidas, avanzar turnos con tension dinamica y reanudar sesiones 
 ## Inicio rapido
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Aplicacion local: [http://localhost:3000](http://localhost:3000)
@@ -37,13 +37,13 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 
 | Comando | Descripcion |
 | --- | --- |
-| `npm run dev` | Levanta entorno local |
-| `npm run build` | Build de produccion |
-| `npm run start` | Ejecuta build generado |
-| `npm run lint` | Lint de Next.js |
-| `npm run test:unit` | Tests unitarios |
-| `npm run test:coverage` | Tests con cobertura |
-| `npm run validate` | Gate completo (`lint + unit + coverage`) |
+| `pnpm run dev` | Levanta entorno local |
+| `pnpm run build` | Build de produccion |
+| `pnpm run start` | Ejecuta build generado |
+| `pnpm run lint` | Lint de Next.js |
+| `pnpm run test:unit` | Tests unitarios |
+| `pnpm run test:coverage` | Tests con cobertura |
+| `pnpm run validate` | Gate completo (`lint + unit + coverage`) |
 
 ## Observabilidad
 
@@ -145,5 +145,5 @@ flowchart LR
   - `lib/domain/schemas.ts`
   - `lib/domain/types.ts`
   - `tests/domain-contracts.test.ts`
-- Antes de abrir PR: `npm run validate`.
+- Antes de abrir PR: `pnpm run validate`.
 - Convencion de commits: Conventional Commits.
