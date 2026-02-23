@@ -172,6 +172,7 @@ export const advanceTurnResponseSchema = z
       .object({
         id: z.string().min(1),
         type: eventTypeSchema,
+        phase: cyclePhaseSchema,
         narrative_text: z.string().min(1),
         participant_ids: z.array(z.string().min(1)).min(1)
       })
