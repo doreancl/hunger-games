@@ -534,6 +534,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       event: {
         id: event.id,
         type: event.type,
+        phase: event.phase,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)
       },

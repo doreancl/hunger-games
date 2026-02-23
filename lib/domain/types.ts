@@ -113,6 +113,7 @@ export type StartMatchResponse = {
 export type AdvanceTurnEventResponse = {
   id: string;
   type: EventType;
+  phase: CyclePhase;
   narrative_text: string;
   participant_ids: string[];
 };

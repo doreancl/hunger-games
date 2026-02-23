@@ -133,6 +133,7 @@ describe('match lifecycle routes', () => {
     expect(advanceBody.event).toMatchObject({
       id: expect.any(String),
       type: expect.any(String),
+      phase: 'bloodbath',
       narrative_text: expect.any(String),
       participant_ids: expect.any(Array)
     });
