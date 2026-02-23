@@ -8,6 +8,9 @@ import type {
   ParticipantState,
   StartMatchResponse
 } from '@/lib/domain/types';
+import { SPECIAL_EVENT_RULES } from '@/lib/domain/rules';
+import { buildEventNarrative } from '@/lib/matches/event-narrative';
+import { resolveSpecialEvent } from '@/lib/matches/special-events';
 import type { EventTemplate, SeededRng } from '@/lib/simulation-state';
 import {
   advanceDirector,
@@ -44,14 +47,12 @@ const matches: MatchesStore =
       })();
 
 const MAX_RECENT_EVENTS = 12;
-const EARLY_PEDESTAL_ESCAPE_TEMPLATE_ID = 'hazard-pedestal-early-exit-1';
-export const EARLY_PEDESTAL_EXPLOSION_CHANCE = 0.08;
 
 const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
   { id: 'combat-2', type: 'combat', base_weight: 8, phases: ['bloodbath', 'day', 'night'] },
   {
-    id: EARLY_PEDESTAL_ESCAPE_TEMPLATE_ID,
+    id: SPECIAL_EVENT_RULES.early_pedestal_escape.template_id,
     type: 'hazard',
     base_weight: 3,
     phases: ['bloodbath']
@@ -126,33 +127,6 @@ function eliminationChance(
   const tensionFactor = tensionLevel / 300;
   const endgameFactor = aliveCount <= 4 ? 0.08 : 0;
   return clamp(phaseBase[cyclePhase] + tensionFactor + endgameFactor, 0, 0.95);
-}
-
-function eventNarrative(
-  templateId: string,
-  cyclePhase: Match['cycle_phase'],
-  participantNames: string[],
-  eliminatedNames: string[],
-  earlyPedestalContext?: {
-    leaverName: string;
-    exploded: boolean;
-  }
-): string {
-  if (earlyPedestalContext) {
-    if (earlyPedestalContext.exploded) {
-      return `${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo y explota.`;
-    }
-
-    return `${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo, pero no explota.`;
-  }
-
-  const participantsLabel =
-    participantNames.length === 0 ? 'sin participantes' : participantNames.join(', ');
-  const eliminationSuffix =
-    eliminatedNames.length > 0
-      ? ` Eliminados: ${eliminatedNames.join(', ')}.`
-      : ' Nadie fue eliminado.';
-  return `Evento ${templateId} en fase ${cyclePhase} con ${participantsLabel}.${eliminationSuffix}`;
 }
 
 function resolveWinnerId(participants: ParticipantState[]): string | null {
@@ -375,36 +349,28 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   const hadElimination =
     alive.length > 1 &&
     (alive.length === 2 || rng() < eliminationChance(currentPhase, stored.match.tension_level, alive.length));
-  const earlyPedestalEscapeDetected =
-    currentPhase === 'bloodbath' &&
-    selectedTemplate.id === EARLY_PEDESTAL_ESCAPE_TEMPLATE_ID &&
-    selectedParticipants.length > 0;
 
   const eliminatedIds: string[] = [];
-  let earlyPedestalContext:
-    | {
-        leaverName: string;
-        exploded: boolean;
-      }
-    | undefined;
+  const specialResolution = resolveSpecialEvent({
+    phase: currentPhase,
+    template_id: selectedTemplate.id,
+    selected_participants: selectedParticipants.map((participant) => ({
+      id: participant.id,
+      display_name: participant.display_name
+    })),
+    rng
+  });
 
-  if (earlyPedestalEscapeDetected) {
-    const leaver = selectedParticipants[0];
-    const exploded = rng() < EARLY_PEDESTAL_EXPLOSION_CHANCE;
-    earlyPedestalContext = {
-      leaverName: leaver.display_name,
-      exploded
-    };
-
-    if (exploded) {
-      eliminatedIds.push(leaver.id);
-      const target = stored.participants.find((participant) => participant.id === leaver.id);
-      if (target) {
-        target.status = 'eliminated';
-        target.current_health = 0;
-      }
+  for (const eliminatedId of specialResolution.eliminated_participant_ids) {
+    eliminatedIds.push(eliminatedId);
+    const target = stored.participants.find((participant) => participant.id === eliminatedId);
+    if (target) {
+      target.status = 'eliminated';
+      target.current_health = 0;
     }
-  } else if (hadElimination) {
+  }
+
+  if (!specialResolution.handled && hadElimination) {
     const eliminatedIndex = Math.floor(rng() * selectedParticipants.length);
     const eliminatedParticipant = selectedParticipants[eliminatedIndex];
     eliminatedIds.push(eliminatedParticipant.id);
@@ -476,13 +442,13 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       0,
       100
     ),
-    narrative_text: eventNarrative(
-      selectedTemplate.id,
-      currentPhase,
-      selectedDisplayNames,
-      eliminatedDisplayNames,
-      earlyPedestalContext
-    ),
+    narrative_text: buildEventNarrative({
+      template_id: selectedTemplate.id,
+      phase: currentPhase,
+      participant_names: selectedDisplayNames,
+      eliminated_names: eliminatedDisplayNames,
+      special_narrative: specialResolution.narrative
+    }),
     lethal: eliminatedIds.length > 0,
     created_at: eventCreatedAt
   } satisfies GetMatchStateResponse['recent_events'][number];

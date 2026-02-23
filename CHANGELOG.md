@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-02-23
+
+### Fixed
+
+- Refactor `advanceTurn` to delegate special event resolution and narrative generation to dedicated modules.
+- Centralize early-pedestal special-event rules in `lib/domain/rules.ts` as versioned domain config.
+- Replace seed brute-force tests with deterministic unit tests driven by controlled RNG rolls.
+
 ## [0.1.1] - 2026-02-23
 
 ### Fixed
