@@ -10,13 +10,13 @@
 
 ## Build, Test, and Development Commands
 
-- `npm run dev`: run local development server.
-- `npm run build`: production build.
-- `npm run start`: run built app.
-- `npm run lint`: run Next.js linting.
-- `npm run test:unit`: run unit tests.
-- `npm run test:coverage`: run tests with coverage report.
-- `npm run validate`: lint + unit + coverage gate.
+- `pnpm run dev`: run local development server.
+- `pnpm run build`: production build.
+- `pnpm run start`: run built app.
+- `pnpm run lint`: run Next.js linting.
+- `pnpm run test:unit`: run unit tests.
+- `pnpm run test:coverage`: run tests with coverage report.
+- `pnpm run validate`: lint + unit + coverage gate.
 
 ## Coding Style & Naming Conventions
 
@@ -30,7 +30,7 @@
 - Test framework: Vitest (`tests/**/*.test.ts`).
 - Coverage uses V8 provider with thresholds at 90% (lines/functions/branches/statements).
 - Add/update tests in `tests/` alongside behavioral changes in `app/` or `lib/`.
-- Run `npm run validate` before opening a PR.
+- Run `pnpm run validate` before opening a PR.
 
 ## Commit & Pull Request Guidelines
 
@@ -38,7 +38,7 @@
 - Group related changes; avoid bundling unrelated refactors.
 - PR should include:
   - Scope and user-visible behavior changes.
-  - Commands executed (`npm run lint`, `npm run test:unit`, `npm run test:coverage`).
+  - Commands executed (`pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`).
   - Any spec/plan updates under `specs/` when applicable.
 
 ## Security & Configuration Tips

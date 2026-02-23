@@ -2,6 +2,7 @@
   "name": "hunger-games",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.12.4",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +10,7 @@
     "lint": "next lint",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "validate": "npm run lint && npm run test:unit && npm run test:coverage",
+    "validate": "pnpm run lint && pnpm run test:unit && pnpm run test:coverage",
     "prepare": "husky"
   },
   "dependencies": {
