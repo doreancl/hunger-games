@@ -11,11 +11,16 @@ All notable changes to this project will be documented in this file.
 - Add intervention behaviors for global events, localized fire (including persistent turns), forced encounters, separation, resource grants/removals, revive, hostility tweaks, and explicit enmity links.
 - Add event history traceability for induced actions (`origin: god_mode` + `induced_by_action_ids`) and expanded UX labels for `god_mode`.
 - Add coverage tests for `match-ux` helpers and rate-limit bucket cleanup/pruning paths.
+- Add typed arena location catalog (`cornucopia`, `forest`, `river`, `lake`, `meadow`, `caves`, `ruins`, `cliffs`) and expose it as a first-class event contract field.
+- Include `location` in generated turn events, match snapshots, and `advance_turn` responses.
+- Add deterministic location preferences in the event template catalog so themed events happen in coherent places.
 
 ### Changed
 
 - Update lifecycle simulation to apply God Mode effects into participant selection, elimination chance, and narrative composition while preserving deterministic replay metadata.
 - Improve API/test coverage baseline to satisfy global `>= 90%` thresholds after introducing God Mode features.
+- Update event narrative builder to always mention where the event occurred, including special-event narratives.
+- Extend domain schemas/contracts and tests so every event now requires a valid typed `location`.
 
 ## [0.2.0] - 2026-02-23
 

@@ -4,7 +4,7 @@ export type MatchState = {
   active: boolean;
 };
 
-import type { EventType, OperationalCyclePhase } from '@/lib/domain/types';
+import type { CyclePhase, EventLocation, EventType } from '@/lib/domain/types';
 
 const MAX_MULTI_PARTICIPANT_CHANCE = 0.02;
 const DEFAULT_SEEDED_RNG_SEED = 'hunger-games-default-seed';
@@ -13,7 +13,7 @@ export type SeededRng = () => number;
 
 export type DirectorState = {
   turn_number: number;
-  cycle_phase: OperationalCyclePhase;
+  cycle_phase: CyclePhase;
   alive_count: number;
   tension_level: number;
 };
@@ -22,7 +22,8 @@ export type EventTemplate = {
   id: string;
   type: EventType;
   base_weight: number;
-  phases: OperationalCyclePhase[];
+  phases: CyclePhase[];
+  preferred_locations?: readonly EventLocation[];
 };
 
 function normalizeSeed(seed: string | null | undefined): string {
@@ -54,7 +55,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-export function nextCyclePhase(turnNumber: number, aliveCount: number): OperationalCyclePhase {
+export function nextCyclePhase(turnNumber: number, aliveCount: number): CyclePhase {
   if (turnNumber === 0) {
     return 'bloodbath';
   }
@@ -143,7 +144,7 @@ function countRecentTypeAppearances(
 
 export function selectCatalogEvent(
   templates: EventTemplate[],
-  phase: OperationalCyclePhase,
+  phase: CyclePhase,
   recentTemplateIds: string[],
   rng: SeededRng,
   repeatCap = 2
