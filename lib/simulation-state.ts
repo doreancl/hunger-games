@@ -4,7 +4,7 @@ export type MatchState = {
   active: boolean;
 };
 
-import type { CyclePhase, EventType } from '@/lib/domain/types';
+import type { CyclePhase, EventLocation, EventType } from '@/lib/domain/types';
 
 const MAX_MULTI_PARTICIPANT_CHANCE = 0.02;
 const DEFAULT_SEEDED_RNG_SEED = 'hunger-games-default-seed';
@@ -23,6 +23,7 @@ export type EventTemplate = {
   type: EventType;
   base_weight: number;
   phases: CyclePhase[];
+  preferred_locations?: readonly EventLocation[];
 };
 
 function normalizeSeed(seed: string | null | undefined): string {

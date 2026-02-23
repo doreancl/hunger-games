@@ -121,6 +121,7 @@ describe('event narrative builder', () => {
   it('renders early pedestal narrative from metadata', () => {
     const narrative = buildEventNarrative({
       template_id: 'hazard-pedestal-early-exit-1',
+      location: 'cornucopia',
       phase: 'bloodbath',
       participant_names: ['Tributo Uno'],
       eliminated_names: ['Tributo Uno'],
@@ -131,24 +132,28 @@ describe('event narrative builder', () => {
       }
     });
 
-    expect(narrative).toBe('Tributo Uno abandona el pedestal antes de tiempo y explota.');
+    expect(narrative).toBe(
+      'Tributo Uno abandona el pedestal antes de tiempo en la Cornucopia y explota.'
+    );
   });
 
   it('renders generic narrative independently from special resolver', () => {
     const narrative = buildEventNarrative({
       template_id: 'combat-1',
+      location: 'forest',
       phase: 'day',
       participant_names: ['A', 'B'],
       eliminated_names: ['B'],
       special_narrative: undefined
     });
 
-    expect(narrative).toBe('Evento combat-1 en fase day con A, B. Eliminados: B.');
+    expect(narrative).toBe('Evento combat-1 en el bosque durante day con A, B. Eliminados: B.');
   });
 
   it('renders cornucopia refill narrative', () => {
     const narrative = buildEventNarrative({
       template_id: 'resource-cornucopia-refill-1',
+      location: 'cornucopia',
       phase: 'day',
       participant_names: ['A', 'B'],
       eliminated_names: [],
@@ -163,6 +168,7 @@ describe('event narrative builder', () => {
   it('renders arena escape narrative', () => {
     const narrative = buildEventNarrative({
       template_id: 'hazard-arena-escape-attempt-1',
+      location: 'cliffs',
       phase: 'night',
       participant_names: ['Katniss'],
       eliminated_names: ['Katniss'],

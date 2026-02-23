@@ -14,6 +14,15 @@ export type EventType =
   | 'resource'
   | 'hazard'
   | 'surprise';
+export type EventLocation =
+  | 'cornucopia'
+  | 'forest'
+  | 'river'
+  | 'lake'
+  | 'meadow'
+  | 'caves'
+  | 'ruins'
+  | 'cliffs';
 export type EventParticipantRole = 'initiator' | 'target' | 'ally' | 'observer';
 export type ValidationIssue = {
   path: Array<string | number>;
@@ -68,6 +77,7 @@ export type Event = {
   template_id: string;
   turn_number: number;
   type: EventType;
+  location: EventLocation;
   phase: CyclePhase;
   participant_count: number;
   intensity: number;
@@ -113,6 +123,7 @@ export type StartMatchResponse = {
 export type AdvanceTurnEventResponse = {
   id: string;
   type: EventType;
+  location: EventLocation;
   phase: CyclePhase;
   narrative_text: string;
   participant_ids: string[];
