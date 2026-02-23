@@ -45,6 +45,25 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 | `pnpm run test:coverage` | Tests con cobertura |
 | `pnpm run validate` | Gate completo (`lint + unit + coverage`) |
 
+## Observabilidad
+
+- Vercel Analytics habilitado en `app/layout.tsx` con `@vercel/analytics`.
+- Cloudflare Web Analytics habilitado en `app/layout.tsx` usando el beacon oficial.
+- Configuracion necesaria para Cloudflare:
+  - definir `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN` en el entorno de despliegue.
+
+### Validar Vercel Analytics
+
+1. Desplegar la app en Vercel.
+2. Navegar por la app para generar trafico.
+3. Revisar `Vercel Dashboard -> Project -> Analytics`.
+
+### Validar Cloudflare Web Analytics
+
+1. Configurar el token de Web Analytics de Cloudflare en `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`.
+2. Desplegar y navegar la app.
+3. Revisar `Cloudflare Dashboard -> Web Analytics` y confirmar page views/eventos.
+
 ## Flujo funcional
 
 1. Crear setup de partida (`/matches/new`) con roster, seed opcional y perfil.
