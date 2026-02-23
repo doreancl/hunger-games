@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
+import { EVENT_LOCATION_VALUES, RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
 export const surpriseLevelSchema = z.enum(['low', 'normal', 'high']);
 export const simulationSpeedSchema = z.enum(['1x', '2x', '4x']);
@@ -15,6 +15,7 @@ export const eventTypeSchema = z.enum([
   'hazard',
   'surprise'
 ]);
+export const eventLocationSchema = z.enum(EVENT_LOCATION_VALUES);
 export const eventParticipantRoleSchema = z.enum([
   'initiator',
   'target',
@@ -55,6 +56,7 @@ export const eventSchema = z
     template_id: z.string().min(1),
     turn_number: z.number().int().min(0),
     type: eventTypeSchema,
+    location: eventLocationSchema,
     phase: cyclePhaseSchema,
     participant_count: z.number().int().min(0),
     intensity: z.number().min(0),
@@ -172,6 +174,7 @@ export const advanceTurnResponseSchema = z
       .object({
         id: z.string().min(1),
         type: eventTypeSchema,
+        location: eventLocationSchema,
         narrative_text: z.string().min(1),
         participant_ids: z.array(z.string().min(1)).min(1)
       })

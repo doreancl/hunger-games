@@ -196,7 +196,8 @@ describe('match lifecycle response contracts', () => {
       event: {
         id: 'event-1',
         type: 'combat',
-        narrative_text: 'Evento combat-1 en fase bloodbath con 2 participante(s). Hubo 1 eliminacion.',
+        location: 'bosque',
+        narrative_text: 'En el bosque, evento combat-1 durante bloodbath con 2 participante(s). Eliminados: Tributo 2.',
         participant_ids: ['participant-1', 'participant-2']
       },
       survivors_count: 9,

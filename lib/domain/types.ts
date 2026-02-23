@@ -15,6 +15,17 @@ export type EventType =
   | 'hazard'
   | 'surprise';
 export type EventParticipantRole = 'initiator' | 'target' | 'ally' | 'observer';
+export const EVENT_LOCATION_VALUES = [
+  'cornucopia',
+  'bosque',
+  'rio',
+  'lago',
+  'pradera',
+  'cuevas',
+  'ruinas',
+  'acantilados'
+] as const;
+export type EventLocation = (typeof EVENT_LOCATION_VALUES)[number];
 export type ValidationIssue = {
   path: Array<string | number>;
   code: string;
@@ -68,6 +79,7 @@ export type Event = {
   template_id: string;
   turn_number: number;
   type: EventType;
+  location: EventLocation;
   phase: CyclePhase;
   participant_count: number;
   intensity: number;
@@ -113,6 +125,7 @@ export type StartMatchResponse = {
 export type AdvanceTurnEventResponse = {
   id: string;
   type: EventType;
+  location: EventLocation;
   narrative_text: string;
   participant_ids: string[];
 };

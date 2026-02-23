@@ -133,6 +133,7 @@ describe('match lifecycle routes', () => {
     expect(advanceBody.event).toMatchObject({
       id: expect.any(String),
       type: expect.any(String),
+      location: expect.any(String),
       narrative_text: expect.any(String),
       participant_ids: expect.any(Array)
     });
@@ -699,6 +700,7 @@ describe('match lifecycle routes', () => {
     expect(advancedAfterResume.cycle_phase).toBe(advancedControl.cycle_phase);
     expect(advancedAfterResume.tension_level).toBe(advancedControl.tension_level);
     expect(advancedAfterResume.event.type).toBe(advancedControl.event.type);
+    expect(advancedAfterResume.event.location).toBe(advancedControl.event.location);
     expect(advancedAfterResume.event.narrative_text).toBe(advancedControl.event.narrative_text);
     expect(
       toCharacterIds(advancedAfterResume.eliminated_ids, stateB.participants)

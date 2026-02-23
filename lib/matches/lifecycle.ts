@@ -1,7 +1,12 @@
-import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
+import {
+  EVENT_LOCATION_VALUES,
+  RULESET_VERSION,
+  SNAPSHOT_VERSION
+} from '@/lib/domain/types';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
+  EventLocation,
   CreateMatchResponse,
   GetMatchStateResponse,
   Match,
@@ -46,6 +51,7 @@ const matches: MatchesStore =
 const MAX_RECENT_EVENTS = 12;
 const EARLY_PEDESTAL_ESCAPE_TEMPLATE_ID = 'hazard-pedestal-early-exit-1';
 export const EARLY_PEDESTAL_EXPLOSION_CHANCE = 0.08;
+const EVENT_LOCATION_CATALOG: EventLocation[] = [...EVENT_LOCATION_VALUES];
 
 const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
@@ -130,6 +136,7 @@ function eliminationChance(
 
 function eventNarrative(
   templateId: string,
+  location: EventLocation,
   cyclePhase: Match['cycle_phase'],
   participantNames: string[],
   eliminatedNames: string[],
@@ -138,12 +145,24 @@ function eventNarrative(
     exploded: boolean;
   }
 ): string {
+  const locationLabelMap: Record<EventLocation, string> = {
+    cornucopia: 'la Cornucopia',
+    bosque: 'el bosque',
+    rio: 'el rio',
+    lago: 'el lago',
+    pradera: 'la pradera',
+    cuevas: 'las cuevas',
+    ruinas: 'las ruinas',
+    acantilados: 'los acantilados'
+  };
+  const locationLabel = locationLabelMap[location];
+
   if (earlyPedestalContext) {
     if (earlyPedestalContext.exploded) {
-      return `${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo y explota.`;
+      return `En ${locationLabel}, ${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo y explota.`;
     }
 
-    return `${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo, pero no explota.`;
+    return `En ${locationLabel}, ${earlyPedestalContext.leaverName} abandona el pedestal antes de tiempo, pero no explota.`;
   }
 
   const participantsLabel =
@@ -152,7 +171,12 @@ function eventNarrative(
     eliminatedNames.length > 0
       ? ` Eliminados: ${eliminatedNames.join(', ')}.`
       : ' Nadie fue eliminado.';
-  return `Evento ${templateId} en fase ${cyclePhase} con ${participantsLabel}.${eliminationSuffix}`;
+  return `En ${locationLabel}, evento ${templateId} durante ${cyclePhase} con ${participantsLabel}.${eliminationSuffix}`;
+}
+
+function pickEventLocation(rng: SeededRng): EventLocation {
+  const selectedIndex = Math.floor(rng() * EVENT_LOCATION_CATALOG.length);
+  return EVENT_LOCATION_CATALOG[clamp(selectedIndex, 0, EVENT_LOCATION_CATALOG.length - 1)];
 }
 
 function resolveWinnerId(participants: ParticipantState[]): string | null {
@@ -180,6 +204,7 @@ function replaySignature(input: {
   turn_number: number;
   cycle_phase: Match['cycle_phase'];
   template_id: string;
+  location: EventLocation;
   participant_character_ids: string[];
   eliminated_character_ids: string[];
 }): string {
@@ -436,9 +461,11 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     turn_number: nextTurnNumber,
     cycle_phase: currentPhase,
     template_id: selectedTemplate.id,
+    location: pickEventLocation(rng),
     participant_character_ids: selectedCharacterIds,
     eliminated_character_ids: eliminatedCharacterIds
   };
+  const eventLocation = replayEvidence.location;
   const replayHash = replaySignature(replayEvidence);
 
   for (const participant of selectedParticipants) {
@@ -469,6 +496,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     template_id: selectedTemplate.id,
     turn_number: nextTurnNumber,
     type: selectedTemplate.type,
+    location: eventLocation,
     phase: currentPhase,
     participant_count: selectedParticipants.length,
     intensity: clamp(
@@ -478,6 +506,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     ),
     narrative_text: eventNarrative(
       selectedTemplate.id,
+      eventLocation,
       currentPhase,
       selectedDisplayNames,
       eliminatedDisplayNames,
@@ -511,6 +540,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     cycle_phase: stored.match.cycle_phase,
     event_type: event.type,
     template_id: event.template_id,
+    location: event.location,
     participant_count: selectedParticipants.length,
     eliminated_count: eliminatedIds.length,
     finished,
@@ -534,6 +564,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       event: {
         id: event.id,
         type: event.type,
+        location: event.location,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)
       },

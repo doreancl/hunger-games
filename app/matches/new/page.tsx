@@ -60,15 +60,6 @@ const EVENT_TYPE_LABEL: Record<EventType, string> = {
   surprise: 'Sorpresa'
 };
 
-const EVENT_ACTION: Record<EventType, string> = {
-  combat: 'chocan en combate directo',
-  alliance: 'sellan una alianza estrategica',
-  betrayal: 'rompen la confianza con una traicion',
-  resource: 'aseguran recursos criticos',
-  hazard: 'resisten una amenaza del entorno',
-  surprise: 'quedan atrapados en un giro inesperado'
-};
-
 const SPEED_INTERVAL_MS: Record<SimulationSpeed, number> = {
   '1x': 1700,
   '2x': 980,
@@ -237,22 +228,6 @@ function feedFromSnapshot(state: GetMatchStateResponse): FeedEvent[] {
     }));
 }
 
-function summarizeActors(characterNames: string[]): string {
-  if (characterNames.length === 0) {
-    return 'La arena';
-  }
-
-  if (characterNames.length === 1) {
-    return characterNames[0];
-  }
-
-  if (characterNames.length === 2) {
-    return `${characterNames[0]} y ${characterNames[1]}`;
-  }
-
-  return `${characterNames[0]}, ${characterNames[1]} +${characterNames.length - 2}`;
-}
-
 function impactByType(type: EventType): string {
   if (type === 'alliance') {
     return 'Impacto: cohesion tactica en aumento.';
@@ -285,7 +260,6 @@ function feedFromAdvance(
   const characterIds = advance.event.participant_ids
     .map((participantId) => participantsById.get(participantId)?.character_id)
     .filter((characterId): characterId is string => Boolean(characterId));
-  const actorNames = characterIds.map((characterId) => characterName(characterId));
   const eliminatedNames = advance.eliminated_ids
     .map((participantId) => participantsById.get(participantId)?.character_id)
     .filter((characterId): characterId is string => Boolean(characterId))
@@ -301,7 +275,7 @@ function feedFromAdvance(
     turn_number: advance.turn_number,
     phase: advance.cycle_phase,
     type: advance.event.type,
-    headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
+    headline: advance.event.narrative_text,
     impact,
     character_ids: characterIds,
     created_at: new Date().toISOString()
