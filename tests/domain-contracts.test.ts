@@ -3,6 +3,8 @@ import {
   advanceTurnResponseSchema,
   advanceTurnRequestSchema,
   createMatchRequestSchema,
+  godModeQueueRequestSchema,
+  godModeQueueResponseSchema,
   getMatchStateResponseSchema,
   matchSnapshotSchema,
   resumeMatchRequestSchema,
@@ -191,7 +193,7 @@ describe('match lifecycle response contracts', () => {
   it('accepts advance_turn response contract', () => {
     const payload = {
       turn_number: 1,
-      cycle_phase: 'day',
+      cycle_phase: 'god_mode',
       tension_level: 12,
       event: {
         id: 'event-1',
@@ -207,5 +209,33 @@ describe('match lifecycle response contracts', () => {
     };
 
     expect(advanceTurnResponseSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('accepts god_mode queue request/response contracts', () => {
+    const requestPayload = {
+      actions: [
+        {
+          id: 'action-1',
+          kind: 'localized_fire',
+          location: 'cornucopia',
+          persistent_turns: 2
+        },
+        {
+          id: 'action-2',
+          kind: 'set_enmity',
+          source_participant_id: 'participant-1',
+          target_participant_id: 'participant-2'
+        }
+      ]
+    };
+    const responsePayload = {
+      match_id: 'match-1',
+      phase: 'running',
+      cycle_phase: 'god_mode',
+      queued_actions: 2
+    };
+
+    expect(godModeQueueRequestSchema.parse(requestPayload)).toEqual(requestPayload);
+    expect(godModeQueueResponseSchema.parse(responsePayload)).toEqual(responsePayload);
   });
 });

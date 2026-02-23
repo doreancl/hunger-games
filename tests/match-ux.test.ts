@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createLocalMatchFromSetup } from '@/lib/local-matches';
 import {
+  dateLabel,
   filterAndSortMatches,
   getLobbyStatus,
   parseMatchNavigationQuery,
+  phaseLabel,
   quickAccessMatches,
   shortId,
   sortByUpdatedAt,
@@ -139,5 +141,19 @@ describe('match ux helpers', () => {
       resumeMatchId: null,
       prefillMatchId: null
     });
+  });
+
+  it('renders localized cycle phase labels including god_mode', () => {
+    expect(phaseLabel('setup')).toBe('Setup');
+    expect(phaseLabel('bloodbath')).toBe('Bloodbath');
+    expect(phaseLabel('day')).toBe('Dia');
+    expect(phaseLabel('night')).toBe('Noche');
+    expect(phaseLabel('finale')).toBe('Finale');
+    expect(phaseLabel('god_mode')).toBe('Modo Dios');
+  });
+
+  it('formats valid ISO date and preserves invalid values', () => {
+    expect(dateLabel('2026-02-16T10:00:00.000Z')).not.toBe('2026-02-16T10:00:00.000Z');
+    expect(dateLabel('not-a-date')).toBe('not-a-date');
   });
 });

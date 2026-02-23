@@ -84,4 +84,50 @@ describe('rate limit isolation', () => {
 
     expect(checkRateLimit(requestB, 'create').allowed).toBe(false);
   });
+
+  it('evicts expired buckets when bucket store is full', () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    nowSpy.mockReturnValue(1_000);
+
+    for (let index = 0; index < 10_000; index += 1) {
+      const ip = `203.${Math.floor(index / 65_536)}.${Math.floor(index / 256) % 256}.${index % 256}`;
+      const request = new Request('http://localhost/api/matches', {
+        headers: { 'x-forwarded-for': ip }
+      });
+      checkRateLimit(request, 'create');
+      checkRateLimit(request, 'advance');
+      checkRateLimit(request, 'resume');
+    }
+
+    nowSpy.mockReturnValue(70_000);
+    const freshRequest = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': '198.51.100.1' }
+    });
+    const result = checkRateLimit(freshRequest, 'create');
+    expect(result.allowed).toBe(true);
+    expect(result.retryAfterSeconds).toBe(0);
+
+    nowSpy.mockRestore();
+  });
+
+  it('prunes oldest buckets when full and none are expired', () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    nowSpy.mockReturnValue(5_000);
+
+    for (let index = 0; index < 10_000; index += 1) {
+      const request = new Request('http://localhost/api/matches', {
+        headers: { 'x-forwarded-for': `198.51.${Math.floor(index / 255)}.${index % 255}` }
+      });
+      checkRateLimit(request, 'create');
+    }
+
+    const triggerRequest = new Request('http://localhost/api/matches', {
+      headers: { 'x-forwarded-for': '192.0.2.99' }
+    });
+    const result = checkRateLimit(triggerRequest, 'create');
+    expect(result.allowed).toBe(true);
+    expect(result.retryAfterSeconds).toBe(0);
+
+    nowSpy.mockRestore();
+  });
 });

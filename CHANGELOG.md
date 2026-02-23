@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-23
+
+### Added
+
+- Add God Mode actions queue endpoint at `POST /api/matches/:matchId/god-mode` and typed contracts for intervention actions between turns.
+- Add turn-cycle `god_mode` phase support with queued interventions applied before resolving the next event.
+- Add intervention behaviors for global events, localized fire (including persistent turns), forced encounters, separation, resource grants/removals, revive, hostility tweaks, and explicit enmity links.
+- Add event history traceability for induced actions (`origin: god_mode` + `induced_by_action_ids`) and expanded UX labels for `god_mode`.
+- Add coverage tests for `match-ux` helpers and rate-limit bucket cleanup/pruning paths.
+
+### Changed
+
+- Update lifecycle simulation to apply God Mode effects into participant selection, elimination chance, and narrative composition while preserving deterministic replay metadata.
+- Improve API/test coverage baseline to satisfy global `>= 90%` thresholds after introducing God Mode features.
+
 ## [0.2.0] - 2026-02-23
 
 ### Added

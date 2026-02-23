@@ -1,9 +1,9 @@
-import type { Match } from '@/lib/domain/types';
+import type { OperationalCyclePhase } from '@/lib/domain/types';
 import type { SpecialEventNarrative } from '@/lib/matches/special-events';
 
 type BuildEventNarrativeInput = {
   template_id: string;
-  phase: Match['cycle_phase'];
+  phase: OperationalCyclePhase;
   participant_names: string[];
   eliminated_names: string[];
   special_narrative: SpecialEventNarrative;
