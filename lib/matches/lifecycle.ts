@@ -62,11 +62,33 @@ const EVENT_LOCATIONS: EventLocation[] = [
 const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
   { id: 'combat-2', type: 'combat', base_weight: 8, phases: ['bloodbath', 'day', 'night'] },
+  { id: 'hazard-cornucopia-mines-1', type: 'hazard', base_weight: 4, phases: ['bloodbath'] },
   {
     id: SPECIAL_EVENT_RULES.early_pedestal_escape.template_id,
     type: 'hazard',
     base_weight: 3,
     phases: ['bloodbath']
+  },
+  { id: 'hazard-fire-wave-1', type: 'hazard', base_weight: 5, phases: ['day', 'night'] },
+  { id: 'hazard-toxic-fog-1', type: 'hazard', base_weight: 5, phases: ['day', 'night'] },
+  { id: 'surprise-muttation-hunt-1', type: 'surprise', base_weight: 4, phases: ['day', 'night'] },
+  { id: 'hazard-thunderstorm-1', type: 'hazard', base_weight: 4, phases: ['day', 'night'] },
+  { id: 'hazard-rockslide-1', type: 'hazard', base_weight: 3, phases: ['day', 'night', 'finale'] },
+  { id: 'resource-sponsor-pack-1', type: 'resource', base_weight: 5, phases: ['day', 'night'] },
+  { id: 'hazard-quicksand-trap-1', type: 'hazard', base_weight: 3, phases: ['day', 'night'] },
+  { id: 'combat-route-clash-1', type: 'combat', base_weight: 6, phases: ['day', 'night', 'finale'] },
+  { id: 'surprise-risky-shelter-1', type: 'surprise', base_weight: 4, phases: ['night'] },
+  {
+    id: SPECIAL_EVENT_RULES.cornucopia_refill.template_id,
+    type: 'resource',
+    base_weight: 4,
+    phases: ['day', 'night', 'finale']
+  },
+  {
+    id: SPECIAL_EVENT_RULES.arena_escape_attempt.template_id,
+    type: 'hazard',
+    base_weight: 2,
+    phases: ['day', 'night', 'finale']
   },
   { id: 'alliance-1', type: 'alliance', base_weight: 6, phases: ['day', 'night', 'finale'] },
   { id: 'betrayal-1', type: 'betrayal', base_weight: 7, phases: ['day', 'night', 'finale'] },
@@ -138,6 +160,34 @@ function eliminationChance(
   const tensionFactor = tensionLevel / 300;
   const endgameFactor = aliveCount <= 4 ? 0.08 : 0;
   return clamp(phaseBase[cyclePhase] + tensionFactor + endgameFactor, 0, 0.95);
+}
+
+export function isCornucopiaRefillEligible(turnNumber: number, aliveCount: number): boolean {
+  return (
+    turnNumber >= SPECIAL_EVENT_RULES.cornucopia_refill.min_turn_number &&
+    aliveCount <= SPECIAL_EVENT_RULES.cornucopia_refill.max_alive_count
+  );
+}
+
+export function buildContextualTurnCatalog(turnNumber: number, aliveCount: number): EventTemplate[] {
+  return TURN_EVENT_CATALOG.map((template) => {
+    if (template.id === SPECIAL_EVENT_RULES.cornucopia_refill.template_id) {
+      if (!isCornucopiaRefillEligible(turnNumber, aliveCount)) {
+        return {
+          ...template,
+          base_weight: 0
+        };
+      }
+
+      return {
+        ...template,
+        base_weight:
+          template.base_weight * SPECIAL_EVENT_RULES.cornucopia_refill.activation_weight_multiplier
+      };
+    }
+
+    return template;
+  }).filter((template) => template.base_weight > 0);
 }
 
 function resolveWinnerId(participants: ParticipantState[]): string | null {
@@ -359,20 +409,20 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
   const participantCount = sampleParticipantCount(alive.length, rng);
   const selectedParticipants = chooseParticipants(alive, participantCount, rng);
   const recentTemplateIds = stored.recent_events.slice(-4).map((event) => event.template_id);
+  const contextualCatalog = buildContextualTurnCatalog(nextTurnNumber, alive.length);
   const selectedTemplate = selectCatalogEvent(
-    TURN_EVENT_CATALOG,
+    contextualCatalog,
     currentPhase,
     recentTemplateIds,
     rng,
     2
   );
-  const hadElimination =
-    alive.length > 1 &&
-    (alive.length === 2 || rng() < eliminationChance(currentPhase, stored.match.tension_level, alive.length));
 
   const eliminatedIds: string[] = [];
   const specialResolution = resolveSpecialEvent({
     phase: currentPhase,
+    turn_number: nextTurnNumber,
+    alive_count: alive.length,
     template_id: selectedTemplate.id,
     selected_participants: selectedParticipants.map((participant) => ({
       id: participant.id,
@@ -380,6 +430,12 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     })),
     rng
   });
+  const eliminationRollChance = Math.max(
+    eliminationChance(currentPhase, stored.match.tension_level, alive.length),
+    specialResolution.elimination_chance_floor
+  );
+  const hadElimination =
+    alive.length > 1 && (alive.length === 2 || rng() < eliminationRollChance);
 
   for (const eliminatedId of specialResolution.eliminated_participant_ids) {
     eliminatedIds.push(eliminatedId);
@@ -390,7 +446,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     }
   }
 
-  if (!specialResolution.handled && hadElimination) {
+  if (specialResolution.allow_default_elimination && hadElimination) {
     const eliminatedIndex = Math.floor(rng() * selectedParticipants.length);
     const eliminatedParticipant = selectedParticipants[eliminatedIndex];
     eliminatedIds.push(eliminatedParticipant.id);
