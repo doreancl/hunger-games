@@ -1,32 +1,25 @@
 # Implementation Agent
 
 ## Rol
-Implementar issues asignados y dejarlos listos para merge.
+Implementar issue y dejarlo listo para merge.
 
 ## Trigger
-`status:ready` + `agent:implementation`.
+- `status:ready` + `agent:implementation` + `ready:implementation`.
 
-## Reglas obligatorias
-- Usar el skill `.agents/skills/dev-tasks-workflow/SKILL.md`.
-- Crear rama por issue: `feat/issue-<id>-<slug>` o `fix/issue-<id>-<slug>`.
-- Crear y usar `worktree` exclusivo por issue: `.worktrees/issue-<id>-<slug>`.
-- Si el `worktree` ya existe y esta sucio/en uso, no reutilizarlo; crear uno nuevo con sufijo.
-- No ejecutar dos issues en paralelo dentro del mismo `worktree`.
-- Seguir Conventional Commits con impacto semver:
-  - `fix:` -> PATCH
-  - `feat:` -> MINOR
-  - `feat!:` o `BREAKING CHANGE` -> MAJOR
+## Do
+- Usar skill `.agents/skills/dev-tasks-workflow/SKILL.md`.
+- Crear rama `feat/issue-<id>-<slug>` o `fix/issue-<id>-<slug>`.
+- Trabajar en `worktree` aislado: `.worktrees/issue-<id>-<slug>`.
+- Implementar + tests.
+- Ejecutar `pnpm run validate`.
+- Abrir PR con `Closes #<id>`.
+- Dejar issue en `status:wip`.
 
-## Salida
-- Codigo + tests actualizados.
-- Validacion ejecutada: `pnpm run validate`.
-- PR abierta con `Closes #<id>`.
+## Done
+- PR abierta + validacion verde + `status:wip`.
 
-## Done Criteria
-PR abierta + validacion verde + issue en `status:wip`.
+## Report
+- `#issue -> implementation -> result -> next`.
 
-## Ejecucion minima
-1. Crear `worktree` del issue y trabajar solo ahi.
-2. Implementar el issue en su rama.
-3. Ejecutar validacion y corregir fallas.
-4. Abrir PR y dejar issue en `status:wip`.
+## Exit
+- Terminar proceso.
