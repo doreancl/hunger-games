@@ -9,6 +9,7 @@ import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { resetMatchesForTests } from '@/lib/matches/lifecycle';
 import { resetObservabilityForTests } from '@/lib/observability';
+import { LOCATION_CATALOG, locationLabel } from '@/lib/domain/locations';
 import { advanceDirector } from '@/lib/simulation-state';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
@@ -134,9 +135,11 @@ describe('match lifecycle routes', () => {
       id: expect.any(String),
       type: expect.any(String),
       phase: 'bloodbath',
+      location: expect.any(String),
       narrative_text: expect.any(String),
       participant_ids: expect.any(Array)
     });
+    expect(LOCATION_CATALOG).toContain(advanceBody.event.location);
     expect(advanceBody.event.participant_ids.length).toBeGreaterThanOrEqual(1);
     expect(advanceBody.survivors_count).toBe(10 - advanceBody.eliminated_ids.length);
     expect(advanceBody.finished).toBe(false);
@@ -209,8 +212,11 @@ describe('match lifecycle routes', () => {
       )
     ).toBe(true);
     expect(stateBody.recent_events).toHaveLength(1);
-    expect((stateBody.recent_events as Array<{ narrative_text: string }>)[0].narrative_text).toMatch(
-      /Tributo \d+/
+    const recentEvent =
+      (stateBody.recent_events as Array<{ narrative_text: string; location: string }>)[0];
+    expect(recentEvent.narrative_text).toMatch(/Tributo \d+/);
+    expect(recentEvent.narrative_text).toContain(
+      locationLabel(recentEvent.location as (typeof LOCATION_CATALOG)[number])
     );
   });
 

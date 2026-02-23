@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { locationLabel } from '@/lib/domain/locations';
 import { buildEventNarrative } from '@/lib/matches/event-narrative';
 import { resolveSpecialEvent } from '@/lib/matches/special-events';
 
@@ -67,6 +68,7 @@ describe('event narrative builder', () => {
     const narrative = buildEventNarrative({
       template_id: 'hazard-pedestal-early-exit-1',
       phase: 'bloodbath',
+      location: 'cornucopia',
       participant_names: ['Tributo Uno'],
       eliminated_names: ['Tributo Uno'],
       special_narrative: {
@@ -76,18 +78,23 @@ describe('event narrative builder', () => {
       }
     });
 
-    expect(narrative).toBe('Tributo Uno abandona el pedestal antes de tiempo y explota.');
+    expect(narrative).toBe(
+      `Tributo Uno abandona el pedestal antes de tiempo en ${locationLabel('cornucopia')} y explota.`
+    );
   });
 
   it('renders generic narrative independently from special resolver', () => {
     const narrative = buildEventNarrative({
       template_id: 'combat-1',
       phase: 'day',
+      location: 'forest',
       participant_names: ['A', 'B'],
       eliminated_names: ['B'],
       special_narrative: undefined
     });
 
-    expect(narrative).toBe('Evento combat-1 en fase day con A, B. Eliminados: B.');
+    expect(narrative).toBe(
+      `Evento combat-1 en ${locationLabel('forest')} durante fase day con A, B. Eliminados: B.`
+    );
   });
 });

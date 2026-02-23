@@ -1,3 +1,5 @@
+import type { LocationId } from '@/lib/domain/locations';
+
 export const SNAPSHOT_VERSION = 1 as const;
 export const RULESET_VERSION = 'v1.0.0' as const;
 
@@ -15,6 +17,7 @@ export type EventType =
   | 'hazard'
   | 'surprise';
 export type EventParticipantRole = 'initiator' | 'target' | 'ally' | 'observer';
+export type EventLocation = LocationId;
 export type ValidationIssue = {
   path: Array<string | number>;
   code: string;
@@ -69,6 +72,7 @@ export type Event = {
   turn_number: number;
   type: EventType;
   phase: CyclePhase;
+  location: EventLocation;
   participant_count: number;
   intensity: number;
   narrative_text: string;
@@ -114,6 +118,7 @@ export type AdvanceTurnEventResponse = {
   id: string;
   type: EventType;
   phase: CyclePhase;
+  location: EventLocation;
   narrative_text: string;
   participant_ids: string[];
 };

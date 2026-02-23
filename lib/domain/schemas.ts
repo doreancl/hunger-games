@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LOCATION_CATALOG } from '@/lib/domain/locations';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
 export const surpriseLevelSchema = z.enum(['low', 'normal', 'high']);
@@ -21,6 +22,7 @@ export const eventParticipantRoleSchema = z.enum([
   'ally',
   'observer'
 ]);
+export const eventLocationSchema = z.enum(LOCATION_CATALOG);
 
 export const rulesetVersionSchema = z
   .string()
@@ -56,6 +58,7 @@ export const eventSchema = z
     turn_number: z.number().int().min(0),
     type: eventTypeSchema,
     phase: cyclePhaseSchema,
+    location: eventLocationSchema,
     participant_count: z.number().int().min(0),
     intensity: z.number().min(0),
     narrative_text: z.string().min(1),
@@ -173,6 +176,7 @@ export const advanceTurnResponseSchema = z
         id: z.string().min(1),
         type: eventTypeSchema,
         phase: cyclePhaseSchema,
+        location: eventLocationSchema,
         narrative_text: z.string().min(1),
         participant_ids: z.array(z.string().min(1)).min(1)
       })

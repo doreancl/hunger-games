@@ -1,8 +1,10 @@
+import { LOCATION_CATALOG } from '@/lib/domain/locations';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
   CreateMatchResponse,
+  EventLocation,
   GetMatchStateResponse,
   Match,
   ParticipantState,
@@ -148,12 +150,24 @@ function checksumFNV1a(raw: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
+function selectEventLocation(input: {
+  match_id: string;
+  turn_number: number;
+  phase: Match['cycle_phase'];
+  template_id: string;
+}): EventLocation {
+  const signature = checksumFNV1a(JSON.stringify(input));
+  const index = parseInt(signature, 16) % LOCATION_CATALOG.length;
+  return LOCATION_CATALOG[index] ?? LOCATION_CATALOG[0];
+}
+
 function replaySignature(input: {
   ruleset_version: string;
   seed: string | null;
   turn_number: number;
   cycle_phase: Match['cycle_phase'];
   template_id: string;
+  location: EventLocation;
   participant_character_ids: string[];
   eliminated_character_ids: string[];
 }): string {
@@ -346,6 +360,12 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     rng,
     2
   );
+  const selectedLocation = selectEventLocation({
+    match_id: stored.match.id,
+    turn_number: nextTurnNumber,
+    phase: currentPhase,
+    template_id: selectedTemplate.id
+  });
   const hadElimination =
     alive.length > 1 &&
     (alive.length === 2 || rng() < eliminationChance(currentPhase, stored.match.tension_level, alive.length));
@@ -402,6 +422,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     turn_number: nextTurnNumber,
     cycle_phase: currentPhase,
     template_id: selectedTemplate.id,
+    location: selectedLocation,
     participant_character_ids: selectedCharacterIds,
     eliminated_character_ids: eliminatedCharacterIds
   };
@@ -436,6 +457,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     turn_number: nextTurnNumber,
     type: selectedTemplate.type,
     phase: currentPhase,
+    location: selectedLocation,
     participant_count: selectedParticipants.length,
     intensity: clamp(
       Math.round(stored.match.tension_level + 15 + rng() * 40 + (eliminatedIds.length > 0 ? 20 : 0)),
@@ -445,6 +467,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     narrative_text: buildEventNarrative({
       template_id: selectedTemplate.id,
       phase: currentPhase,
+      location: selectedLocation,
       participant_names: selectedDisplayNames,
       eliminated_names: eliminatedDisplayNames,
       special_narrative: specialResolution.narrative
@@ -477,6 +500,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     cycle_phase: stored.match.cycle_phase,
     event_type: event.type,
     template_id: event.template_id,
+    location: event.location,
     participant_count: selectedParticipants.length,
     eliminated_count: eliminatedIds.length,
     finished,
@@ -501,6 +525,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
         id: event.id,
         type: event.type,
         phase: event.phase,
+        location: event.location,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)
       },
