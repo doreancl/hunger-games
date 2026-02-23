@@ -13,6 +13,8 @@ Crear o actualizar spec de un issue.
 - Trabajar solo con issues `open`.
 - Si `DRY_RUN=true`, solo leer y reportar `would-do` (sin mutaciones en GitHub).
 - Comentarios idempotentes: no duplicar one-liner si ya existe uno equivalente del agente.
+- Comentarios en PR minimos: solo bullets one-liners, sin logs crudos, sin stack traces, sin bloques largos.
+- Reusar PR existente del issue si ya existe uno abierto asociado; no crear PR nuevo en ese caso.
 
 ## Do
 - Obtener issues con GitHub CLI (`gh issue list --state open`) y procesar uno por vez.
@@ -26,7 +28,9 @@ Crear o actualizar spec de un issue.
 - Incluir propuesta de versionado para implementacion:
   - recomendar bump SemVer (patch/minor/major) en la spec
   - actualizar `CHANGELOG` en el PR de spec
-- Abrir PR y comentar el issue con resumen simple del trabajo/decision.
+- Buscar PR abierto asociado al issue y reusarlo si existe; crear PR solo si no existe asociado abierto.
+- Comentar el issue con resumen simple del trabajo/decision.
+- Si comenta en PR, usar maximo 3 bullets one-liners con decision y artefactos creados; nunca pegar output completo.
 - Commit y handoff a:
   - `status:do-pending`
   - `agent:implementation`
@@ -47,7 +51,7 @@ Crear o actualizar spec de un issue.
 - [ ] Spec creada/actualizada en `specs/`.
 - [ ] SemVer propuesto en la spec y `CHANGELOG` actualizado.
 - [ ] Commit realizado con cambios de spec.
-- [ ] PR abierta.
+- [ ] PR asociada reutilizada si ya existia; PR nueva creada solo si no habia asociada.
 - [ ] Comentario simple publicado en el issue.
 - [ ] Handoff aplicado: `status:do-pending` + `agent:implementation`.
 - [ ] Reporte emitido: `#issue -> review-spec -> result -> next`.

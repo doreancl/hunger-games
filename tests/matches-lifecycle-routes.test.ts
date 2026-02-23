@@ -3,6 +3,7 @@ import { POST as createMatch } from '@/app/api/matches/route';
 import { GET as getMatchState } from '@/app/api/matches/[matchId]/route';
 import { POST as startMatch } from '@/app/api/matches/[matchId]/start/route';
 import { POST as advanceTurn } from '@/app/api/matches/[matchId]/turns/advance/route';
+import { POST as queueGodMode } from '@/app/api/matches/[matchId]/god-mode/route';
 import { POST as resumeMatch } from '@/app/api/matches/resume/route';
 import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
 import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
@@ -154,7 +155,7 @@ describe('match lifecycle routes', () => {
     );
 
     expect(advanceBody.turn_number).toBe(expectedDirector.turn_number);
-    expect(advanceBody.cycle_phase).toBe(expectedDirector.cycle_phase);
+    expect(advanceBody.cycle_phase).toBe('god_mode');
     expect(advanceBody.tension_level).toBe(expectedDirector.tension_level);
 
     const stateResponse = await getMatchState(
@@ -168,6 +169,107 @@ describe('match lifecycle routes', () => {
     expect(stateBody.cycle_phase).toBe(advanceBody.cycle_phase);
     expect(stateBody.tension_level).toBe(advanceBody.tension_level);
     expect(stateBody.recent_events).toHaveLength(1);
+    expect(stateBody.recent_events[0].origin).toBe('natural');
+    expect(stateBody.recent_events[0].induced_by_action_ids).toEqual([]);
+  });
+
+  it('queues and applies god_mode actions between turns', async () => {
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'god-mode-seed'
+          }
+        })
+      })
+    );
+    const createBody = await createResponse.json();
+    const matchId = createBody.match_id as string;
+
+    await startMatch(
+      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+
+    await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+
+    const stateBefore = await getMatchState(
+      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const stateBeforeBody = await stateBefore.json();
+    const aliveParticipants = (stateBeforeBody.participants as Array<{ id: string; status: string }>).filter(
+      (participant) => participant.status !== 'eliminated'
+    );
+    const revivedCandidate = (stateBeforeBody.participants as Array<{ id: string }>)[0].id;
+
+    const queueResponse = await queueGodMode(
+      new Request(`http://localhost/api/matches/${matchId}/god-mode`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          actions: [
+            {
+              id: 'act-fire',
+              kind: 'localized_fire',
+              location: 'cornucopia',
+              persistent_turns: 2
+            },
+            {
+              id: 'act-revive',
+              kind: 'revive_tribute',
+              participant_id: revivedCandidate
+            },
+            {
+              id: 'act-enemy',
+              kind: 'set_enmity',
+              source_participant_id: aliveParticipants[0].id,
+              target_participant_id: aliveParticipants[1].id
+            }
+          ]
+        })
+      }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const queueBody = await queueResponse.json();
+    expect(queueResponse.status).toBe(200);
+    expect(queueBody.cycle_phase).toBe('god_mode');
+    expect(queueBody.queued_actions).toBe(3);
+
+    const advanceResponse = await advanceTurn(
+      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const advanceBody = await advanceResponse.json();
+    expect(advanceResponse.status).toBe(200);
+    expect(advanceBody.cycle_phase).toBe('god_mode');
+    expect(advanceBody.event.narrative_text).toContain('Incendio en cornucopia');
+
+    const stateAfter = await getMatchState(
+      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
+      { params: Promise.resolve({ matchId }) }
+    );
+    const stateAfterBody = await stateAfter.json();
+    const lastEvent = (stateAfterBody.recent_events as Array<{
+      origin: string;
+      induced_by_action_ids: string[];
+      narrative_text: string;
+    }>).at(-1);
+
+    expect(lastEvent?.origin).toBe('god_mode');
+    expect(lastEvent?.induced_by_action_ids).toEqual(
+      expect.arrayContaining(['act-fire', 'act-revive', 'act-enemy'])
+    );
+    expect(lastEvent?.narrative_text).toContain('Incendio en cornucopia');
   });
 
   it('uses participant_names in state and event narrative when provided', async () => {

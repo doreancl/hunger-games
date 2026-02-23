@@ -1,5 +1,5 @@
 import { SPECIAL_EVENT_RULES } from '@/lib/domain/rules';
-import type { Match } from '@/lib/domain/types';
+import type { OperationalCyclePhase } from '@/lib/domain/types';
 import type { SeededRng } from '@/lib/simulation-state';
 
 export type SpecialEventNarrative =
@@ -18,7 +18,7 @@ export type SpecialEventNarrative =
   | undefined;
 
 export type ResolveSpecialEventInput = {
-  phase: Match['cycle_phase'];
+  phase: OperationalCyclePhase;
   turn_number: number;
   alive_count: number;
   template_id: string;

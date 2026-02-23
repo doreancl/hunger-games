@@ -13,6 +13,8 @@ Hacer review final y cerrar el ciclo (merge + cierre de issue) cuando sea `lgtm`
 - Trabajar solo con issues `open`.
 - Si `DRY_RUN=true`, solo leer y reportar `would-do` (sin mutaciones en GitHub).
 - Comentarios idempotentes: no duplicar one-liner si ya existe uno equivalente del agente.
+- Comentarios en PR minimos: solo bullets one-liners, sin logs crudos, sin stack traces, sin bloques largos.
+- Revisar siempre el PR ya asociado al issue; no crear PRs nuevos en etapa review.
 
 ## Do
 - Descubrir candidatos con `gh issue list --state open` filtrando `status:review-pending` + `agent:review`.
@@ -30,6 +32,7 @@ Hacer review final y cerrar el ciclo (merge + cierre de issue) cuando sea `lgtm`
   - si falta evidencia explicita, forzar `semver-fail`.
 - Si SemVer falla, forzar `changes-requested`; si pasa, permitir `lgtm`.
 - Si hay bloqueantes, comentar en el PR con bullet points one-liners (un hallazgo por linea) y referencia de archivo cuando exista (`path:line`).
+- Limite de comentario en PR: maximo 5 bullets bloqueantes; resumir checks en una sola linea (pass/fail/pending), nunca pegar salida completa.
 - En modo normal, publicar comentario final y transicionar estado:
   - `lgtm` -> mergear PR, cerrar issue y remover labels `status:*` + `agent:*`
   - `changes-requested` -> `status:do-pending` + `agent:implementation`

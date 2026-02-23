@@ -56,7 +56,14 @@ type LocalMatchesParseResult = {
 
 const nonEmptyStringSchema = z.string().trim().min(1);
 const nonNegativeIntegerSchema = z.number().int().min(0);
-const cyclePhaseOrSetupSchema = z.enum(['setup', 'bloodbath', 'day', 'night', 'finale']);
+const cyclePhaseOrSetupSchema = z.enum([
+  'setup',
+  'bloodbath',
+  'day',
+  'night',
+  'finale',
+  'god_mode'
+]);
 const simulationSpeedSchema = z.enum(['1x', '2x', '4x']);
 const eventProfileSchema = z.enum(['balanced', 'aggressive', 'chaotic']);
 const surpriseLevelSchema = z.enum(['low', 'normal', 'high']);

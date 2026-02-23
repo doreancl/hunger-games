@@ -13,6 +13,8 @@ Implementar issue y dejarlo listo para merge.
 - Trabajar solo con issues `open`.
 - Si `DRY_RUN=true`, solo leer y reportar `would-do` (sin mutaciones en GitHub).
 - Comentarios idempotentes: no duplicar one-liner si ya existe uno equivalente del agente.
+- Comentarios en PR minimos: solo bullets one-liners, sin logs crudos, sin stack traces, sin bloques largos.
+- Reusar PR existente del issue si ya existe uno abierto asociado; no crear PR nuevo en ese caso.
 
 ## Do
 - Obtener issues con GitHub CLI (`gh issue list --state open`) y procesar uno por vez.
@@ -23,19 +25,26 @@ Implementar issue y dejarlo listo para merge.
 - Crear rama `feat/issue-<id>-<slug>` o `fix/issue-<id>-<slug>`.
 - Trabajar en `worktree` aislado: `.worktrees/issue-<id>-<slug>`.
 - Implementar + tests.
-- Ejecutar `pnpm run validate`.
+- Ejecutar validaciones obligatorias, especialmente despues de resolver conflictos:
+  - `pnpm run lint`
+  - `pnpm run test:unit`
+  - `pnpm run test:coverage`
+  - `pnpm run build`
+- Si cualquiera falla, no hacer handoff a review; remover `status:do-wip` y volver a `status:do-pending` + `agent:implementation`.
 - Preparar versionado para review:
   - actualizar `package.json` con bump SemVer propuesto (patch/minor/major)
   - actualizar `CHANGELOG` acorde al cambio implementado
-- Abrir PR con `Closes #<id>`.
+- Buscar PR abierto asociado al issue (`Closes #<id>` o branch del issue) y reusarlo si existe.
+- Crear PR con `Closes #<id>` solo si no existe PR asociado abierto.
 - Revisar comentarios pendientes del PR (review/comments) y resolver cada bloqueante antes del handoff.
+- Si comenta en PR, usar maximo 3 bullets one-liners con accion/estado; nunca pegar output completo de comandos o tests.
 - Publicar comentario simple en el issue con resultado y PR.
 - Dejar issue en `status:review-pending` + `agent:review` y remover `status:do-wip`.
 - Al terminar en modo normal, borrar el worktree `.worktrees/issue-<id>-<slug>` (cleanup obligatorio).
 - En `DRY_RUN=true`, no editar labels, no comentar, no crear rama/PR y solo reportar `would-do`.
 
 ## Done
-- PR abierta + validacion verde + `status:review-pending`.
+- PR abierta + `lint`/`test:unit`/`test:coverage`/`build` en verde + `status:review-pending`.
 - Si no hubo issues candidatos, salida limpia sin cambios.
 
 ## Checklist (Sin candidatos)
@@ -51,9 +60,12 @@ Implementar issue y dejarlo listo para merge.
 - [ ] Worktree dedicado creado: `.worktrees/issue-<id>-<slug>`.
 - [ ] Rama correcta creada: `feat/issue-<id>-<slug>` o `fix/issue-<id>-<slug>`.
 - [ ] Implementacion y tests completados.
-- [ ] `pnpm run validate` ejecutado en verde.
+- [ ] `pnpm run lint` ejecutado en verde.
+- [ ] `pnpm run test:unit` ejecutado en verde.
+- [ ] `pnpm run test:coverage` ejecutado en verde.
+- [ ] `pnpm run build` ejecutado en verde.
 - [ ] SemVer preparado para review (`package.json` + `CHANGELOG`).
-- [ ] PR abierta con `Closes #<id>`.
+- [ ] PR asociada reutilizada si ya existia; PR nueva creada solo si no habia asociada.
 - [ ] Comentarios pendientes del PR revisados y bloqueantes resueltos o respondidos.
 - [ ] Comentario simple publicado en el issue.
 - [ ] Issue actualizado a `status:review-pending` + `agent:review` sin lock remanente.

@@ -12,7 +12,8 @@ export function phaseLabel(phase: LocalMatchSummary['cycle_phase']): string {
     bloodbath: 'Bloodbath',
     day: 'Dia',
     night: 'Noche',
-    finale: 'Finale'
+    finale: 'Finale',
+    god_mode: 'Modo Dios'
   };
 
   return labels[phase];
