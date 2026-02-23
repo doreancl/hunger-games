@@ -299,7 +299,7 @@ function feedFromAdvance(
   return {
     id: advance.event.id,
     turn_number: advance.turn_number,
-    phase: advance.cycle_phase,
+    phase: advance.event.phase,
     type: advance.event.type,
     headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
     impact,
