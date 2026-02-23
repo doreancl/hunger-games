@@ -3,6 +3,7 @@ import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
   CreateMatchResponse,
+  EventLocation,
   GetMatchStateResponse,
   Match,
   ParticipantState,
@@ -47,6 +48,16 @@ const matches: MatchesStore =
       })();
 
 const MAX_RECENT_EVENTS = 12;
+const EVENT_LOCATIONS: EventLocation[] = [
+  'cornucopia',
+  'forest',
+  'river',
+  'lake',
+  'meadow',
+  'caves',
+  'ruins',
+  'cliffs'
+];
 
 const TURN_EVENT_CATALOG: EventTemplate[] = [
   { id: 'combat-1', type: 'combat', base_weight: 10, phases: ['bloodbath', 'day', 'night'] },
@@ -154,10 +165,19 @@ function replaySignature(input: {
   turn_number: number;
   cycle_phase: Match['cycle_phase'];
   template_id: string;
+  location: EventLocation;
   participant_character_ids: string[];
   eliminated_character_ids: string[];
 }): string {
   return checksumFNV1a(JSON.stringify(input));
+}
+
+function resolveEventLocation(templateId: string, rng: SeededRng): EventLocation {
+  if (templateId === SPECIAL_EVENT_RULES.early_pedestal_escape.template_id) {
+    return 'cornucopia';
+  }
+
+  return EVENT_LOCATIONS[Math.floor(rng() * EVENT_LOCATIONS.length)] ?? 'forest';
 }
 
 export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
@@ -384,6 +404,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
 
   const selectedCharacterIds = selectedParticipants.map((participant) => participant.character_id);
   const selectedDisplayNames = selectedParticipants.map((participant) => participant.display_name);
+  const eventLocation = resolveEventLocation(selectedTemplate.id, rng);
   const eliminatedCharacterIds = eliminatedIds
     .map(
       (participantId) =>
@@ -402,6 +423,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     turn_number: nextTurnNumber,
     cycle_phase: currentPhase,
     template_id: selectedTemplate.id,
+    location: eventLocation,
     participant_character_ids: selectedCharacterIds,
     eliminated_character_ids: eliminatedCharacterIds
   };
@@ -435,6 +457,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     template_id: selectedTemplate.id,
     turn_number: nextTurnNumber,
     type: selectedTemplate.type,
+    location: eventLocation,
     phase: currentPhase,
     participant_count: selectedParticipants.length,
     intensity: clamp(
@@ -445,6 +468,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     narrative_text: buildEventNarrative({
       template_id: selectedTemplate.id,
       phase: currentPhase,
+      location: eventLocation,
       participant_names: selectedDisplayNames,
       eliminated_names: eliminatedDisplayNames,
       special_narrative: specialResolution.narrative
@@ -500,6 +524,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       event: {
         id: event.id,
         type: event.type,
+        location: event.location,
         phase: event.phase,
         narrative_text: event.narrative_text,
         participant_ids: selectedParticipants.map((participant) => participant.id)

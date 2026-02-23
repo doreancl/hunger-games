@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-02-23
+
+### Added
+
+- Add typed event locations (`cornucopia`, `forest`, `river`, `lake`, `meadow`, `caves`, `ruins`, `cliffs`) to domain contracts.
+- Include `location` in turn events and match state events, and enforce it in Zod schemas.
+- Extend event narratives to mention the resolved event location, including special pedestal events.
+
+### Changed
+
+- Make event location deterministic per seeded RNG flow and pin early-pedestal special event to Cornucopia.
+- Update lifecycle and contract tests to validate required `location` propagation and schema compatibility.
+
 ## [0.1.2] - 2026-02-23
 
 ### Fixed

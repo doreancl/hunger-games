@@ -12,6 +12,17 @@ import { resetObservabilityForTests } from '@/lib/observability';
 import { advanceDirector } from '@/lib/simulation-state';
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
+const EVENT_LOCATIONS = [
+  'cornucopia',
+  'forest',
+  'river',
+  'lake',
+  'meadow',
+  'caves',
+  'ruins',
+  'cliffs'
+] as const;
+
 function roster(size: number): string[] {
   return Array.from({ length: size }, (_, index) => `char-${index + 1}`);
 }
@@ -133,10 +144,12 @@ describe('match lifecycle routes', () => {
     expect(advanceBody.event).toMatchObject({
       id: expect.any(String),
       type: expect.any(String),
+      location: expect.any(String),
       phase: 'bloodbath',
       narrative_text: expect.any(String),
       participant_ids: expect.any(Array)
     });
+    expect(EVENT_LOCATIONS).toContain(advanceBody.event.location);
     expect(advanceBody.event.participant_ids.length).toBeGreaterThanOrEqual(1);
     expect(advanceBody.survivors_count).toBe(10 - advanceBody.eliminated_ids.length);
     expect(advanceBody.finished).toBe(false);
@@ -168,6 +181,8 @@ describe('match lifecycle routes', () => {
     expect(stateBody.cycle_phase).toBe(advanceBody.cycle_phase);
     expect(stateBody.tension_level).toBe(advanceBody.tension_level);
     expect(stateBody.recent_events).toHaveLength(1);
+    expect(stateBody.recent_events[0].location).toBe(advanceBody.event.location);
+    expect(stateBody.recent_events[0].narrative_text).toMatch(/\ben\b/i);
   });
 
   it('uses participant_names in state and event narrative when provided', async () => {
