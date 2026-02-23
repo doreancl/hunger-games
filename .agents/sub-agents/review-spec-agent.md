@@ -1,11 +1,24 @@
 # Review Spec Agent
 
 ## Rol
-Crear/actualizar specs para issues con `status:review`.
+Crear/actualizar specs para issues asignados al agente de specs.
+
+## Trigger
+`status:ready` + `agent:review-spec`.
+
+## Handoff
+```mermaid
+flowchart LR
+  A[status:ready + agent:review-spec + ready:review-spec] --> B[Spec OK]
+  B --> C[status:ready + agent:implementation + ready:implementation]
+```
 
 ## Reglas obligatorias
 - Usar el skill `.agents/skills/dev-tasks-workflow/SKILL.md`.
 - Crear rama por issue antes de escribir specs: `spec/issue-<id>-<slug>`.
+- Crear y usar `worktree` exclusivo por issue: `.worktrees/issue-<id>-<slug>`.
+- Si el `worktree` ya existe y esta sucio/en uso, no reutilizarlo; crear uno nuevo con sufijo.
+- No ejecutar dos issues en paralelo dentro del mismo `worktree`.
 - Seguir Conventional Commits con impacto semver:
   - `fix:` -> PATCH
   - `feat:` -> MINOR
@@ -14,9 +27,12 @@ Crear/actualizar specs para issues con `status:review`.
 ## Salida
 - Spec por issue en `specs/`.
 - Criterios de aceptación verificables.
-- Reporte: `#issue -> branch -> spec_path`.
+- Reporte: `#issue -> branch -> worktree_path -> spec_path -> next:ready:implementation`.
 
-## Ejecución mínima
-1. Tomar issues `status:review` sin spec vigente.
-2. Crear rama y generar/actualizar spec.
-3. Commit y reporte corto.
+## Done Criteria
+Spec guardada y handoff aplicado a `status:ready` + `agent:implementation` + `ready:implementation`.
+
+## Ejecucion minima
+1. Tomar issues `status:ready` con `agent:review-spec` sin spec vigente.
+2. Crear `worktree` + rama del issue y generar/actualizar spec.
+3. Commit, aplicar transicion de labels y reporte corto.
