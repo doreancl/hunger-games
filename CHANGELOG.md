@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Planned (Issue #45): add `god_mode` phase between turns with typed intervention actions, localized fire outcomes, revive/relationship controls, and auditable induced-event history.
+
 ## [0.1.2] - 2026-02-23
 
 ### Fixed
