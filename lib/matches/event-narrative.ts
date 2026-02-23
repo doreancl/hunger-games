@@ -17,6 +17,12 @@ export function buildEventNarrative(input: BuildEventNarrativeInput): string {
 
     return `${input.special_narrative.leaver_name} abandona el pedestal antes de tiempo, pero no explota.`;
   }
+  if (input.special_narrative?.kind === 'cornucopia_refill') {
+    return 'El Capitolio anuncia un reabastecimiento en la Cornucopia y los tributos convergen en busca de suministros críticos.';
+  }
+  if (input.special_narrative?.kind === 'arena_escape_attempt') {
+    return `${input.special_narrative.tribune_name} intenta escapar del arena y es ejecutado automáticamente por violar los límites.`;
+  }
 
   const participantsLabel =
     input.participant_names.length === 0 ? 'sin participantes' : input.participant_names.join(', ');
