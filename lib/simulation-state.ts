@@ -4,7 +4,7 @@ export type MatchState = {
   active: boolean;
 };
 
-import type { CyclePhase, EventLocation, EventType } from '@/lib/domain/types';
+import type { CyclePhase, EventLocation, EventType, OperationalCyclePhase } from '@/lib/domain/types';
 
 const MAX_MULTI_PARTICIPANT_CHANCE = 0.02;
 const DEFAULT_SEEDED_RNG_SEED = 'hunger-games-default-seed';
@@ -13,7 +13,7 @@ export type SeededRng = () => number;
 
 export type DirectorState = {
   turn_number: number;
-  cycle_phase: CyclePhase;
+  cycle_phase: OperationalCyclePhase;
   alive_count: number;
   tension_level: number;
 };
@@ -55,7 +55,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-export function nextCyclePhase(turnNumber: number, aliveCount: number): CyclePhase {
+export function nextCyclePhase(turnNumber: number, aliveCount: number): OperationalCyclePhase {
   if (turnNumber === 0) {
     return 'bloodbath';
   }
