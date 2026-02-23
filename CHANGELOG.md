@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Planned (Issue #42): add typed map locations to all events, including contract validation and narrative location mentions.
+
 ## [0.1.2] - 2026-02-23
 
 ### Fixed
