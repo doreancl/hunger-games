@@ -49,3 +49,7 @@
   - `lib/domain/schemas.ts`
   - `lib/domain/types.ts`
   - `tests/domain-contracts.test.ts`
+
+## Skills
+
+- `dev-tasks-workflow`: local project skill for coding task workflow execution. (file: `.agents/skills/dev-tasks-workflow/SKILL.md`)
