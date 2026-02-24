@@ -72,6 +72,9 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
 ## 14. Monitoring, Logging & Observability
 - Emitir logs estructurados existentes (`match.turn.event`) con template/evento seleccionado.
 - Si se agrega causa explícita de muerte, incluirla en log para trazabilidad.
+- Para normalización de catálogo de franquicias, emitir `metric.counter` con `metric=catalog.invalid_version_count` cuando `diagnostics.invalid_version_count > 0`.
+- Incluir dimensiones mínimas `source` y `environment` para trazabilidad operativa.
+- Emitir `alert.triggered` con `alert=catalog.invalid_version_count.threshold` cuando el total acumulado cruce umbral (dev: `3`, prod: `1`).
 
 ## 15. Performance & Scalability
 - Selección de evento en O(n) sobre catálogo.
@@ -91,4 +94,3 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
 - Mayor realismo narrativo vs simplicidad del modelo actual.
 - Más eventos letales puede reducir duración media de partida; ajustar pesos para balance.
 - Compatibilidad retroactiva de snapshots no garantizada entre ruleset versions.
-

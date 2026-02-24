@@ -30,8 +30,10 @@ import {
   buildRosterFromMovieSelection,
   DEFAULT_FRANCHISE_CATALOG_SOURCE,
   listFranchiseMovies,
-  normalizeFranchiseCatalog
+  normalizeFranchiseCatalog,
+  type NormalizeFranchiseCatalogResult
 } from '@/lib/domain/franchise-catalog';
+import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -79,6 +81,7 @@ const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
 const TRANSITION_LONG_WAIT_MS = 3000;
 const TRANSITION_FADE_OUT_MS = 180;
+const INVALID_CATALOG_VERSION_ALERT_THRESHOLD = process.env.NODE_ENV === 'production' ? 1 : 3;
 
 type PlaybackSpeed = SimulationSpeed | 'pause';
 type TransitionDirection = 'lobby_to_match' | 'match_to_lobby';
@@ -113,6 +116,34 @@ type SimulationRuntime = {
 };
 
 const EMPTY_FEED: FeedEvent[] = [];
+
+function normalizeCatalogWithObservability(
+  source: unknown,
+  sourceLabel: string
+): NormalizeFranchiseCatalogResult {
+  const result = normalizeFranchiseCatalog(source);
+  const invalidVersionCount = result.diagnostics.invalid_version_count;
+
+  if (invalidVersionCount > 0) {
+    const dimensions = {
+      source: sourceLabel,
+      environment: process.env.NODE_ENV ?? 'development'
+    };
+    const metric = recordCounterMetric(
+      'catalog.invalid_version_count',
+      invalidVersionCount,
+      dimensions
+    );
+    recordThresholdAlert(
+      'catalog.invalid_version_count.threshold',
+      metric.total,
+      INVALID_CATALOG_VERSION_ALERT_THRESHOLD,
+      dimensions
+    );
+  }
+
+  return result;
+}
 
 function createBrowserUuid(): string | null {
   if (typeof window === 'undefined' || typeof crypto === 'undefined') {
@@ -342,7 +373,7 @@ function relationTone(score: number): string {
 
 export default function Home() {
   const [catalogResult, setCatalogResult] = useState(() =>
-    normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE)
+    normalizeCatalogWithObservability(DEFAULT_FRANCHISE_CATALOG_SOURCE, 'default_catalog_bootstrap')
   );
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
   const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
@@ -1263,9 +1294,14 @@ export default function Home() {
                       <button
                         className={styles.button}
                         type="button"
-                        onClick={() =>
-                          setCatalogResult(normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE))
-                        }
+                        onClick={() => {
+                          setCatalogResult(
+                            normalizeCatalogWithObservability(
+                              DEFAULT_FRANCHISE_CATALOG_SOURCE,
+                              'default_catalog_retry'
+                            )
+                          );
+                        }}
                       >
                         Reintentar carga
                       </button>
