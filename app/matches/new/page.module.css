@@ -186,6 +186,25 @@
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
+.catalogSetup {
+  display: grid;
+  gap: 12px;
+}
+
+.catalogSelectionGrid {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.movieGrid {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .characterToggle {
   display: flex;
   align-items: center;
@@ -247,6 +266,11 @@
 
 .buttonGhost {
   background: #fff;
+}
+
+.buttonSelected {
+  background: linear-gradient(180deg, #f6b157, #e5861f);
+  color: #2f1e10;
 }
 
 .eventShell {

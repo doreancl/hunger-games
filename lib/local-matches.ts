@@ -217,6 +217,7 @@ function parseLocalMatchesWithDiagnostics(raw: string | null): LocalMatchesParse
 
 export function getSetupValidation(rosterCharacterIds: string[]): SetupValidation {
   const issues: string[] = [];
+  const uniqueRosterSize = new Set(rosterCharacterIds).size;
 
   if (rosterCharacterIds.length < MIN_ROSTER_SIZE) {
     issues.push(`Selecciona al menos ${MIN_ROSTER_SIZE} personajes.`);
@@ -224,6 +225,10 @@ export function getSetupValidation(rosterCharacterIds: string[]): SetupValidatio
 
   if (rosterCharacterIds.length > MAX_ROSTER_SIZE) {
     issues.push(`No puedes seleccionar mas de ${MAX_ROSTER_SIZE} personajes.`);
+  }
+
+  if (uniqueRosterSize !== rosterCharacterIds.length) {
+    issues.push('No puedes repetir personajes en el roster.');
   }
 
   return {

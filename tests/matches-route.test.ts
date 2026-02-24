@@ -119,6 +119,71 @@ describe('POST /api/matches', () => {
     expect(body.error.code).toBe('INVALID_REQUEST_PAYLOAD');
   });
 
+  it('returns typed error when roster has duplicated character ids', async () => {
+    const request = new Request('http://localhost/api/matches', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        roster_character_ids: ['char-1', 'char-2', 'char-3', 'char-4', 'char-5', 'char-6', 'char-7', 'char-8', 'char-9', 'char-1'],
+        settings: {
+          surprise_level: 'normal',
+          event_profile: 'balanced',
+          simulation_speed: '1x',
+          seed: null
+        }
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('INVALID_REQUEST_PAYLOAD');
+    expect(body.error.details.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ['roster_character_ids'],
+          message: 'roster_character_ids must be unique'
+        })
+      ])
+    );
+  });
+
+  it('returns both contract issues for duplicated roster and participant_names mismatch', async () => {
+    const request = new Request('http://localhost/api/matches', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        roster_character_ids: ['char-1', 'char-2', 'char-3', 'char-4', 'char-5', 'char-6', 'char-7', 'char-8', 'char-9', 'char-1'],
+        participant_names: ['Solo uno'],
+        settings: {
+          surprise_level: 'normal',
+          event_profile: 'balanced',
+          simulation_speed: '1x',
+          seed: null
+        }
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('INVALID_REQUEST_PAYLOAD');
+    expect(body.error.details.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ['roster_character_ids'],
+          message: 'roster_character_ids must be unique'
+        }),
+        expect.objectContaining({
+          path: ['participant_names'],
+          message: 'participant_names length must match roster_character_ids length'
+        })
+      ])
+    );
+  });
+
   it('creates setup match response with contract shape', async () => {
     const request = new Request('http://localhost/api/matches', {
       method: 'POST',

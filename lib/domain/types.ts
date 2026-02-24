@@ -52,6 +52,28 @@ export type MatchSettings = {
   seed: string | null;
 };
 
+export type FranchiseCatalogVersion = 1;
+
+export type FranchiseEntry = {
+  franchise_id: string;
+  franchise_name: string;
+};
+
+export type FranchiseCharacter = {
+  character_key: string;
+  display_name: string;
+  franchise_id: string;
+  movie_id: string;
+  movie_title: string;
+  aliases?: string[];
+};
+
+export type FranchiseCatalog = {
+  version: FranchiseCatalogVersion;
+  franchises: FranchiseEntry[];
+  characters: FranchiseCharacter[];
+};
+
 export type Match = {
   id: string;
   seed: string | null;

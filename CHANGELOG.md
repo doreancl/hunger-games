@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-24
+
+### Added
+
+- Add explicit franchise catalog diagnostics for invalid `version` (`invalid_version_count`) to avoid silent acceptance in normalization flows.
+
+### Changed
+
+- Harden `createMatchRequest` API contract to reject duplicated `roster_character_ids`, preventing direct-client bypass of anti-duplication guarantees.
+
+### Fixed
+
+- Resolve issue #78 by enforcing explicit handling of invalid franchise catalog `version` while preserving compatibility with valid `version: 1`.
+
 ## [0.4.0] - 2026-02-23
 
 ### Added
