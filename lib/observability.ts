@@ -3,6 +3,8 @@ export type TelemetryDimensions = Record<string, TelemetryValue>;
 
 const LATENCY_SERIES_LIMIT = 200;
 const latencySeriesByMetric = new Map<string, number[]>();
+const counterTotalsByMetric = new Map<string, number>();
+const triggeredAlerts = new Set<string>();
 
 function roundedMilliseconds(value: number): number {
   return Math.max(0, Math.round(value * 100) / 100);
@@ -64,6 +66,56 @@ export function recordLatencyMetric(
   };
 }
 
+export function recordCounterMetric(
+  metric: string,
+  count: number,
+  dimensions?: TelemetryDimensions
+): { total: number } {
+  const roundedCount = Math.max(0, Math.round(count * 100) / 100);
+  const key = stableKey(metric, dimensions);
+  const nextTotal = roundedMilliseconds((counterTotalsByMetric.get(key) ?? 0) + roundedCount);
+  counterTotalsByMetric.set(key, nextTotal);
+
+  emitStructuredLog('metric.counter', {
+    metric,
+    count: roundedCount,
+    total: nextTotal,
+    unit: 'count',
+    ...dimensions
+  });
+
+  return { total: nextTotal };
+}
+
+export function recordThresholdAlert(
+  alert: string,
+  currentValue: number,
+  threshold: number,
+  dimensions?: TelemetryDimensions
+): { triggered: boolean } {
+  if (currentValue < threshold) {
+    return { triggered: false };
+  }
+
+  const key = stableKey(alert, dimensions);
+  if (triggeredAlerts.has(key)) {
+    return { triggered: false };
+  }
+
+  triggeredAlerts.add(key);
+  emitStructuredLog('alert.triggered', {
+    alert,
+    current_value: roundedMilliseconds(currentValue),
+    threshold: roundedMilliseconds(threshold),
+    severity: 'warning',
+    ...dimensions
+  });
+
+  return { triggered: true };
+}
+
 export function resetObservabilityForTests(): void {
   latencySeriesByMetric.clear();
+  counterTotalsByMetric.clear();
+  triggeredAlerts.clear();
 }
