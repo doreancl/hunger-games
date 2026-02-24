@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createLocalMatchFromSetup } from '@/lib/local-matches';
+import { DEFAULT_FRANCHISE_CATALOG_SOURCE } from '@/lib/domain/franchise-catalog';
 import {
+  deriveCatalogSelectionFromRoster,
   dateLabel,
   filterAndSortMatches,
+  getSetupRosterPreview,
   getLobbyStatus,
   parseMatchNavigationQuery,
   phaseLabel,
+  pruneSelectedCharacters,
   quickAccessMatches,
   shortId,
   sortByUpdatedAt,
@@ -155,5 +159,97 @@ describe('match ux helpers', () => {
   it('formats valid ISO date and preserves invalid values', () => {
     expect(dateLabel('2026-02-16T10:00:00.000Z')).not.toBe('2026-02-16T10:00:00.000Z');
     expect(dateLabel('not-a-date')).toBe('not-a-date');
+  });
+
+  it('prunes selected characters when active movie selection no longer includes them', () => {
+    const selectedCharacters = ['sw-luke', 'sw-yoda', 'sw-vader'];
+    const selectableIds = new Set(['sw-luke']);
+
+    expect(pruneSelectedCharacters(selectedCharacters, selectableIds)).toEqual(['sw-luke']);
+  });
+
+  it('clears franchise and movie filters when syncing unknown legacy roster ids', () => {
+    const staleSelection = deriveCatalogSelectionFromRoster(
+      ['legacy-1', 'legacy-2', 'legacy-3'],
+      DEFAULT_FRANCHISE_CATALOG_SOURCE.characters
+    );
+
+    expect(staleSelection).toEqual({
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    });
+  });
+
+  it('keeps legacy or multi-franchise selected roster visible in setup without catalog movie filters', () => {
+    const preview = getSetupRosterPreview({
+      hasCatalogSelection: false,
+      selectedCharacterIds: ['sw-luke', 'mcu-tony'],
+      selectableCharacterIds: []
+    });
+
+    expect(preview).toEqual({
+      mode: 'fallback',
+      characterIds: ['sw-luke', 'mcu-tony']
+    });
+  });
+
+  it('returns empty setup preview when no characters are selected', () => {
+    const preview = getSetupRosterPreview({
+      hasCatalogSelection: false,
+      selectedCharacterIds: [],
+      selectableCharacterIds: ['sw-luke']
+    });
+
+    expect(preview).toEqual({
+      mode: 'empty',
+      characterIds: []
+    });
+  });
+
+  it('returns catalog preview modes for catalog-selection edge cases', () => {
+    const emptyCatalogPreview = getSetupRosterPreview({
+      hasCatalogSelection: true,
+      selectedCharacterIds: ['sw-luke'],
+      selectableCharacterIds: []
+    });
+    const catalogPreview = getSetupRosterPreview({
+      hasCatalogSelection: true,
+      selectedCharacterIds: ['sw-luke'],
+      selectableCharacterIds: ['sw-luke', 'sw-leia']
+    });
+
+    expect(emptyCatalogPreview).toEqual({
+      mode: 'empty',
+      characterIds: []
+    });
+    expect(catalogPreview).toEqual({
+      mode: 'catalog',
+      characterIds: ['sw-luke', 'sw-leia']
+    });
+  });
+
+  it('derives catalog selection for empty, mixed-franchise, and single-franchise rosters', () => {
+    const empty = deriveCatalogSelectionFromRoster([], DEFAULT_FRANCHISE_CATALOG_SOURCE.characters);
+    const mixed = deriveCatalogSelectionFromRoster(
+      ['sw-luke', 'mcu-tony'],
+      DEFAULT_FRANCHISE_CATALOG_SOURCE.characters
+    );
+    const singleFranchise = deriveCatalogSelectionFromRoster(
+      ['sw-luke', 'sw-leia', 'sw-yoda'],
+      DEFAULT_FRANCHISE_CATALOG_SOURCE.characters
+    );
+
+    expect(empty).toEqual({
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    });
+    expect(mixed).toEqual({
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    });
+    expect(singleFranchise).toEqual({
+      selectedFranchiseId: 'sw',
+      selectedMovieIds: ['sw-anh', 'sw-esb']
+    });
   });
 });

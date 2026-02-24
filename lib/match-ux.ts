@@ -1,4 +1,5 @@
 import type { LocalMatchSummary } from '@/lib/local-matches';
+import type { FranchiseCharacter } from '@/lib/domain/types';
 
 export type LobbyStatus = 'setup' | 'running' | 'finished';
 
@@ -114,5 +115,88 @@ export function parseMatchNavigationQuery(search: string): {
   return {
     resumeMatchId: params.get('resume'),
     prefillMatchId: params.get('prefill')
+  };
+}
+
+export function pruneSelectedCharacters(
+  selectedCharacters: string[],
+  selectableCharacterIds: Set<string>
+): string[] {
+  return selectedCharacters.filter((characterId) => selectableCharacterIds.has(characterId));
+}
+
+export function getSetupRosterPreview(args: {
+  hasCatalogSelection: boolean;
+  selectedCharacterIds: string[];
+  selectableCharacterIds: string[];
+}): { mode: 'empty' | 'catalog' | 'fallback'; characterIds: string[] } {
+  if (args.selectedCharacterIds.length === 0) {
+    return {
+      mode: 'empty',
+      characterIds: []
+    };
+  }
+
+  if (args.hasCatalogSelection) {
+    if (args.selectableCharacterIds.length === 0) {
+      return {
+        mode: 'empty',
+        characterIds: []
+      };
+    }
+
+    return {
+      mode: 'catalog',
+      characterIds: args.selectableCharacterIds
+    };
+  }
+
+  return {
+    mode: 'fallback',
+    characterIds: args.selectedCharacterIds
+  };
+}
+
+export function deriveCatalogSelectionFromRoster(
+  rosterCharacterIds: string[],
+  catalogCharacters: FranchiseCharacter[]
+): {
+  selectedFranchiseId: string | null;
+  selectedMovieIds: string[];
+} {
+  if (rosterCharacterIds.length === 0) {
+    return {
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    };
+  }
+
+  const characterById = new Map(
+    catalogCharacters.map((character) => [character.character_key, character] as const)
+  );
+  const knownCharacters = rosterCharacterIds
+    .map((characterId) => characterById.get(characterId))
+    .filter((entry): entry is FranchiseCharacter => Boolean(entry));
+  if (knownCharacters.length !== rosterCharacterIds.length) {
+    return {
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    };
+  }
+
+  const firstFranchiseId = knownCharacters[0].franchise_id;
+  const belongsToSingleFranchise = knownCharacters.every(
+    (character) => character.franchise_id === firstFranchiseId
+  );
+  if (!belongsToSingleFranchise) {
+    return {
+      selectedFranchiseId: null,
+      selectedMovieIds: []
+    };
+  }
+
+  return {
+    selectedFranchiseId: firstFranchiseId,
+    selectedMovieIds: [...new Set(knownCharacters.map((character) => character.movie_id))]
   };
 }

@@ -52,6 +52,15 @@ describe('getSetupValidation', () => {
       issues: ['No puedes seleccionar mas de 48 personajes.']
     });
   });
+
+  it('rejects duplicated characters in roster', () => {
+    const roster = ['char-1', 'char-2', 'char-2', 'char-3', 'char-4', 'char-5', 'char-6', 'char-7', 'char-8', 'char-9'];
+
+    expect(getSetupValidation(roster)).toEqual({
+      is_valid: false,
+      issues: ['No puedes repetir personajes en el roster.']
+    });
+  });
 });
 
 describe('parseLocalMatches', () => {

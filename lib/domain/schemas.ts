@@ -33,6 +33,66 @@ export const eventParticipantRoleSchema = z.enum([
   'ally',
   'observer'
 ]);
+export const franchiseCatalogVersionSchema = z.literal(1);
+
+export const franchiseEntrySchema = z
+  .object({
+    franchise_id: z.string().trim().min(1),
+    franchise_name: z.string().trim().min(1)
+  })
+  .strict();
+
+export const franchiseCharacterSchema = z
+  .object({
+    character_key: z.string().trim().min(1),
+    display_name: z.string().trim().min(1),
+    franchise_id: z.string().trim().min(1),
+    movie_id: z.string().trim().min(1),
+    movie_title: z.string().trim().min(1),
+    aliases: z.array(z.string().trim().min(1)).optional()
+  })
+  .strict();
+
+export const franchiseCatalogSchema = z
+  .object({
+    version: franchiseCatalogVersionSchema,
+    franchises: z.array(franchiseEntrySchema),
+    characters: z.array(franchiseCharacterSchema)
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const franchiseIds = new Set<string>();
+    for (const franchise of value.franchises) {
+      if (franchiseIds.has(franchise.franchise_id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'franchise_id must be unique',
+          path: ['franchises']
+        });
+      }
+      franchiseIds.add(franchise.franchise_id);
+    }
+
+    const characterKeys = new Set<string>();
+    for (const character of value.characters) {
+      if (characterKeys.has(character.character_key)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'character_key must be unique',
+          path: ['characters']
+        });
+      }
+      characterKeys.add(character.character_key);
+
+      if (!franchiseIds.has(character.franchise_id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'character franchise_id must exist in franchises',
+          path: ['characters']
+        });
+      }
+    }
+  });
 
 export const rulesetVersionSchema = z
   .string()
@@ -150,6 +210,15 @@ export const createMatchRequestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    const uniqueRosterIds = new Set(value.roster_character_ids);
+    if (uniqueRosterIds.size !== value.roster_character_ids.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'roster_character_ids must be unique',
+        path: ['roster_character_ids']
+      });
+    }
+
     if (
       value.participant_names !== undefined &&
       value.participant_names.length !== value.roster_character_ids.length

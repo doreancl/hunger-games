@@ -156,6 +156,25 @@ describe('create_match request contract', () => {
 
     expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
   });
+
+  it('rejects payload with duplicated roster_character_ids', () => {
+    const payload = {
+      roster_character_ids: [
+        'char-1',
+        'char-2',
+        'char-3',
+        'char-4',
+        'char-5',
+        'char-6',
+        'char-7',
+        'char-8',
+        'char-9',
+        'char-1'
+      ]
+    };
+
+    expect(createMatchRequestSchema.safeParse(payload).success).toBe(false);
+  });
 });
 
 describe('match lifecycle response contracts', () => {
