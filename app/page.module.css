@@ -1,50 +1,146 @@
 .page {
-  --bg: #fff5e8;
-  --panel: #fffdf7;
-  --panel-strong: #fff2d6;
-  --border: #f2bf6a;
-  --ink: #2f1e10;
-  --muted: #7d5b3b;
-  --danger: #b93122;
-  --accent: #de6d1a;
-  --accent-2: #1f7a8c;
   min-height: 100vh;
-  padding: 24px 14px 44px;
+  padding: clamp(16px, 2.4vw, 28px) clamp(12px, 2vw, 24px) 36px;
   background:
-    radial-gradient(circle at 15% 20%, rgba(255, 211, 138, 0.45), transparent 46%),
-    radial-gradient(circle at 85% 5%, rgba(210, 87, 39, 0.2), transparent 40%),
-    linear-gradient(165deg, #fffaf0 0%, var(--bg) 100%);
+    radial-gradient(circle at 8% 8%, color-mix(in oklab, var(--border), transparent 88%), transparent 42%),
+    linear-gradient(165deg, color-mix(in oklab, var(--bg), #fff 24%), var(--bg));
   color: var(--ink);
-  font-family: 'Avenir Next', 'Futura', 'Trebuchet MS', sans-serif;
+  font-family: 'Satoshi', 'Avenir Next', 'Trebuchet MS', sans-serif;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 .shell {
-  max-width: 1360px;
+  max-width: 1180px;
   margin: 0 auto;
   display: grid;
-  gap: 16px;
+  gap: clamp(14px, 2vw, 22px);
+}
+
+.lobbyHero {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 16px;
+  padding: clamp(18px, 2.5vw, 26px);
+  background: color-mix(in oklab, var(--panel), #fff 24%);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--ink), transparent 90%);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.heroLead {
+  display: grid;
+  gap: 10px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.heroPrimary {
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+}
+
+.heroSecondary {
+  background: color-mix(in oklab, var(--panel), #fff 20%);
+  border-color: color-mix(in oklab, var(--border), #fff 18%);
+  color: var(--ink);
+}
+
+.heroStats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.heroStat {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--panel), #fff 15%);
+  display: grid;
+  gap: 4px;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.heroStatLabel {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.heroStatValue {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 720;
+  color: var(--ink);
+}
+
+.heroAsideHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.lobbyQuick {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 16px;
+  padding: clamp(14px, 2.2vw, 20px);
+  background: color-mix(in oklab, var(--panel), #fff 28%);
+  display: grid;
+  gap: 10px;
+  transition: background-color 180ms ease, border-color 180ms ease;
 }
 
 .hero {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
-  background: linear-gradient(130deg, rgba(255, 243, 215, 0.9), rgba(255, 255, 255, 0.96));
-  box-shadow: 0 12px 30px rgba(104, 52, 14, 0.12);
+  background: color-mix(in oklab, var(--panel), #fff 26%);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--ink), transparent 90%);
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+@keyframes lobbyReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .heroTop {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .title {
   margin: 0;
-  font-size: clamp(1.3rem, 3.2vw, 2.1rem);
-  letter-spacing: 0.02em;
-  font-family: 'Baskerville', 'Georgia', serif;
+  font-size: clamp(1.85rem, 4vw, 2.85rem);
+  letter-spacing: -0.01em;
+  font-family: var(--title-font);
+  line-height: 0.98;
+}
+
+.heroCount {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 14%);
+  background: color-mix(in oklab, var(--panel), #fff 35%);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .heroMeta {
@@ -96,7 +192,7 @@
 
 .autosaveWarning {
   margin: 7px 0 0;
-  color: #7f2b1f;
+  color: color-mix(in oklab, var(--danger), var(--ink) 25%);
   font-weight: 700;
 }
 
@@ -111,7 +207,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 9px 10px;
-  background: rgba(255, 255, 255, 0.72);
+  background: color-mix(in oklab, var(--panel), #fff 24%);
 }
 
 .kpiLabel {
@@ -137,15 +233,22 @@
 .tensionTrack {
   height: 12px;
   border-radius: 999px;
-  border: 1px solid #cf9d59;
-  background: #f8e3c0;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 20%);
+  background: color-mix(in oklab, var(--panel-strong), #fff 14%);
   overflow: hidden;
 }
 
 .tensionBar {
   height: 100%;
-  transition: width 280ms ease;
-  background: linear-gradient(90deg, #dd8e1a 0%, #cd4c1f 55%, #94281e 100%);
+  width: 100%;
+  transform-origin: left center;
+  transition: transform 280ms ease;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--cta-a), #fff 20%) 0%,
+    var(--cta-a) 45%,
+    var(--cta-b) 100%
+  );
 }
 
 .columns {
@@ -176,17 +279,17 @@
 }
 
 .finalCard {
-  background: linear-gradient(145deg, #fff7ea, #fffef9);
+  background: color-mix(in oklab, var(--panel), #fff 28%);
 }
 
 .finalWinner {
-  border: 1px solid #e3b165;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 12%);
   border-radius: 12px;
   padding: 10px;
   display: grid;
   gap: 2px;
   margin-bottom: 12px;
-  background: #fff6de;
+  background: color-mix(in oklab, var(--panel-strong), #fff 14%);
 }
 
 .finalWinner span {
@@ -238,10 +341,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #ebc48c;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 18%);
   border-radius: 10px;
   padding: 8px;
-  background: #fffdf5;
+  background: color-mix(in oklab, var(--panel), #fff 22%);
 }
 
 .rosterItemCustom {
@@ -251,7 +354,7 @@
 .characterToggle {
   width: 16px;
   height: 16px;
-  accent-color: #b16a2c;
+  accent-color: var(--accent);
   margin: 0;
 }
 
@@ -296,12 +399,13 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .input,
 .select,
 .button {
-  border: 1px solid #d8a768;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 18%);
   border-radius: 8px;
   padding: 8px 10px;
   font: inherit;
@@ -309,18 +413,35 @@
 
 .input,
 .select {
-  background: #fff;
+  background: color-mix(in oklab, var(--panel), #fff 35%);
+  color: var(--ink);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .button {
-  background: linear-gradient(180deg, #fff7de, #ffdca2);
-  color: #49280f;
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
   font-weight: 600;
   cursor: pointer;
+  min-height: 44px;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .button:hover {
-  filter: brightness(0.98);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px color-mix(in oklab, var(--cta-b), transparent 72%);
+  filter: brightness(1.02);
+}
+
+.heroPrimary:hover {
+  filter: none;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px color-mix(in oklab, var(--cta-b), transparent 62%);
+}
+
+.heroSecondary:hover {
+  filter: none;
+  background: color-mix(in oklab, var(--panel-strong), #fff 32%);
 }
 
 .button:disabled {
@@ -329,13 +450,18 @@
 }
 
 .buttonGhost {
-  background: #fff;
+  background: color-mix(in oklab, var(--panel), #fff 25%);
+  color: var(--ink);
 }
 
 .buttonDanger {
-  border-color: #b53d2b;
-  background: linear-gradient(180deg, #ffd8d1, #ffb8ad);
-  color: #611e15;
+  border-color: color-mix(in oklab, var(--danger), #000 24%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--danger), #fff 26%),
+    color-mix(in oklab, var(--danger), #000 8%)
+  );
+  color: oklch(0.98 0.004 95);
 }
 
 .eventShell {
@@ -351,21 +477,22 @@
 }
 
 .speedButton {
-  border: 1px solid #ce9247;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 18%);
   border-radius: 999px;
   padding: 6px 10px;
-  background: #fff9ed;
-  color: #5f3b16;
+  background: color-mix(in oklab, var(--panel), #fff 30%);
+  color: var(--ink);
   cursor: pointer;
   font-weight: 600;
   width: 100%;
   min-width: 0;
+  min-height: 44px;
 }
 
 .speedButtonActive {
-  background: linear-gradient(180deg, #e47f24, #c5521e);
-  color: #fff;
-  border-color: #b94619;
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
+  border-color: color-mix(in oklab, var(--cta-b), #000 20%);
 }
 
 .feedFilters {
@@ -383,10 +510,10 @@
 }
 
 .feedItem {
-  border: 1px solid #e6b877;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
   border-radius: 12px;
   padding: 10px 11px;
-  background: #fffef9;
+  background: color-mix(in oklab, var(--panel), #fff 20%);
 }
 
 .feedItemNew {
@@ -397,13 +524,13 @@
   from {
     opacity: 0;
     transform: translateY(-8px);
-    background: #ffe3b5;
+    background: color-mix(in oklab, var(--panel-strong), #fff 6%);
   }
 
   to {
     opacity: 1;
     transform: translateY(0);
-    background: #fffef9;
+    background: color-mix(in oklab, var(--panel), #fff 20%);
   }
 }
 
@@ -422,7 +549,7 @@
 
 .feedImpact {
   margin: 0;
-  color: #5b3e22;
+  color: var(--muted);
 }
 
 .tagRow {
@@ -436,8 +563,8 @@
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 0.78rem;
-  background: #ffe9c4;
-  color: #5b3813;
+  background: color-mix(in oklab, var(--panel-strong), #fff 10%);
+  color: var(--ink);
 }
 
 .sideGrid {
@@ -459,10 +586,10 @@
 .participantItem,
 .relationItem,
 .matchItem {
-  border: 1px solid #ebc48c;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 18%);
   border-radius: 10px;
   padding: 8px 9px;
-  background: #fffdf5;
+  background: color-mix(in oklab, var(--panel), #fff 22%);
 }
 
 .matchLink {
@@ -533,7 +660,7 @@
 
 .info {
   margin: 10px 0 0;
-  color: #603b17;
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -543,8 +670,7 @@
   z-index: 120;
   display: grid;
   place-items: center;
-  background: rgba(28, 18, 10, 0.72);
-  backdrop-filter: blur(2px);
+  background: color-mix(in oklab, var(--ink), transparent 32%);
   animation: overlayIn 200ms ease;
 }
 
@@ -554,20 +680,20 @@
 
 .transitionContent {
   width: min(90vw, 420px);
-  border: 1px solid #efb969;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 14%);
   border-radius: 16px;
   padding: 20px 18px;
   text-align: center;
-  background: linear-gradient(165deg, #fff9ea, #fff3dc);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  background: color-mix(in oklab, var(--panel), #fff 14%);
+  box-shadow: 0 18px 50px color-mix(in oklab, var(--ink), transparent 70%);
 }
 
 .transitionSpinner {
   width: 46px;
   height: 46px;
   border-radius: 999px;
-  border: 4px solid rgba(191, 114, 30, 0.24);
-  border-top-color: #bf5f18;
+  border: 4px solid color-mix(in oklab, var(--border), transparent 45%);
+  border-top-color: var(--cta-a);
   margin: 0 auto 12px;
   animation: spin 780ms linear infinite;
 }
@@ -576,12 +702,12 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #3f220e;
+  color: var(--ink);
 }
 
 .transitionHint {
   margin: 8px 0 0;
-  color: #654226;
+  color: var(--muted);
 }
 
 @keyframes overlayIn {
@@ -610,7 +736,21 @@
   }
 }
 
+.button:focus-visible,
+.speedButton:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.matchLink:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 40%);
+  outline-offset: 2px;
+}
+
 @media (min-width: 980px) {
+  .lobbyHero {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    align-items: start;
+  }
+
   .columns {
     grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
     align-items: start;
@@ -646,6 +786,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .lobbyQuick {
+    animation: none;
+  }
+
   .transitionOverlay,
   .transitionOverlayExit,
   .transitionSpinner {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import styles from './page.module.css';
+import styles from '../../page.module.css';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
 
 function shortId(value: string): string {
