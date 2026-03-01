@@ -1158,19 +1158,19 @@ export default function Home() {
           ) : null}
 
           <div className={styles.kpis}>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-turn">
               <span className={styles.kpiLabel}>Turno</span>
               <div className={styles.kpiValue}>{currentTurn}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-alive">
               <span className={styles.kpiLabel}>Vivos</span>
               <div className={styles.kpiValue}>{aliveCount}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-eliminated">
               <span className={styles.kpiLabel}>Eliminados</span>
               <div className={styles.kpiValue}>{eliminatedCount}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-speed">
               <span className={styles.kpiLabel}>Ritmo</span>
               <div className={styles.kpiValue}>{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</div>
             </div>
@@ -1466,10 +1466,11 @@ export default function Home() {
                     : 'Inicia una simulacion para ver el feed en vivo.'}
                 </p>
               ) : (
-                <ul className={styles.feedList}>
+                <ul className={styles.feedList} data-testid="feed-list">
                   {filteredFeed.map((event) => (
                     <li
                       key={event.id}
+                      data-testid="feed-item"
                       className={`${styles.feedItem} ${
                         latestFeedEventId === event.id ? styles.feedItemNew : ''
                       }`}
@@ -1558,7 +1559,7 @@ export default function Home() {
           </section>
         </div>
 
-        {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
+        {infoMessage ? <p className={styles.info} data-testid="info-message">{infoMessage}</p> : null}
       </div>
       {transitionOverlay ? (
         <div
