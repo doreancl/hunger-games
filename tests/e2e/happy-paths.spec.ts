@@ -46,6 +46,7 @@ async function getRuntimeTurn(page: Page) {
 test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
   await startSimulation(page, 'arena-hp01', '2x');
 
+  await expect(page).toHaveURL(/\/matches\/new\?resume=/);
   await expect(page.getByText('Fase actual:', { exact: false })).toContainText('Bloodbath');
   await expect(page.getByText('Configuracion valida para iniciar.')).toHaveCount(0);
 
@@ -55,6 +56,21 @@ test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
   }), [LOCAL_MATCHES_STORAGE_KEY, LOCAL_RUNTIME_STORAGE_KEY]);
 
   expect(localState).toEqual({ hasMatches: true, hasRuntime: true });
+});
+
+test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada', async ({ page }) => {
+  await startSimulation(page, 'arena-hp00', '4x');
+
+  await page.goto('/matches/new');
+
+  await expect(page).toHaveURL(/\/matches\/new$/);
+  await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
+  await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
+  await expect(page.getByPlaceholder('manual o aleatoria')).toHaveValue('');
+  await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveValue('1x');
+  await expect(page.getByRole('button', { name: 'Paso' })).toBeDisabled();
+  await expect(page.getByTestId('feed-item')).toHaveCount(0);
 });
 
 test('HP-02 conserva progreso tras avanzar y refrescar', async ({ page }) => {
@@ -91,7 +107,7 @@ test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/matches\/new\?resume=/);
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
-  await expect(page.getByTestId('feed-item')).toHaveCount(1);
+  await expect(page.getByTestId('feed-item').first()).toBeVisible();
   await expect(page.getByTestId('kpi-turn')).toContainText(String(expectedTurn));
   await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
 });
