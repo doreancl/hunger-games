@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import styles from './page.module.css';
+import baseStyles from '../../page.module.css';
+import localStyles from './page.module.css';
 import {
   createLocalMatchFromSetup,
   getSetupValidation,
@@ -114,6 +115,7 @@ type SimulationRuntime = {
 };
 
 const EMPTY_FEED: FeedEvent[] = [];
+const styles = { ...baseStyles, ...localStyles };
 
 function normalizeCatalogWithObservability(
   source: unknown,
@@ -1176,8 +1178,18 @@ export default function Home() {
 
           <div className={styles.tension} aria-label="barra de tension">
             <strong>Tension {Math.round(tensionValue)}%</strong>
-            <div className={styles.tensionTrack}>
-              <div className={styles.tensionBar} style={{ width: `${Math.min(100, tensionValue)}%` }} />
+            <div
+              className={styles.tensionTrack}
+              role="progressbar"
+              aria-label="Nivel de tension"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(Math.min(100, tensionValue))}
+            >
+              <div
+                className={styles.tensionBar}
+                style={{ transform: `scaleX(${Math.min(100, tensionValue) / 100})` }}
+              />
             </div>
           </div>
         </header>

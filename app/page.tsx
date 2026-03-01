@@ -11,7 +11,6 @@ const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
 const TRANSITION_LONG_WAIT_MS = 3000;
 const TRANSITION_FADE_OUT_MS = 180;
-
 type TransitionDirection = 'lobby_to_match' | 'match_to_lobby';
 
 type TransitionOverlayState = {
@@ -127,28 +126,45 @@ export default function Home() {
   }
 
   return (
-    <main className={styles.page} aria-busy={isTransitioning}>
+    <main id="main-content" className={styles.page} aria-busy={isTransitioning}>
       <div className={styles.shell}>
-        <header className={styles.hero}>
-          <div className={styles.heroTop}>
-            <h1 className={styles.title}>Hunger Games Lobby</h1>
-            <strong>{localMatches.length} partidas locales</strong>
+        <header className={styles.lobbyHero}>
+          <div className={styles.heroLead}>
+            <div className={styles.heroTop}>
+              <h1 className={styles.title}>Hunger Games Lobby</h1>
+              <strong className={styles.heroCount}>{localMatches.length} partidas</strong>
+            </div>
+            <p className={styles.heroMeta}>Crea una simulacion nueva o retoma una reciente en segundos.</p>
+            <div className={styles.heroActions}>
+              <Link className={`${styles.button} ${styles.heroPrimary}`} href="/matches/new" onClick={startTransitionToMatch}>
+                Iniciar partida
+              </Link>
+              <Link className={`${styles.button} ${styles.heroSecondary}`} href="/matches">
+                Abrir historial
+              </Link>
+            </div>
           </div>
-          <p className={styles.heroMeta}>Accede rapido a partidas recientes o crea una nueva.</p>
-
-          <div className={styles.inlineControls}>
-            <Link className={styles.button} href="/matches/new" onClick={startTransitionToMatch}>
-              Iniciar partida
-            </Link>
-            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/matches">
-              Ver historial completo
-            </Link>
+          <div className={styles.heroStats} aria-label="Estado general">
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Partidas locales</p>
+              <p className={styles.heroStatValue}>{localMatches.length}</p>
+            </article>
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Acceso rapido</p>
+              <p className={styles.heroStatValue}>{quickMatches.length}</p>
+            </article>
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Estado</p>
+              {quickMatches.length > 0
+                ? <p className={styles.heroAsideHint}>Listo para reanudar.</p>
+                : <p className={styles.heroAsideHint}>Sin partidas guardadas.</p>}
+            </article>
           </div>
         </header>
 
-        <section className={styles.card}>
+        <section className={styles.lobbyQuick}>
           <h2 className={styles.cardTitle}>Acceso rapido</h2>
-          <p className={styles.cardHint}>Se muestran las partidas mas recientes. Para gestión completa usa Historial.</p>
+          <p className={styles.cardHint}>Las partidas mas recientes aparecen primero.</p>
 
           <MatchList
             matches={quickMatches}

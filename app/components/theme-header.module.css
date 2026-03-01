@@ -1,0 +1,104 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: color-mix(in oklab, var(--bg), #fff 16%);
+  border-bottom: 1px solid color-mix(in oklab, var(--border), #fff 18%);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.themes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.themes::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 22%);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: color-mix(in oklab, var(--panel), #fff 22%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.chipActive {
+  border-color: color-mix(in oklab, var(--accent-2), #fff 20%);
+  background: color-mix(in oklab, var(--accent-2), #fff 82%);
+  color: color-mix(in oklab, var(--ink), #000 8%);
+}
+
+.links {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.navLink {
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 620;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.navLinkActive {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--panel), #fff 18%);
+}
+
+.chip:focus-visible,
+.navLink:focus-visible,
+.brand:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 35%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .inner {
+    gap: 8px;
+  }
+
+  .themes {
+    order: 3;
+    width: 100%;
+  }
+
+  .links {
+    margin-left: auto;
+  }
+}

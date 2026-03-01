@@ -1,0 +1,91 @@
+:root {
+  --bg: oklch(0.98 0.006 95);
+  --panel: oklch(0.995 0.003 95);
+  --panel-strong: oklch(0.97 0.009 95);
+  --border: oklch(0.86 0.02 88);
+  --ink: oklch(0.22 0.02 72);
+  --muted: oklch(0.45 0.015 75);
+  --danger: #b93122;
+  --accent: oklch(0.53 0.13 52);
+  --accent-2: oklch(0.42 0.08 244);
+  --hero-grad-a: oklch(0.995 0.005 95);
+  --hero-grad-b: oklch(0.97 0.012 92);
+  --hero-grad-c: oklch(0.95 0.02 86);
+  --hero-ring: oklch(0.72 0.05 78);
+  --cta-a: oklch(0.38 0.05 250);
+  --cta-b: oklch(0.3 0.05 250);
+  --cta-ink: oklch(0.98 0.004 95);
+  --aside-panel: oklch(0.96 0.01 96);
+  --ribbon-panel: oklch(0.97 0.008 95);
+  --title-font: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', serif;
+}
+
+html[data-lobby-theme='neon-future'] {
+  --accent: oklch(0.58 0.09 240);
+  --accent-2: oklch(0.62 0.08 210);
+  --bg: oklch(0.97 0.01 236);
+  --panel: oklch(0.99 0.006 236);
+  --border: oklch(0.8 0.03 234);
+  --ink: oklch(0.28 0.02 236);
+  --muted: oklch(0.5 0.015 236);
+  --cta-a: oklch(0.48 0.11 250);
+  --cta-b: oklch(0.4 0.09 250);
+  --cta-ink: oklch(0.98 0.004 236);
+  --title-font: 'Avenir Next', 'Futura', 'Trebuchet MS', sans-serif;
+}
+
+html[data-lobby-theme='retro-pixel'] {
+  --accent: oklch(0.62 0.11 44);
+  --accent-2: oklch(0.58 0.09 24);
+  --bg: oklch(0.97 0.01 75);
+  --panel: oklch(0.99 0.005 75);
+  --border: oklch(0.82 0.03 74);
+  --ink: oklch(0.28 0.02 72);
+  --muted: oklch(0.5 0.015 72);
+  --cta-a: oklch(0.57 0.12 36);
+  --cta-b: oklch(0.48 0.1 30);
+  --cta-ink: oklch(0.98 0.004 75);
+  --title-font: 'Trebuchet MS', 'Verdana', sans-serif;
+}
+
+html[data-lobby-theme='apple-bubbles'] {
+  --accent: oklch(0.58 0.1 248);
+  --accent-2: oklch(0.55 0.07 234);
+  --bg: oklch(0.975 0.008 236);
+  --panel: oklch(0.993 0.004 236);
+  --border: oklch(0.81 0.03 236);
+  --ink: oklch(0.29 0.02 240);
+  --muted: oklch(0.51 0.014 240);
+  --cta-a: oklch(0.5 0.11 250);
+  --cta-b: oklch(0.42 0.09 250);
+  --cta-ink: oklch(0.98 0.004 236);
+  --title-font: 'Avenir Next', 'SF Pro Display', sans-serif;
+}
+
+html[data-lobby-theme='graphite-sport'] {
+  --accent: oklch(0.47 0.02 250);
+  --accent-2: oklch(0.52 0.02 250);
+  --bg: oklch(0.96 0.003 255);
+  --panel: oklch(0.985 0.002 255);
+  --border: oklch(0.74 0.01 255);
+  --ink: oklch(0.24 0.01 255);
+  --muted: oklch(0.46 0.008 255);
+  --cta-a: oklch(0.35 0.02 255);
+  --cta-b: oklch(0.28 0.02 255);
+  --cta-ink: oklch(0.98 0.003 255);
+  --title-font: 'Avenir Next', 'Futura', sans-serif;
+}
+
+html[data-lobby-theme='forest-editorial'] {
+  --accent: oklch(0.5 0.06 142);
+  --accent-2: oklch(0.54 0.04 176);
+  --bg: oklch(0.965 0.008 130);
+  --panel: oklch(0.988 0.005 130);
+  --border: oklch(0.78 0.02 132);
+  --ink: oklch(0.26 0.015 132);
+  --muted: oklch(0.48 0.012 132);
+  --cta-a: oklch(0.42 0.07 138);
+  --cta-b: oklch(0.35 0.06 138);
+  --cta-ink: oklch(0.98 0.004 130);
+  --title-font: 'Baskerville', 'Georgia', serif;
+}
