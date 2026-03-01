@@ -174,11 +174,80 @@ describe('POST /api/matches', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: ['roster_character_ids'],
+          code: 'custom',
           message: 'roster_character_ids must be unique'
         }),
         expect.objectContaining({
           path: ['participant_names'],
+          code: 'custom',
           message: 'participant_names length must match roster_character_ids length'
+        })
+      ])
+    );
+  });
+
+  it('returns stable settings issues shape for combined invalid roster + participant_names + settings payload', async () => {
+    const request = new Request('http://localhost/api/matches', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        roster_character_ids: ['char-1', 'char-2', 'char-3', 'char-4', 'char-5', 'char-6', 'char-7', 'char-8', 'char-9', 'char-1'],
+        participant_names: Array.from({ length: 11 }, (_, index) => `Tributo ${index + 1}`),
+        settings: {
+          surprise_level: 'extreme',
+          event_profile: 'wild',
+          simulation_speed: '3x',
+          seed: ''
+        }
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+    const issues = body.error.details.issues;
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('INVALID_REQUEST_PAYLOAD');
+    expect(Array.isArray(issues)).toBe(true);
+    expect(issues.length).toBeGreaterThanOrEqual(3);
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ['settings', 'surprise_level'],
+          code: 'invalid_enum_value',
+          message: expect.any(String)
+        }),
+        expect.objectContaining({
+          path: ['settings', 'event_profile'],
+          code: 'invalid_enum_value',
+          message: expect.any(String)
+        }),
+        expect.objectContaining({
+          path: ['settings', 'simulation_speed'],
+          code: 'invalid_enum_value',
+          message: expect.any(String)
+        }),
+        expect.objectContaining({
+          path: ['settings', 'seed'],
+          code: 'too_small',
+          message: expect.any(String)
+        })
+      ])
+    );
+    expect(
+      issues.some(
+        (issue: { path: unknown[]; code: string }) =>
+          Array.isArray(issue.path) &&
+          issue.path[0] === 'settings' &&
+          ['invalid_enum_value', 'too_small', 'custom'].includes(issue.code)
+      )
+    ).toBe(true);
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: expect.any(Array),
+          code: expect.any(String),
+          message: expect.any(String)
         })
       ])
     );
