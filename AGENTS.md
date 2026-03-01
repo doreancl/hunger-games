@@ -14,9 +14,10 @@
 - `pnpm run build`: production build.
 - `pnpm run start`: run built app.
 - `pnpm run lint`: run Next.js linting.
+- `pnpm run test:e2e`: run Playwright end-to-end tests.
 - `pnpm run test:unit`: run unit tests.
 - `pnpm run test:coverage`: run tests with coverage report.
-- `pnpm run validate`: lint + unit + coverage gate.
+- `pnpm run validate`: lint + unit + coverage + e2e gate.
 
 ## Coding Style & Naming Conventions
 
@@ -28,6 +29,7 @@
 ## Testing Guidelines
 
 - Test framework: Vitest (`tests/**/*.test.ts`).
+- E2E framework: Playwright (`tests/e2e/**/*.spec.ts`).
 - Coverage uses V8 provider with thresholds at 90% (lines/functions/branches/statements).
 - Add/update tests in `tests/` alongside behavioral changes in `app/` or `lib/`.
 - Run `pnpm run validate` before opening a PR.
@@ -38,7 +40,7 @@
 - Group related changes; avoid bundling unrelated refactors.
 - PR should include:
   - Scope and user-visible behavior changes.
-  - Commands executed (`pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`).
+  - Commands executed (`pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`, `pnpm run test:e2e`).
   - Any spec/plan updates under `specs/` when applicable.
 
 ## Security & Configuration Tips

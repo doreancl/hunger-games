@@ -21,7 +21,7 @@ Permite crear partidas, avanzar turnos con tension dinamica y reanudar sesiones 
 - Framework: Next.js App Router
 - Lenguaje: TypeScript estricto
 - Validacion de contratos: Zod
-- Testing: Vitest + cobertura V8 (threshold `90%`)
+- Testing: Vitest + cobertura V8 (threshold `90%`) + Playwright E2E
 - Estado de juego server-side: memoria en proceso (`Map` en `lib/matches/lifecycle.ts`)
 
 ## Inicio rapido
@@ -41,9 +41,10 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 | `pnpm run build` | Build de produccion |
 | `pnpm run start` | Ejecuta build generado |
 | `pnpm run lint` | Lint de Next.js |
+| `pnpm run test:e2e` | Tests E2E con Playwright |
 | `pnpm run test:unit` | Tests unitarios |
 | `pnpm run test:coverage` | Tests con cobertura |
-| `pnpm run validate` | Gate completo (`lint + unit + coverage`) |
+| `pnpm run validate` | Gate completo (`lint + unit + coverage + e2e`) |
 
 ## Observabilidad
 

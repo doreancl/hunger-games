@@ -98,6 +98,8 @@ test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
   await startSimulation(page, 'arena-hp03', '4x');
   await page.getByRole('button', { name: 'Paso' }).click();
   await expect(page.getByTestId('kpi-turn')).toContainText('1');
+  await page.getByRole('button', { name: 'Pausa' }).click();
+  await expect(page.getByTestId('kpi-speed')).toContainText('Pausa');
 
   const expectedTurn = await getRuntimeTurn(page);
 
