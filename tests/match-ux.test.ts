@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createLocalMatchFromSetup } from '@/lib/local-matches';
 import { DEFAULT_FRANCHISE_CATALOG_SOURCE } from '@/lib/domain/franchise-catalog';
 import {
+  buildMatchNavigationSearch,
   deriveCatalogSelectionFromRoster,
   dateLabel,
   filterAndSortMatches,
@@ -11,6 +12,7 @@ import {
   phaseLabel,
   pruneSelectedCharacters,
   quickAccessMatches,
+  resolveMatchEditorMode,
   shortId,
   sortByUpdatedAt,
   statusLabel,
@@ -145,6 +147,16 @@ describe('match ux helpers', () => {
       resumeMatchId: null,
       prefillMatchId: null
     });
+  });
+
+  it('resolves match editor mode and builds navigation search', () => {
+    expect(resolveMatchEditorMode({ resumeMatchId: 'match-1', prefillMatchId: 'match-2' })).toBe('resume');
+    expect(resolveMatchEditorMode({ resumeMatchId: null, prefillMatchId: 'match-2' })).toBe('prefill');
+    expect(resolveMatchEditorMode({ resumeMatchId: null, prefillMatchId: null })).toBe('new');
+
+    expect(buildMatchNavigationSearch({ resumeMatchId: 'match-1' })).toBe('?resume=match-1');
+    expect(buildMatchNavigationSearch({ prefillMatchId: 'match-2' })).toBe('?prefill=match-2');
+    expect(buildMatchNavigationSearch({ resumeMatchId: null, prefillMatchId: null })).toBe('');
   });
 
   it('renders localized cycle phase labels including god_mode', () => {

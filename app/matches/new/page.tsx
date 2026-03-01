@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import baseStyles from '../../page.module.css';
 import localStyles from './page.module.css';
@@ -19,7 +20,9 @@ import {
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
 import {
+  buildMatchNavigationSearch,
   parseMatchNavigationQuery,
+  resolveMatchEditorMode,
   shortId
 } from '@/lib/match-ux';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
@@ -372,6 +375,7 @@ function relationTone(score: number): string {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [catalogResult, setCatalogResult] = useState(() =>
     normalizeCatalogWithObservability(DEFAULT_FRANCHISE_CATALOG_SOURCE, 'default_catalog_bootstrap')
   );
@@ -400,6 +404,10 @@ export default function Home() {
   const [resumeMatchId, setResumeMatchId] = useState<string | null>(null);
   const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
   const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
+  const matchEditorMode = useMemo(
+    () => resolveMatchEditorMode({ resumeMatchId, prefillMatchId }),
+    [prefillMatchId, resumeMatchId]
+  );
 
   const catalogCharacters = catalogResult.catalog.characters;
   const {
@@ -533,6 +541,23 @@ export default function Home() {
     setSurpriseLevel(match.settings.surprise_level);
   }, [setSelectionFromRoster]);
 
+  const resetSetupToDefaults = useCallback(() => {
+    resetSelection();
+    setSeed('');
+    setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
+    setEventProfile(DEFAULT_EVENT_PROFILE);
+    setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
+  }, [resetSelection]);
+
+  const clearEditorStateForNewMatch = useCallback(() => {
+    setRuntime(null);
+    setPlaybackSpeed('pause');
+    setFilterCharacterId('all');
+    setFilterEventType('all');
+    setLatestFeedEventId(null);
+    resetSetupToDefaults();
+  }, [resetSetupToDefaults]);
+
   useEffect(() => {
     setHasHydrated(true);
   }, []);
@@ -621,15 +646,18 @@ export default function Home() {
       ? loadLocalRuntimeFromStorage(window.localStorage)
       : { runtime: null, error: null };
     setLocalMatches(matches);
-    setRuntime(runtimeLoad.runtime);
 
-    if (runtimeLoad.runtime) {
+    if (matchEditorMode === 'resume' && runtimeLoad.runtime?.match_id === resumeMatchId) {
+      setRuntime(runtimeLoad.runtime);
       const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
       if (runtimeMatch) {
         applySetupFromMatch(runtimeMatch);
       }
-    } else if (matches[0]) {
-      applySetupFromMatch(matches[0]);
+    } else {
+      setRuntime(null);
+      if (matchEditorMode === 'new') {
+        clearEditorStateForNewMatch();
+      }
     }
 
     if (error) {
@@ -640,7 +668,21 @@ export default function Home() {
     if (runtimeLoad.error) {
       setInfoMessage(runtimeLoad.error);
     }
-  }, [applySetupFromMatch, hasHydrated]);
+  }, [
+    applySetupFromMatch,
+    clearEditorStateForNewMatch,
+    hasHydrated,
+    matchEditorMode,
+    resumeMatchId
+  ]);
+
+  useEffect(() => {
+    if (!hasHydrated || isBusy || matchEditorMode !== 'new') {
+      return;
+    }
+
+    clearEditorStateForNewMatch();
+  }, [clearEditorStateForNewMatch, hasHydrated, isBusy, matchEditorMode]);
 
   const persistLocalMatches = useCallback((nextMatches: LocalMatchSummary[]) => {
     setLocalMatches(nextMatches);
@@ -661,14 +703,6 @@ export default function Home() {
       setInfoMessage(saveRuntimeResult.error);
     }
   }, [autosaveEnabled, hasHydrated, runtime]);
-
-  function resetSetupToDefaults() {
-    resetSelection();
-    setSeed('');
-    setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
-    setEventProfile(DEFAULT_EVENT_PROFILE);
-    setSurpriseLevel(DEFAULT_SURPRISE_LEVEL);
-  }
 
   function onToggleAutosave(nextValue: boolean) {
     if (!nextValue) {
@@ -808,6 +842,12 @@ export default function Home() {
         const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
         persistLocalMatches(nextMatches);
       }
+      setResumeMatchId(createResponse.match_id);
+      setPrefillMatchId(null);
+      router.replace(
+        `/matches/new${buildMatchNavigationSearch({ resumeMatchId: createResponse.match_id })}`,
+        { scroll: false }
+      );
       setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
@@ -855,10 +895,22 @@ export default function Home() {
           setInfoMessage(saveRuntimeResult.error);
         }
       }
+      setResumeMatchId(match.id);
+      setPrefillMatchId(null);
+      router.replace(
+        `/matches/new${buildMatchNavigationSearch({ resumeMatchId: match.id })}`,
+        { scroll: false }
+      );
       setInfoMessage(`Partida abierta en vivo (${shortId(match.id)}).`);
     } catch {
       if (autosaveEnabled && runtimeLoad.runtime?.match_id === match.id) {
         setRuntime(runtimeLoad.runtime);
+        setResumeMatchId(match.id);
+        setPrefillMatchId(null);
+        router.replace(
+          `/matches/new${buildMatchNavigationSearch({ resumeMatchId: match.id })}`,
+          { scroll: false }
+        );
         setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
       } else {
         setRuntime(null);
@@ -870,7 +922,7 @@ export default function Home() {
     } finally {
       setIsBusy(false);
     }
-  }, [applySetupFromMatch, autosaveEnabled, localMatches]);
+  }, [applySetupFromMatch, autosaveEnabled, localMatches, router]);
 
   useEffect(() => {
     setHasAutoResumed(false);
@@ -1158,19 +1210,19 @@ export default function Home() {
           ) : null}
 
           <div className={styles.kpis}>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-turn">
               <span className={styles.kpiLabel}>Turno</span>
               <div className={styles.kpiValue}>{currentTurn}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-alive">
               <span className={styles.kpiLabel}>Vivos</span>
               <div className={styles.kpiValue}>{aliveCount}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-eliminated">
               <span className={styles.kpiLabel}>Eliminados</span>
               <div className={styles.kpiValue}>{eliminatedCount}</div>
             </div>
-            <div className={styles.kpi}>
+            <div className={styles.kpi} data-testid="kpi-speed">
               <span className={styles.kpiLabel}>Ritmo</span>
               <div className={styles.kpiValue}>{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</div>
             </div>
@@ -1342,7 +1394,16 @@ export default function Home() {
                     >
                       Iniciar simulacion
                     </button>
-                    <button className={styles.button} type="button" onClick={resetSetupToDefaults}>
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={() => {
+                        setResumeMatchId(null);
+                        setPrefillMatchId(null);
+                        router.replace('/matches/new', { scroll: false });
+                        clearEditorStateForNewMatch();
+                      }}
+                    >
                       Nuevo setup
                     </button>
                     <Link
@@ -1466,10 +1527,11 @@ export default function Home() {
                     : 'Inicia una simulacion para ver el feed en vivo.'}
                 </p>
               ) : (
-                <ul className={styles.feedList}>
+                <ul className={styles.feedList} data-testid="feed-list">
                   {filteredFeed.map((event) => (
                     <li
                       key={event.id}
+                      data-testid="feed-item"
                       className={`${styles.feedItem} ${
                         latestFeedEventId === event.id ? styles.feedItemNew : ''
                       }`}
@@ -1558,7 +1620,7 @@ export default function Home() {
           </section>
         </div>
 
-        {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
+        {infoMessage ? <p className={styles.info} data-testid="info-message">{infoMessage}</p> : null}
       </div>
       {transitionOverlay ? (
         <div

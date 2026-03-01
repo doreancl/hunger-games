@@ -8,3 +8,4 @@ package-lock.json
 .codex/
 output/playwright/
 .playwright-cli/
+test-results/

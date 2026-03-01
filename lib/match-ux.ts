@@ -2,6 +2,7 @@ import type { LocalMatchSummary } from '@/lib/local-matches';
 import type { FranchiseCharacter } from '@/lib/domain/types';
 
 export type LobbyStatus = 'setup' | 'running' | 'finished';
+export type MatchEditorMode = 'new' | 'resume' | 'prefill';
 
 export function shortId(value: string): string {
   return value.slice(0, 8);
@@ -116,6 +117,37 @@ export function parseMatchNavigationQuery(search: string): {
     resumeMatchId: params.get('resume'),
     prefillMatchId: params.get('prefill')
   };
+}
+
+export function resolveMatchEditorMode(args: {
+  resumeMatchId: string | null;
+  prefillMatchId: string | null;
+}): MatchEditorMode {
+  if (args.resumeMatchId) {
+    return 'resume';
+  }
+
+  if (args.prefillMatchId) {
+    return 'prefill';
+  }
+
+  return 'new';
+}
+
+export function buildMatchNavigationSearch(args: {
+  resumeMatchId?: string | null;
+  prefillMatchId?: string | null;
+}): string {
+  const params = new URLSearchParams();
+
+  if (args.resumeMatchId) {
+    params.set('resume', args.resumeMatchId);
+  } else if (args.prefillMatchId) {
+    params.set('prefill', args.prefillMatchId);
+  }
+
+  const query = params.toString();
+  return query === '' ? '' : `?${query}`;
 }
 
 export function pruneSelectedCharacters(
