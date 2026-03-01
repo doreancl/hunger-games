@@ -59,7 +59,7 @@ export default function MatchDetailPage() {
           <p className={styles.heroMeta}>Vista local para continuar una simulacion guardada.</p>
 
           <div className={styles.inlineControls}>
-            <Link className={styles.button} href={`/matches/new?resume=${matchId}`}>
+            <Link className={styles.button} href={`/session/${matchId}`}>
               Reanudar partida
             </Link>
             <Link className={`${styles.button} ${styles.buttonGhost}`} href="/matches">
@@ -76,7 +76,7 @@ export default function MatchDetailPage() {
             <div>
               <p>No se encontro esta partida en almacenamiento local.</p>
               <div className={styles.inlineControls}>
-                <Link className={styles.button} href="/matches/new">
+                <Link className={styles.button} href="/new">
                   Iniciar nueva partida
                 </Link>
                 <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">

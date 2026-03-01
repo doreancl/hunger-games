@@ -136,7 +136,7 @@ export default function Home() {
             </div>
             <p className={styles.heroMeta}>Crea una simulacion nueva o retoma una reciente en segundos.</p>
             <div className={styles.heroActions}>
-              <Link className={`${styles.button} ${styles.heroPrimary}`} href="/matches/new" onClick={startTransitionToMatch}>
+              <Link className={`${styles.button} ${styles.heroPrimary}`} href="/new" onClick={startTransitionToMatch}>
                 Iniciar partida
               </Link>
               <Link className={`${styles.button} ${styles.heroSecondary}`} href="/matches">
@@ -171,7 +171,7 @@ export default function Home() {
             emptyState={
               <div>
                 <p>No hay partidas guardadas todavia.</p>
-                <Link className={styles.button} href="/matches/new" onClick={startTransitionToMatch}>
+                <Link className={styles.button} href="/new" onClick={startTransitionToMatch}>
                   Iniciar partida
                 </Link>
               </div>
@@ -180,7 +180,7 @@ export default function Home() {
               <>
                 <Link
                   className={styles.button}
-                  href={`/matches/new?resume=${match.id}`}
+                  href={`/session/${match.id}`}
                   onClick={startTransitionToMatch}
                 >
                   Reanudar

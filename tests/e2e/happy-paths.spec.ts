@@ -4,7 +4,7 @@ const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
 const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 
 async function configureStarWarsRoster(page: Page, seed: string, speed: '1x' | '2x' | '4x' = '2x') {
-  await page.goto('/matches/new');
+  await page.goto('/new');
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Star Wars' }).click();
@@ -46,7 +46,7 @@ async function getRuntimeTurn(page: Page) {
 test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
   await startSimulation(page, 'arena-hp01', '2x');
 
-  await expect(page).toHaveURL(/\/matches\/new\?resume=/);
+  await expect(page).toHaveURL(/\/session\//);
   await expect(page.getByText('Fase actual:', { exact: false })).toContainText('Bloodbath');
   await expect(page.getByText('Configuracion valida para iniciar.')).toHaveCount(0);
 
@@ -61,9 +61,9 @@ test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
 test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada', async ({ page }) => {
   await startSimulation(page, 'arena-hp00', '4x');
 
-  await page.goto('/matches/new');
+  await page.goto('/new');
 
-  await expect(page).toHaveURL(/\/matches\/new$/);
+  await expect(page).toHaveURL(/\/new$/);
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
   await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
@@ -105,7 +105,7 @@ test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Historial de partidas' })).toBeVisible();
   await page.getByRole('link', { name: 'Reanudar' }).first().click();
 
-  await expect(page).toHaveURL(/\/matches\/new\?resume=/);
+  await expect(page).toHaveURL(/\/session\//);
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
   await expect(page.getByTestId('feed-item').first()).toBeVisible();
   await expect(page.getByTestId('kpi-turn')).toContainText(String(expectedTurn));
