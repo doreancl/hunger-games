@@ -8,7 +8,7 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
 - Dominio: `lib/domain/types.ts`, `lib/domain/schemas.ts`.
 - Simulación: `lib/simulation-state.ts`, `lib/matches/lifecycle.ts`.
 - Validación: Zod.
-- Testing: Vitest + coverage V8.
+- Testing: Vitest + coverage V8 + Playwright E2E.
 
 ## 3. Architecture Patterns
 - Arquitectura modular por capas: API -> lifecycle/application -> simulation/domain.
@@ -58,6 +58,7 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
   - Condiciones de activación Cornucopia refill.
   - Evento escape con muerte automática.
 - Contract tests para garantizar que endpoint no rompe schema.
+- E2E con Playwright para validar flujos criticos de usuario.
 - Cobertura objetivo >=90%.
 
 ## 12. Code Quality & Standards
@@ -67,7 +68,7 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
 
 ## 13. Deployment & DevOps
 - Sin cambios de infraestructura.
-- Feature se despliega con pipeline actual (`pnpm run validate` como gate).
+- Feature se despliega con pipeline actual (`pnpm run validate` como gate, incluyendo E2E).
 
 ## 14. Monitoring, Logging & Observability
 - Emitir logs estructurados existentes (`match.turn.event`) con template/evento seleccionado.
@@ -87,7 +88,7 @@ La implementación de eventos aleatorios cinematográficos debe respetar el mode
 
 ## 17. Development Workflow
 - Commits convencionales.
-- Ejecutar `pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`.
+- Ejecutar `pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`, `pnpm run test:e2e`.
 - Mantener cambios sincronizados entre contratos y pruebas.
 
 ## 18. Known Constraints & Trade-offs
