@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { recordLatencyMetric, resetObservabilityForTests } from '@/lib/observability';
+import {
+  recordCounterMetric,
+  recordLatencyMetric,
+  recordThresholdAlert,
+  resetObservabilityForTests
+} from '@/lib/observability';
 
 describe('observability metrics', () => {
   afterEach(() => {
@@ -44,5 +49,45 @@ describe('observability metrics', () => {
     expect(lastLog.metric).toBe('simulation.tick');
     expect(lastLog.duration_ms).toBe(0);
     expect(lastLog.samples).toBe(200);
+  });
+
+  it('records counter metrics with cumulative totals', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    const first = recordCounterMetric('catalog.invalid_version_count', 1, {
+      source: 'default_catalog_bootstrap'
+    });
+    const second = recordCounterMetric('catalog.invalid_version_count', 2, {
+      source: 'default_catalog_bootstrap'
+    });
+
+    expect(first.total).toBe(1);
+    expect(second.total).toBe(3);
+
+    const lastLogRaw = infoSpy.mock.calls.at(-1)?.[0] as string;
+    const lastLog = JSON.parse(lastLogRaw) as Record<string, unknown>;
+    expect(lastLog.event).toBe('metric.counter');
+    expect(lastLog.metric).toBe('catalog.invalid_version_count');
+    expect(lastLog.total).toBe(3);
+  });
+
+  it('triggers threshold alert only once per alert key', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    const first = recordThresholdAlert('catalog.invalid_version_count.threshold', 3, 3, {
+      source: 'default_catalog_bootstrap'
+    });
+    const second = recordThresholdAlert('catalog.invalid_version_count.threshold', 4, 3, {
+      source: 'default_catalog_bootstrap'
+    });
+
+    expect(first.triggered).toBe(true);
+    expect(second.triggered).toBe(false);
+
+    const alertLogs = infoSpy.mock.calls
+      .map((entry) => JSON.parse(entry[0] as string) as Record<string, unknown>)
+      .filter((entry) => entry.event === 'alert.triggered');
+    expect(alertLogs).toHaveLength(1);
+    expect(alertLogs[0]?.alert).toBe('catalog.invalid_version_count.threshold');
   });
 });

@@ -12,6 +12,12 @@ All notable changes to this project will be documented in this file.
 
 - Mount the `Agentation` toolbar from the root layout only in `development` to keep production output unchanged.
 
+## [0.5.1] - 2026-02-24
+
+### Changed
+
+- Refactor issue #81 setup roster selection by extracting state/rules to `useRosterSelection` and splitting catalog/roster rendering into dedicated components.
+
 ## [0.5.0] - 2026-02-24
 
 ### Added

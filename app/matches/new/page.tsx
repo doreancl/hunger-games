@@ -19,20 +19,20 @@ import {
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
 import {
-  deriveCatalogSelectionFromRoster,
-  getSetupRosterPreview,
   parseMatchNavigationQuery,
-  pruneSelectedCharacters,
   shortId
 } from '@/lib/match-ux';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
 import {
   buildCharacterLabel,
-  buildRosterFromMovieSelection,
   DEFAULT_FRANCHISE_CATALOG_SOURCE,
-  listFranchiseMovies,
-  normalizeFranchiseCatalog
+  normalizeFranchiseCatalog,
+  type NormalizeFranchiseCatalogResult
 } from '@/lib/domain/franchise-catalog';
+import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
+import { useRosterSelection } from './use-roster-selection';
+import { CatalogSelection } from './components/catalog-selection';
+import { RosterPreview } from './components/roster-preview';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -80,6 +80,7 @@ const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
 const TRANSITION_LONG_WAIT_MS = 3000;
 const TRANSITION_FADE_OUT_MS = 180;
+const INVALID_CATALOG_VERSION_ALERT_THRESHOLD = process.env.NODE_ENV === 'production' ? 1 : 3;
 
 type PlaybackSpeed = SimulationSpeed | 'pause';
 type TransitionDirection = 'lobby_to_match' | 'match_to_lobby';
@@ -115,6 +116,34 @@ type SimulationRuntime = {
 
 const EMPTY_FEED: FeedEvent[] = [];
 const styles = { ...baseStyles, ...localStyles };
+
+function normalizeCatalogWithObservability(
+  source: unknown,
+  sourceLabel: string
+): NormalizeFranchiseCatalogResult {
+  const result = normalizeFranchiseCatalog(source);
+  const invalidVersionCount = result.diagnostics.invalid_version_count;
+
+  if (invalidVersionCount > 0) {
+    const dimensions = {
+      source: sourceLabel,
+      environment: process.env.NODE_ENV ?? 'development'
+    };
+    const metric = recordCounterMetric(
+      'catalog.invalid_version_count',
+      invalidVersionCount,
+      dimensions
+    );
+    recordThresholdAlert(
+      'catalog.invalid_version_count.threshold',
+      metric.total,
+      INVALID_CATALOG_VERSION_ALERT_THRESHOLD,
+      dimensions
+    );
+  }
+
+  return result;
+}
 
 function createBrowserUuid(): string | null {
   if (typeof window === 'undefined' || typeof crypto === 'undefined') {
@@ -344,10 +373,8 @@ function relationTone(score: number): string {
 
 export default function Home() {
   const [catalogResult, setCatalogResult] = useState(() =>
-    normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE)
+    normalizeCatalogWithObservability(DEFAULT_FRANCHISE_CATALOG_SOURCE, 'default_catalog_bootstrap')
   );
-  const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
-  const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>(DEFAULT_CHARACTERS);
   const [seed, setSeed] = useState('');
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(DEFAULT_SIMULATION_SPEED);
@@ -375,50 +402,27 @@ export default function Home() {
   const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
 
   const catalogCharacters = catalogResult.catalog.characters;
-  const isCatalogEmpty = catalogCharacters.length === 0;
-  const franchiseOptions = catalogResult.catalog.franchises;
-  const moviesForSelectedFranchise = useMemo(
-    () =>
-      selectedFranchiseId
-        ? listFranchiseMovies(catalogResult.catalog, selectedFranchiseId)
-        : [],
-    [catalogResult.catalog, selectedFranchiseId]
-  );
-  const selectedMovieIdSet = useMemo(() => new Set(selectedMovieIds), [selectedMovieIds]);
-  const selectableCharacters = useMemo(
-    () =>
-      selectedFranchiseId
-        ? catalogCharacters.filter(
-            (character) =>
-              character.franchise_id === selectedFranchiseId &&
-              selectedMovieIdSet.has(character.movie_id)
-          )
-        : [],
-    [catalogCharacters, selectedFranchiseId, selectedMovieIdSet]
-  );
-  const selectableCharacterIdSet = useMemo(
-    () => new Set(selectableCharacters.map((character) => character.character_key)),
-    [selectableCharacters]
-  );
-  const hasCatalogSelection = Boolean(selectedFranchiseId) && selectedMovieIds.length > 0;
-  const hasRosterSelection = selectedCharacters.length > 0;
-  const hasEmptySelectionState = !hasCatalogSelection && !hasRosterSelection;
-  const setupRosterPreview = useMemo(
-    () =>
-      getSetupRosterPreview({
-        hasCatalogSelection,
-        selectedCharacterIds: selectedCharacters,
-        selectableCharacterIds: selectableCharacters.map((character) => character.character_key)
-      }),
-    [hasCatalogSelection, selectableCharacters, selectedCharacters]
-  );
-  const hasDuplicateDisplayNames = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const character of catalogCharacters) {
-      counts.set(character.display_name, (counts.get(character.display_name) ?? 0) + 1);
-    }
-    return counts;
-  }, [catalogCharacters]);
+  const {
+    selectedFranchiseId,
+    selectedMovieIds,
+    franchiseOptions,
+    moviesForSelectedFranchise,
+    selectableCharacters,
+    setupRosterPreview,
+    hasEmptySelectionState,
+    isCatalogEmpty,
+    hasDuplicateDisplayNames,
+    onSelectFranchise,
+    toggleMovie,
+    generateRosterFromSelection,
+    toggleCharacter,
+    setSelectionFromRoster,
+    resetSelection
+  } = useRosterSelection({
+    catalogResult,
+    selectedCharacters,
+    setSelectedCharacters
+  });
   const characterById = useMemo(
     () =>
       new Map(
@@ -436,15 +440,6 @@ export default function Home() {
     },
     [characterById, hasDuplicateDisplayNames]
   );
-  const syncCatalogSelectionFromRoster = useCallback(
-    (rosterCharacterIds: string[]) => {
-      const nextSelection = deriveCatalogSelectionFromRoster(rosterCharacterIds, catalogCharacters);
-      setSelectedFranchiseId(nextSelection.selectedFranchiseId);
-      setSelectedMovieIds(nextSelection.selectedMovieIds);
-    },
-    [catalogCharacters]
-  );
-
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
     [selectedCharacters]
@@ -531,38 +526,12 @@ export default function Home() {
 
   const applySetupFromMatch = useCallback((match: LocalMatchSummary) => {
     setSelectedCharacters(match.roster_character_ids);
-    syncCatalogSelectionFromRoster(match.roster_character_ids);
+    setSelectionFromRoster(match.roster_character_ids);
     setSeed(match.settings.seed ?? '');
     setSimulationSpeed(match.settings.simulation_speed);
     setEventProfile(match.settings.event_profile);
     setSurpriseLevel(match.settings.surprise_level);
-  }, [syncCatalogSelectionFromRoster]);
-
-  useEffect(() => {
-    if (!selectedFranchiseId) {
-      return;
-    }
-
-    setSelectedCharacters((previous) => {
-      const next = pruneSelectedCharacters(previous, selectableCharacterIdSet);
-      return next.length === previous.length ? previous : next;
-    });
-  }, [selectableCharacterIdSet, selectedFranchiseId]);
-
-  useEffect(() => {
-    if (!selectedFranchiseId) {
-      return;
-    }
-
-    if (!franchiseOptions.some((franchise) => franchise.franchise_id === selectedFranchiseId)) {
-      setSelectedFranchiseId(null);
-      setSelectedMovieIds([]);
-      return;
-    }
-
-    const validMovieIds = new Set(moviesForSelectedFranchise.map((movie) => movie.movie_id));
-    setSelectedMovieIds((previous) => previous.filter((movieId) => validMovieIds.has(movieId)));
-  }, [franchiseOptions, moviesForSelectedFranchise, selectedFranchiseId]);
+  }, [setSelectionFromRoster]);
 
   useEffect(() => {
     setHasHydrated(true);
@@ -694,9 +663,7 @@ export default function Home() {
   }, [autosaveEnabled, hasHydrated, runtime]);
 
   function resetSetupToDefaults() {
-    setSelectedFranchiseId(null);
-    setSelectedMovieIds([]);
-    setSelectedCharacters(DEFAULT_CHARACTERS);
+    resetSelection();
     setSeed('');
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
     setEventProfile(DEFAULT_EVENT_PROFILE);
@@ -731,47 +698,13 @@ export default function Home() {
     saveLocalPrefsToStorage(window.localStorage, { autosave_enabled: nextValue });
   }
 
-  function onSelectFranchise(franchiseId: string) {
-    setSelectedFranchiseId(franchiseId);
-    setSelectedMovieIds([]);
-    setSelectedCharacters([]);
-  }
-
-  function toggleMovie(movieId: string) {
-    setSelectedMovieIds((previous) => {
-      if (previous.includes(movieId)) {
-        return previous.filter((id) => id !== movieId);
-      }
-      return [...previous, movieId];
-    });
-  }
-
-  function generateRosterFromSelection() {
-    const roster = buildRosterFromMovieSelection(
-      catalogResult.catalog,
-      selectedFranchiseId,
-      selectedMovieIds
-    );
-    setSelectedCharacters(roster);
+  function onGenerateRoster() {
+    const roster = generateRosterFromSelection();
     if (roster.length === 0) {
       setInfoMessage('Selecciona franquicia y al menos una pelicula para generar roster.');
       return;
     }
     setInfoMessage(`Roster generado con ${roster.length} personajes.`);
-  }
-
-  function toggleCharacter(characterId: string) {
-    if (!selectableCharacterIdSet.has(characterId)) {
-      return;
-    }
-
-    setSelectedCharacters((previous) => {
-      if (previous.includes(characterId)) {
-        return previous.filter((id) => id !== characterId);
-      }
-
-      return [...previous, characterId];
-    });
   }
 
   function generateSeed() {
@@ -1275,129 +1208,38 @@ export default function Home() {
                       <button
                         className={styles.button}
                         type="button"
-                        onClick={() =>
-                          setCatalogResult(normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE))
-                        }
+                        onClick={() => {
+                          setCatalogResult(
+                            normalizeCatalogWithObservability(
+                              DEFAULT_FRANCHISE_CATALOG_SOURCE,
+                              'default_catalog_retry'
+                            )
+                          );
+                        }}
                       >
                         Reintentar carga
                       </button>
                     </div>
                   ) : (
                     <div className={styles.catalogSetup}>
-                      <div>
-                        <strong>1) Franquicia</strong>
-                        <div className={styles.catalogSelectionGrid}>
-                          {franchiseOptions.map((franchise) => (
-                            <button
-                              key={franchise.franchise_id}
-                              type="button"
-                              className={`${styles.button} ${
-                                selectedFranchiseId === franchise.franchise_id
-                                  ? styles.buttonSelected
-                                  : styles.buttonGhost
-                              }`}
-                              onClick={() => onSelectFranchise(franchise.franchise_id)}
-                            >
-                              {franchise.franchise_name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>2) Peliculas</strong>
-                        {selectedFranchiseId ? (
-                          moviesForSelectedFranchise.length > 0 ? (
-                            <div className={styles.movieGrid}>
-                              {moviesForSelectedFranchise.map((movie) => (
-                                <label
-                                  key={movie.movie_id}
-                                  htmlFor={`movie-${movie.movie_id}`}
-                                  className={styles.characterToggle}
-                                >
-                                  <input
-                                    id={`movie-${movie.movie_id}`}
-                                    type="checkbox"
-                                    checked={selectedMovieIds.includes(movie.movie_id)}
-                                    onChange={() => toggleMovie(movie.movie_id)}
-                                  />
-                                  {movie.movie_title}
-                                </label>
-                              ))}
-                            </div>
-                          ) : (
-                            <p>No hay peliculas disponibles para la franquicia elegida.</p>
-                          )
-                        ) : (
-                          <p>Selecciona una franquicia para habilitar peliculas.</p>
-                        )}
-                      </div>
-
-                      <div className={styles.inlineControls}>
-                        <button
-                          className={styles.button}
-                          type="button"
-                          onClick={generateRosterFromSelection}
-                          disabled={!selectedFranchiseId || selectedMovieIds.length === 0}
-                        >
-                          Generar roster
-                        </button>
-                        <span>Peliculas activas: {selectedMovieIds.length}</span>
-                      </div>
-
-                      <div>
-                        <strong>3) Roster generado</strong>
-                        {hasEmptySelectionState ? (
-                          <p>Selecciona franquicia y peliculas para empezar.</p>
-                        ) : setupRosterPreview.mode === 'empty' ? (
-                          <p>No hay personajes para las peliculas seleccionadas.</p>
-                        ) : setupRosterPreview.mode === 'catalog' ? (
-                          <div className={styles.movieGrid}>
-                            {selectableCharacters.map((character) => {
-                              const checkboxId = `roster-${character.character_key}`;
-                              const hasNameCollision =
-                                (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1;
-                              const label = buildCharacterLabel(character, hasNameCollision);
-                              return (
-                                <label
-                                  key={character.character_key}
-                                  htmlFor={checkboxId}
-                                  className={styles.characterToggle}
-                                >
-                                  <input
-                                    id={checkboxId}
-                                    aria-label={`Seleccionar ${label}`}
-                                    type="checkbox"
-                                    checked={selectedCharacters.includes(character.character_key)}
-                                    onChange={() => toggleCharacter(character.character_key)}
-                                  />
-                                  {label}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className={styles.movieGrid}>
-                            {setupRosterPreview.characterIds.map((characterId) => {
-                              const checkboxId = `roster-selected-${characterId}`;
-                              const label = characterName(characterId);
-                              return (
-                                <label key={characterId} htmlFor={checkboxId} className={styles.characterToggle}>
-                                  <input
-                                    id={checkboxId}
-                                    aria-label={`Roster seleccionado ${label}`}
-                                    type="checkbox"
-                                    checked
-                                    readOnly
-                                    disabled
-                                  />
-                                  {label}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      <CatalogSelection
+                        franchiseOptions={franchiseOptions}
+                        selectedFranchiseId={selectedFranchiseId}
+                        onSelectFranchise={onSelectFranchise}
+                        moviesForSelectedFranchise={moviesForSelectedFranchise}
+                        selectedMovieIds={selectedMovieIds}
+                        toggleMovie={toggleMovie}
+                        onGenerateRoster={onGenerateRoster}
+                      />
+                      <RosterPreview
+                        hasEmptySelectionState={hasEmptySelectionState}
+                        setupRosterPreview={setupRosterPreview}
+                        selectableCharacters={selectableCharacters}
+                        selectedCharacters={selectedCharacters}
+                        hasDuplicateDisplayNames={hasDuplicateDisplayNames}
+                        toggleCharacter={toggleCharacter}
+                        characterName={characterName}
+                      />
                     </div>
                   )}
                 </div>
