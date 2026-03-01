@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { AgentationDevtools } from '@/app/components/agentation-devtools';
 import { ThemeHeader } from '@/app/components/theme-header';
 import './theme.css';
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         </Script>
         <ThemeHeader />
         {children}
+        <AgentationDevtools />
         <Analytics />
         {cloudflareAnalyticsToken ? (
           <Script

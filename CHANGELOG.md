@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-03-01
+
+### Added
+
+- Add `Agentation` as a development feedback overlay to annotate the UI directly from the app.
+
+### Changed
+
+- Mount the `Agentation` toolbar from the root layout only in `development` to keep production output unchanged.
+
 ## [0.5.0] - 2026-02-24
 
 ### Added
