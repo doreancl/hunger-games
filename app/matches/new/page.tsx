@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import baseStyles from '../../page.module.css';
 import localStyles from './page.module.css';
@@ -20,9 +20,6 @@ import {
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
 import {
-  buildMatchNavigationSearch,
-  parseMatchNavigationQuery,
-  resolveMatchEditorMode,
   shortId
 } from '@/lib/match-ux';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
@@ -119,6 +116,11 @@ type SimulationRuntime = {
 
 const EMPTY_FEED: FeedEvent[] = [];
 const styles = { ...baseStyles, ...localStyles };
+
+type MatchStudioPageProps = {
+  sessionMatchId?: string | null;
+  prefillMatchId?: string | null;
+};
 
 function normalizeCatalogWithObservability(
   source: unknown,
@@ -374,7 +376,10 @@ function relationTone(score: number): string {
   return 'Relacion neutra';
 }
 
-export default function Home() {
+export function MatchStudioPage({
+  sessionMatchId = null,
+  prefillMatchId = null
+}: MatchStudioPageProps) {
   const router = useRouter();
   const [catalogResult, setCatalogResult] = useState(() =>
     normalizeCatalogWithObservability(DEFAULT_FRANCHISE_CATALOG_SOURCE, 'default_catalog_bootstrap')
@@ -401,13 +406,8 @@ export default function Home() {
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
   const [hasAutoPrefilled, setHasAutoPrefilled] = useState(false);
-  const [resumeMatchId, setResumeMatchId] = useState<string | null>(null);
-  const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
   const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
-  const matchEditorMode = useMemo(
-    () => resolveMatchEditorMode({ resumeMatchId, prefillMatchId }),
-    [prefillMatchId, resumeMatchId]
-  );
+  const isSessionView = sessionMatchId !== null;
 
   const catalogCharacters = catalogResult.catalog.characters;
   const {
@@ -628,16 +628,6 @@ export default function Home() {
       return;
     }
 
-    const query = parseMatchNavigationQuery(window.location.search);
-    setResumeMatchId(query.resumeMatchId);
-    setPrefillMatchId(query.prefillMatchId);
-  }, [hasHydrated]);
-
-  useEffect(() => {
-    if (!hasHydrated) {
-      return;
-    }
-
     const prefs = loadLocalPrefsFromStorage(window.localStorage);
     setAutosaveEnabled(prefs.autosave_enabled);
 
@@ -647,7 +637,7 @@ export default function Home() {
       : { runtime: null, error: null };
     setLocalMatches(matches);
 
-    if (matchEditorMode === 'resume' && runtimeLoad.runtime?.match_id === resumeMatchId) {
+    if (sessionMatchId && runtimeLoad.runtime?.match_id === sessionMatchId) {
       setRuntime(runtimeLoad.runtime);
       const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
       if (runtimeMatch) {
@@ -655,7 +645,7 @@ export default function Home() {
       }
     } else {
       setRuntime(null);
-      if (matchEditorMode === 'new') {
+      if (!sessionMatchId) {
         clearEditorStateForNewMatch();
       }
     }
@@ -672,17 +662,16 @@ export default function Home() {
     applySetupFromMatch,
     clearEditorStateForNewMatch,
     hasHydrated,
-    matchEditorMode,
-    resumeMatchId
+    sessionMatchId
   ]);
 
   useEffect(() => {
-    if (!hasHydrated || isBusy || matchEditorMode !== 'new') {
+    if (!hasHydrated || isBusy || isSessionView) {
       return;
     }
 
     clearEditorStateForNewMatch();
-  }, [clearEditorStateForNewMatch, hasHydrated, isBusy, matchEditorMode]);
+  }, [clearEditorStateForNewMatch, hasHydrated, isBusy, isSessionView]);
 
   const persistLocalMatches = useCallback((nextMatches: LocalMatchSummary[]) => {
     setLocalMatches(nextMatches);
@@ -842,12 +831,7 @@ export default function Home() {
         const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
         persistLocalMatches(nextMatches);
       }
-      setResumeMatchId(createResponse.match_id);
-      setPrefillMatchId(null);
-      router.replace(
-        `/matches/new${buildMatchNavigationSearch({ resumeMatchId: createResponse.match_id })}`,
-        { scroll: false }
-      );
+      router.replace(`/session/${createResponse.match_id}`, { scroll: false });
       setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
@@ -895,22 +879,12 @@ export default function Home() {
           setInfoMessage(saveRuntimeResult.error);
         }
       }
-      setResumeMatchId(match.id);
-      setPrefillMatchId(null);
-      router.replace(
-        `/matches/new${buildMatchNavigationSearch({ resumeMatchId: match.id })}`,
-        { scroll: false }
-      );
+      router.replace(`/session/${match.id}`, { scroll: false });
       setInfoMessage(`Partida abierta en vivo (${shortId(match.id)}).`);
     } catch {
       if (autosaveEnabled && runtimeLoad.runtime?.match_id === match.id) {
         setRuntime(runtimeLoad.runtime);
-        setResumeMatchId(match.id);
-        setPrefillMatchId(null);
-        router.replace(
-          `/matches/new${buildMatchNavigationSearch({ resumeMatchId: match.id })}`,
-          { scroll: false }
-        );
+        router.replace(`/session/${match.id}`, { scroll: false });
         setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
       } else {
         setRuntime(null);
@@ -926,25 +900,25 @@ export default function Home() {
 
   useEffect(() => {
     setHasAutoResumed(false);
-  }, [resumeMatchId]);
+  }, [sessionMatchId]);
 
   useEffect(() => {
     setHasAutoPrefilled(false);
   }, [prefillMatchId]);
 
   useEffect(() => {
-    if (!hasHydrated || !resumeMatchId || hasAutoResumed || isBusy) {
+    if (!hasHydrated || !sessionMatchId || hasAutoResumed || isBusy) {
       return;
     }
 
-    if (runtime?.match_id === resumeMatchId) {
+    if (runtime?.match_id === sessionMatchId) {
       setHasAutoResumed(true);
       return;
     }
 
-    const targetMatch = localMatches.find((match) => match.id === resumeMatchId);
+    const targetMatch = localMatches.find((match) => match.id === sessionMatchId);
     if (!targetMatch) {
-      setInfoMessage(`No se encontro la partida ${shortId(resumeMatchId)} para reanudar.`);
+      setInfoMessage(`No se encontro la partida ${shortId(sessionMatchId)} para reanudar.`);
       setHasAutoResumed(true);
       return;
     }
@@ -952,10 +926,10 @@ export default function Home() {
     void onOpenMatch(targetMatch.id).finally(() => {
       setHasAutoResumed(true);
     });
-  }, [hasAutoResumed, hasHydrated, isBusy, localMatches, onOpenMatch, resumeMatchId, runtime?.match_id]);
+  }, [hasAutoResumed, hasHydrated, isBusy, localMatches, onOpenMatch, sessionMatchId, runtime?.match_id]);
 
   useEffect(() => {
-    if (!hasHydrated || !prefillMatchId || hasAutoPrefilled || isBusy || Boolean(resumeMatchId)) {
+    if (!hasHydrated || !prefillMatchId || hasAutoPrefilled || isBusy || isSessionView) {
       return;
     }
 
@@ -979,7 +953,7 @@ export default function Home() {
     isBusy,
     localMatches,
     prefillMatchId,
-    resumeMatchId
+    isSessionView
   ]);
 
   const onAdvanceStep = useCallback(async () => {
@@ -1247,7 +1221,7 @@ export default function Home() {
         </header>
 
         <div className={styles.columns}>
-          {!runtime ? (
+          {!runtime && !isSessionView ? (
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>Setup de partida</h2>
               <p className={styles.cardHint}>Define roster, seed y perfil antes de iniciar.</p>
@@ -1398,9 +1372,7 @@ export default function Home() {
                       className={styles.button}
                       type="button"
                       onClick={() => {
-                        setResumeMatchId(null);
-                        setPrefillMatchId(null);
-                        router.replace('/matches/new', { scroll: false });
+                        router.replace('/new', { scroll: false });
                         clearEditorStateForNewMatch();
                       }}
                     >
@@ -1645,5 +1617,16 @@ export default function Home() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function LegacyMatchesNewPage() {
+  const searchParams = useSearchParams();
+
+  return (
+    <MatchStudioPage
+      sessionMatchId={searchParams.get('resume')}
+      prefillMatchId={searchParams.get('prefill')}
+    />
   );
 }

@@ -65,8 +65,8 @@ export function ThemeHeader() {
             Lobby
           </Link>
           <Link
-            href="/matches/new"
-            className={`${styles.navLink} ${pathname.startsWith('/matches/new') ? styles.navLinkActive : ''}`}
+            href="/new"
+            className={`${styles.navLink} ${pathname.startsWith('/new') || pathname.startsWith('/session/') ? styles.navLinkActive : ''}`}
           >
             Nueva
           </Link>
