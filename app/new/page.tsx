@@ -400,6 +400,7 @@ export function MatchStudioPage({
   const [filterEventType, setFilterEventType] = useState<'all' | EventType>('all');
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [hasLoadedLocalState, setHasLoadedLocalState] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [latestFeedEventId, setLatestFeedEventId] = useState<string | null>(null);
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
@@ -626,6 +627,8 @@ export function MatchStudioPage({
       return;
     }
 
+    setHasLoadedLocalState(false);
+
     const prefs = loadLocalPrefsFromStorage(window.localStorage);
     setAutosaveEnabled(prefs.autosave_enabled);
 
@@ -656,6 +659,8 @@ export function MatchStudioPage({
     if (runtimeLoad.error) {
       setInfoMessage(runtimeLoad.error);
     }
+
+    setHasLoadedLocalState(true);
   }, [
     applySetupFromMatch,
     clearEditorStateForNewMatch,
@@ -905,7 +910,7 @@ export function MatchStudioPage({
   }, [prefillMatchId]);
 
   useEffect(() => {
-    if (!hasHydrated || !sessionMatchId || hasAutoResumed || isBusy) {
+    if (!hasHydrated || !hasLoadedLocalState || !sessionMatchId || hasAutoResumed || isBusy) {
       return;
     }
 
@@ -924,7 +929,16 @@ export function MatchStudioPage({
     void onOpenMatch(targetMatch.id).finally(() => {
       setHasAutoResumed(true);
     });
-  }, [hasAutoResumed, hasHydrated, isBusy, localMatches, onOpenMatch, sessionMatchId, runtime?.match_id]);
+  }, [
+    hasAutoResumed,
+    hasHydrated,
+    hasLoadedLocalState,
+    isBusy,
+    localMatches,
+    onOpenMatch,
+    sessionMatchId,
+    runtime?.match_id
+  ]);
 
   useEffect(() => {
     if (!hasHydrated || !prefillMatchId || hasAutoPrefilled || isBusy || isSessionView) {
