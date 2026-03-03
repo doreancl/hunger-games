@@ -6,7 +6,7 @@
 
 ## Checklist de salida
 
-- [x] Validacion final de calidad: `npm run validate` (lint + unit + coverage >= 90%).
+- [x] Validacion final de calidad: `pnpm run validate` (lint + unit + coverage >= 90% + e2e).
 - [x] Continuidad stateless por snapshot local valida en flujo `resume`.
 - [x] Snapshot incompatible rechazado de forma explicita con `partida no recuperable`.
 - [x] Sin persistencia de estado en filesystem de servidor (arquitectura stateless por request).
