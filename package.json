@@ -12,7 +12,8 @@
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "validate": "pnpm run lint && pnpm run test:unit && pnpm run test:coverage && pnpm run test:e2e",
-    "prepare": "husky"
+    "prepare": "husky",
+    "ui:shadcn": "pnpm dlx shadcn@latest"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
