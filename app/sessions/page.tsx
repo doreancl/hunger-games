@@ -152,11 +152,8 @@ export default function MatchesHistoryPage() {
             }
             renderActions={(match) => (
               <>
-                <Link className={styles.button} href={`/session/${match.id}`}>
+                <Link className={styles.button} href={`/sessions/${match.id}`}>
                   Reanudar
-                </Link>
-                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
-                  Ver detalle
                 </Link>
                 <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/new?prefill=${match.id}`}>
                   Duplicar setup

@@ -66,13 +66,13 @@ export function ThemeHeader() {
           </Link>
           <Link
             href="/new"
-            className={`${styles.navLink} ${pathname.startsWith('/new') || pathname.startsWith('/session/') ? styles.navLinkActive : ''}`}
+            className={`${styles.navLink} ${pathname.startsWith('/new') || pathname.startsWith('/sessions/') ? styles.navLinkActive : ''}`}
           >
             Nueva
           </Link>
           <Link
-            href="/matches"
-            className={`${styles.navLink} ${pathname === '/matches' ? styles.navLinkActive : ''}`}
+            href="/sessions"
+            className={`${styles.navLink} ${pathname === '/sessions' ? styles.navLinkActive : ''}`}
           >
             Historial
           </Link>
