@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import baseStyles from '../../page.module.css';
 import localStyles from './page.module.css';
@@ -20,6 +20,7 @@ import {
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
 import {
+  parseMatchNavigationQuery,
   shortId
 } from '@/lib/match-ux';
 import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/runtime-recovery';
@@ -1621,12 +1622,19 @@ export function MatchStudioPage({
 }
 
 export default function LegacyMatchesNewPage() {
-  const searchParams = useSearchParams();
+  const [legacySessionMatchId, setLegacySessionMatchId] = useState<string | null>(null);
+  const [legacyPrefillMatchId, setLegacyPrefillMatchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const query = parseMatchNavigationQuery(window.location.search);
+    setLegacySessionMatchId(query.resumeMatchId);
+    setLegacyPrefillMatchId(query.prefillMatchId);
+  }, []);
 
   return (
     <MatchStudioPage
-      sessionMatchId={searchParams.get('resume')}
-      prefillMatchId={searchParams.get('prefill')}
+      sessionMatchId={legacySessionMatchId}
+      prefillMatchId={legacyPrefillMatchId}
     />
   );
 }
