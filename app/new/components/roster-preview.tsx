@@ -1,4 +1,7 @@
-import styles from '../page.module.css';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { buildCharacterLabel } from '@/lib/domain/franchise-catalog';
 import type { FranchiseCharacter } from '@/lib/domain/types';
 import type { getSetupRosterPreview } from '@/lib/match-ux';
@@ -27,54 +30,57 @@ export function RosterPreview(props: RosterPreviewProps) {
   } = props;
 
   return (
-    <div>
-      <strong>3) Roster generado</strong>
-      {hasEmptySelectionState ? (
-        <p>Selecciona franquicia y peliculas para empezar.</p>
-      ) : setupRosterPreview.mode === 'empty' ? (
-        <p>No hay personajes para las peliculas seleccionadas.</p>
-      ) : setupRosterPreview.mode === 'catalog' ? (
-        <div className={styles.movieGrid}>
-          {selectableCharacters.map((character) => {
-            const checkboxId = `roster-${character.character_key}`;
-            const hasNameCollision =
-              (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1;
-            const label = buildCharacterLabel(character, hasNameCollision);
-            return (
-              <label key={character.character_key} htmlFor={checkboxId} className={styles.characterToggle}>
-                <input
-                  id={checkboxId}
-                  aria-label={`Seleccionar ${label}`}
-                  type="checkbox"
-                  checked={selectedCharacters.includes(character.character_key)}
-                  onChange={() => toggleCharacter(character.character_key)}
-                />
-                {label}
-              </label>
-            );
-          })}
-        </div>
-      ) : (
-        <div className={styles.movieGrid}>
-          {setupRosterPreview.characterIds.map((characterId) => {
-            const checkboxId = `roster-selected-${characterId}`;
-            const label = characterName(characterId);
-            return (
-              <label key={characterId} htmlFor={checkboxId} className={styles.characterToggle}>
-                <input
-                  id={checkboxId}
-                  aria-label={`Roster seleccionado ${label}`}
-                  type="checkbox"
-                  checked
-                  readOnly
-                  disabled
-                />
-                {label}
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">3) Roster generado</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {hasEmptySelectionState ? (
+          <p className="text-sm text-muted-foreground">Selecciona franquicia y peliculas para empezar.</p>
+        ) : setupRosterPreview.mode === 'empty' ? (
+          <p className="text-sm text-muted-foreground">No hay personajes para las peliculas seleccionadas.</p>
+        ) : setupRosterPreview.mode === 'catalog' ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {selectableCharacters.map((character) => {
+              const checkboxId = `roster-${character.character_key}`;
+              const hasNameCollision =
+                (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1;
+              const label = buildCharacterLabel(character, hasNameCollision);
+              return (
+                <Label key={character.character_key} htmlFor={checkboxId} className="flex items-center gap-2 rounded-md border p-3">
+                  <Checkbox
+                    id={checkboxId}
+                    aria-label={`Seleccionar ${label}`}
+                    checked={selectedCharacters.includes(character.character_key)}
+                    onChange={() => toggleCharacter(character.character_key)}
+                  />
+                  {label}
+                </Label>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid gap-2 md:grid-cols-2">
+            {setupRosterPreview.characterIds.map((characterId) => {
+              const checkboxId = `roster-selected-${characterId}`;
+              const label = characterName(characterId);
+              return (
+                <Label key={characterId} htmlFor={checkboxId} className="flex items-center gap-2 rounded-md border p-3 opacity-75">
+                  <Checkbox
+                    id={checkboxId}
+                    aria-label={`Roster seleccionado ${label}`}
+                    checked
+                    readOnly
+                    disabled
+                  />
+                  {label}
+                </Label>
+              );
+            })}
+          </div>
+        )}
+        <Badge variant="outline" className="mt-3">Seleccionados: {selectedCharacters.length}</Badge>
+      </CardContent>
+    </Card>
   );
 }
