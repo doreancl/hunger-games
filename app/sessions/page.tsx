@@ -1,17 +1,27 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import styles from '../page.module.css';
-import { MatchList } from '@/app/components/match-list';
+import { Alert, AlertDescription } from '@/app/components/ui/alert';
+import { Badge } from '@/app/components/ui/badge';
+import { Button } from '@/app/components/ui/button';
+import { ButtonLink } from '@/app/components/ui/button-link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Select } from '@/app/components/ui/select';
 import { loadLocalMatchesFromStorage, saveLocalMatchesToStorage, type LocalMatchSummary } from '@/lib/local-matches';
-import { clearLocalRuntimeFromStorage, loadLocalRuntimeFromStorage } from '@/lib/local-runtime';
 import {
+  dateLabel,
   filterAndSortMatches,
+  getLobbyStatus,
   type LobbyStatus,
+  phaseLabel,
   shortId,
-  sortByUpdatedAt
+  sortByUpdatedAt,
+  statusLabel
 } from '@/lib/match-ux';
+import { clearLocalRuntimeFromStorage, loadLocalRuntimeFromStorage } from '@/lib/local-runtime';
 
 export default function MatchesHistoryPage() {
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
@@ -100,86 +110,106 @@ export default function MatchesHistoryPage() {
           <p className={styles.heroMeta}>Gestiona todas tus partidas locales desde un solo lugar.</p>
 
           <div className={styles.inlineControls}>
-            <Link className={styles.button} href="/new">
-              Iniciar partida
-            </Link>
-            <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
+            <ButtonLink href="/new">Iniciar partida</ButtonLink>
+            <ButtonLink href="/" variant="outline">
               Volver al lobby
-            </Link>
+            </ButtonLink>
           </div>
         </header>
 
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Todas las partidas</h2>
-          <p className={styles.cardHint}>Busca, filtra y gestiona partidas guardadas.</p>
+        <Card>
+          <CardHeader>
+            <CardTitle>Todas las partidas</CardTitle>
+            <CardDescription>Busca, filtra y gestiona partidas guardadas.</CardDescription>
+          </CardHeader>
 
-          <div className={styles.filtersRow}>
-            <label className={styles.controlLabel}>
-              Buscar
-              <input
-                className={styles.input}
-                placeholder="id corta o seed"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </label>
+          <CardContent>
+            <div className={styles.filtersRow}>
+              <Label>
+                Buscar
+                <Input
+                  placeholder="id corta o seed"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </Label>
 
-            <label className={styles.controlLabel}>
-              Estado
-              <select
-                className={styles.select}
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as 'all' | LobbyStatus)}
-              >
-                <option value="all">Todos</option>
-                <option value="setup">Setup</option>
-                <option value="running">En curso</option>
-                <option value="finished">Finalizada</option>
-              </select>
-            </label>
-          </div>
+              <Label>
+                Estado
+                <Select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as 'all' | LobbyStatus)}
+                >
+                  <option value="all">Todos</option>
+                  <option value="setup">Setup</option>
+                  <option value="running">En curso</option>
+                  <option value="finished">Finalizada</option>
+                </Select>
+              </Label>
+            </div>
 
-          <MatchList
-            matches={filteredMatches}
-            showStatus
-            emptyState={
+            {filteredMatches.length > 0 ? (
+              <ul className={styles.matchList}>
+                {filteredMatches.map((match) => {
+                  const status = getLobbyStatus(match);
+                  return (
+                    <li key={match.id} className={styles.matchItem}>
+                      <div>
+                        <p>
+                          <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno {match.turn_number}
+                        </p>
+                        <p>
+                          Vivos: {match.alive_count}/{match.total_participants} · Seed: {match.settings.seed ?? 'sin seed'}
+                        </p>
+                        <p>Actualizada: {dateLabel(match.updated_at)}</p>
+                      </div>
+
+                      <p>
+                        <Badge>{statusLabel(status)}</Badge>
+                      </p>
+
+                      <div className={styles.inlineControls}>
+                        <ButtonLink href={`/sessions/${match.id}`} size="sm">
+                          Reanudar
+                        </ButtonLink>
+                        <ButtonLink href={`/new?prefill=${match.id}`} variant="outline" size="sm">
+                          Duplicar setup
+                        </ButtonLink>
+                        <Button variant="destructive" size="sm" onClick={() => onDeleteMatch(match)}>
+                          Eliminar
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
               <div>
                 <p>No hay partidas que coincidan con el filtro actual.</p>
-                <Link className={styles.button} href="/new">
+                <ButtonLink href="/new" size="sm">
                   Iniciar partida
-                </Link>
+                </ButtonLink>
               </div>
-            }
-            renderActions={(match) => (
-              <>
-                <Link className={styles.button} href={`/sessions/${match.id}`}>
-                  Reanudar
-                </Link>
-                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/new?prefill=${match.id}`}>
-                  Duplicar setup
-                </Link>
-                <button
-                  className={`${styles.button} ${styles.buttonDanger}`}
-                  type="button"
-                  onClick={() => onDeleteMatch(match)}
-                >
-                  Eliminar
-                </button>
-              </>
             )}
-          />
-        </section>
+          </CardContent>
+        </Card>
 
         {undoMatch ? (
-          <p className={styles.info}>
-            Partida {shortId(undoMatch.id)} eliminada.{' '}
-            <button className={`${styles.button} ${styles.buttonGhost}`} type="button" onClick={onUndoDelete}>
-              Deshacer
-            </button>
-          </p>
+          <Alert>
+            <AlertDescription>
+              Partida {shortId(undoMatch.id)} eliminada.{' '}
+              <Button variant="outline" size="sm" onClick={onUndoDelete}>
+                Deshacer
+              </Button>
+            </AlertDescription>
+          </Alert>
         ) : null}
 
-        {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
+        {infoMessage ? (
+          <Alert>
+            <AlertDescription>{infoMessage}</AlertDescription>
+          </Alert>
+        ) : null}
       </div>
     </main>
   );

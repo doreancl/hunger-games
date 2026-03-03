@@ -1,0 +1,133 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+  border: 1px solid transparent;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+}
+
+.button:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, white 40%);
+  outline-offset: 2px;
+}
+
+.buttonDefault {
+  background: linear-gradient(120deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
+}
+
+.buttonDefault:hover {
+  filter: brightness(1.05);
+}
+
+.buttonOutline {
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--panel) 85%, var(--bg) 15%);
+  color: var(--ink);
+}
+
+.buttonOutline:hover {
+  background: var(--panel-strong);
+}
+
+.buttonDestructive {
+  background: color-mix(in oklab, var(--danger) 88%, black 12%);
+  color: white;
+}
+
+.buttonDestructive:hover {
+  filter: brightness(1.07);
+}
+
+.buttonSm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.buttonMd {
+  padding: 0.45rem 0.9rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 42%, white 58%);
+}
+
+.cardHeader {
+  padding: 1rem 1.1rem 0.35rem;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.cardDescription {
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+
+.cardContent {
+  padding: 0.6rem 1.1rem 1.1rem;
+}
+
+.input,
+.select {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--ink);
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.18rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.badgeSecondary {
+  background: color-mix(in oklab, var(--panel-strong) 92%, var(--bg) 8%);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.alert {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--panel) 90%, var(--bg) 10%);
+  padding: 0.8rem 1rem;
+  color: var(--ink);
+}
+
+.alertDescription {
+  margin: 0;
+}
