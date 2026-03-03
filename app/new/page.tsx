@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import baseStyles from '../page.module.css';
 import localStyles from './page.module.css';
@@ -1633,7 +1633,12 @@ export function MatchStudioPage({
 }
 
 export default function NewMatchPage() {
-  const searchParams = useSearchParams();
+  const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
 
-  return <MatchStudioPage prefillMatchId={searchParams.get('prefill')} />;
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setPrefillMatchId(query.get('prefill'));
+  }, []);
+
+  return <MatchStudioPage prefillMatchId={prefillMatchId} />;
 }
