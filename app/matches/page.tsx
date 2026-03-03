@@ -100,7 +100,7 @@ export default function MatchesHistoryPage() {
           <p className={styles.heroMeta}>Gestiona todas tus partidas locales desde un solo lugar.</p>
 
           <div className={styles.inlineControls}>
-            <Link className={styles.button} href="/matches/new">
+            <Link className={styles.button} href="/new">
               Iniciar partida
             </Link>
             <Link className={`${styles.button} ${styles.buttonGhost}`} href="/">
@@ -145,20 +145,20 @@ export default function MatchesHistoryPage() {
             emptyState={
               <div>
                 <p>No hay partidas que coincidan con el filtro actual.</p>
-                <Link className={styles.button} href="/matches/new">
+                <Link className={styles.button} href="/new">
                   Iniciar partida
                 </Link>
               </div>
             }
             renderActions={(match) => (
               <>
-                <Link className={styles.button} href={`/matches/new?resume=${match.id}`}>
+                <Link className={styles.button} href={`/session/${match.id}`}>
                   Reanudar
                 </Link>
                 <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
                   Ver detalle
                 </Link>
-                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/new?prefill=${match.id}`}>
+                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/new?prefill=${match.id}`}>
                   Duplicar setup
                 </Link>
                 <button
