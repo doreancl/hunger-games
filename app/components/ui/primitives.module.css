@@ -1,0 +1,138 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.buttonDefault {
+  background: linear-gradient(135deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
+}
+
+.buttonDefault:hover {
+  filter: brightness(1.05);
+}
+
+.buttonOutline {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: color-mix(in oklab, var(--border), var(--ink) 16%);
+}
+
+.buttonGhost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.buttonSm {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.buttonMd {
+  padding: 0.6rem 0.9rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.badgeSecondary {
+  color: var(--muted);
+  background: color-mix(in oklab, var(--panel), var(--ink) 2%);
+  border-color: var(--border);
+}
+
+.badgeDestructive {
+  color: #fff;
+  background: color-mix(in oklab, var(--danger), #000 6%);
+}
+
+.badgeWarning {
+  color: var(--ink);
+  background: color-mix(in oklab, #f2ca7f, #fff 25%);
+}
+
+.badgeSuccess {
+  color: var(--ink);
+  background: color-mix(in oklab, #97d2b2, #fff 20%);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
+  box-shadow: 0 12px 34px rgba(18, 32, 40, 0.08);
+}
+
+.cardContent {
+  padding: 1rem;
+}
+
+.progress {
+  width: 100%;
+  height: 0.72rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 22%);
+  background: color-mix(in oklab, var(--panel), var(--ink) 5%);
+  overflow: hidden;
+}
+
+.progressIndicator {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: transform 220ms ease;
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 2.7rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border), var(--ink) 14%);
+  background: color-mix(in oklab, var(--panel), var(--ink) 7%);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.switchChecked {
+  background: color-mix(in oklab, var(--accent), #fff 20%);
+}
+
+.switchThumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.2rem;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid color-mix(in oklab, var(--border), var(--ink) 8%);
+  transition: transform 180ms ease;
+}
+
+.switchChecked .switchThumb {
+  transform: translateX(1.12rem);
+}
