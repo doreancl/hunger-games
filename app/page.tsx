@@ -139,7 +139,7 @@ export default function Home() {
               <Link className={`${styles.button} ${styles.heroPrimary}`} href="/new" onClick={startTransitionToMatch}>
                 Iniciar partida
               </Link>
-              <Link className={`${styles.button} ${styles.heroSecondary}`} href="/matches">
+              <Link className={`${styles.button} ${styles.heroSecondary}`} href="/sessions">
                 Abrir historial
               </Link>
             </div>
@@ -180,13 +180,10 @@ export default function Home() {
               <>
                 <Link
                   className={styles.button}
-                  href={`/session/${match.id}`}
+                  href={`/sessions/${match.id}`}
                   onClick={startTransitionToMatch}
                 >
                   Reanudar
-                </Link>
-                <Link className={`${styles.button} ${styles.buttonGhost}`} href={`/matches/${match.id}`}>
-                  Ver detalle
                 </Link>
               </>
             )}

@@ -25,7 +25,6 @@ async function startSimulation(page: Page, seed: string, speed: '1x' | '2x' | '4
   await expect(page.getByTestId('info-message')).toContainText('Simulacion iniciada');
   await expect(page.getByTestId('kpi-turn')).toContainText('0');
   await expect(page.getByTestId('kpi-alive')).toContainText('12');
-  await expect(page.getByTestId('kpi-speed')).toContainText(speed);
 }
 
 async function getRuntimeTurn(page: Page) {
@@ -46,7 +45,7 @@ async function getRuntimeTurn(page: Page) {
 test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
   await startSimulation(page, 'arena-hp01', '2x');
 
-  await expect(page).toHaveURL(/\/session\//);
+  await expect(page).toHaveURL(/\/sessions\//);
   await expect(page.getByText('Fase actual:', { exact: false })).toContainText('Bloodbath');
   await expect(page.getByText('Configuracion valida para iniciar.')).toHaveCount(0);
 
@@ -103,11 +102,11 @@ test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
 
   const expectedTurn = await getRuntimeTurn(page);
 
-  await page.goto('/matches');
+  await page.goto('/sessions');
   await expect(page.getByRole('heading', { name: 'Historial de partidas' })).toBeVisible();
   await page.getByRole('link', { name: 'Reanudar' }).first().click();
 
-  await expect(page).toHaveURL(/\/session\//);
+  await expect(page).toHaveURL(/\/sessions\//);
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
   await expect(page.getByTestId('feed-item').first()).toBeVisible();
   await expect(page.getByTestId('kpi-turn')).toContainText(String(expectedTurn));

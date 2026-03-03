@@ -1,4 +1,4 @@
-import { MatchStudioPage } from '../../matches/new/page';
+import { MatchStudioPage } from '../../new/page';
 
 type SessionPageProps = {
   params: Promise<{ id: string }>;

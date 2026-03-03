@@ -25,7 +25,7 @@ export function MatchList({ matches, emptyState, renderActions, showStatus = fal
 
         return (
           <li key={match.id} className={styles.matchItem}>
-            <Link href={`/matches/${match.id}`} className={styles.matchLink}>
+            <Link href={`/sessions/${match.id}`} className={styles.matchLink}>
               <p>
                 <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno {match.turn_number}
               </p>
