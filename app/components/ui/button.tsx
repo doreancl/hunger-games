@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import styles from './ui.module.css';
 
-type ButtonVariant = 'default' | 'secondary' | 'outline' | 'destructive';
+type ButtonVariant = 'default' | 'secondary' | 'outline' | 'destructive' | 'ghost';
 type ButtonSize = 'default' | 'sm' | 'md';
 
 type ButtonVariantOptions = {
@@ -24,8 +24,10 @@ export function buttonVariants({
         ? styles.buttonSecondary
         : variant === 'outline'
           ? styles.buttonOutline
-          : styles.buttonDestructive,
-    size === 'sm' ? styles.buttonSm : size === 'md' ? styles.buttonMd : undefined,
+          : variant === 'destructive'
+            ? styles.buttonDestructive
+            : styles.buttonGhost,
+    size === 'sm' ? styles.buttonSm : styles.buttonMd,
     className
   );
 }

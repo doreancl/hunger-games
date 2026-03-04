@@ -59,6 +59,16 @@
   background: var(--panel-strong);
 }
 
+.buttonGhost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.buttonGhost:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel-strong), transparent 24%);
+}
+
 .buttonDestructive {
   background: color-mix(in oklab, var(--danger) 88%, black 12%);
   color: white;
@@ -149,6 +159,24 @@
   color: var(--muted);
   background: color-mix(in oklab, var(--panel-strong) 92%, var(--bg) 8%);
   border-color: var(--border);
+}
+
+.badgeDestructive {
+  color: white;
+  background: color-mix(in oklab, var(--danger) 88%, black 12%);
+  border-color: color-mix(in oklab, var(--danger), black 20%);
+}
+
+.badgeWarning {
+  color: var(--ink);
+  background: color-mix(in oklab, #f2ca7f, white 25%);
+  border-color: color-mix(in oklab, #f2ca7f, var(--border) 35%);
+}
+
+.badgeSuccess {
+  color: var(--ink);
+  background: color-mix(in oklab, #97d2b2, white 20%);
+  border-color: color-mix(in oklab, #97d2b2, var(--border) 35%);
 }
 
 .alert {

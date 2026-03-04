@@ -31,13 +31,14 @@ import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
 import { useRosterSelection } from './use-roster-selection';
 import { CatalogSelection } from './components/catalog-selection';
 import { RosterPreview } from './components/roster-preview';
-import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Select } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/app/components/ui/badge';
+import { Button, buttonVariants } from '@/app/components/ui/button';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Progress } from '@/app/components/ui/progress';
+import { Select } from '@/app/components/ui/select';
+import { Switch } from '@/app/components/ui/switch';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -191,6 +192,20 @@ function sessionSizeTone(bytes: number): 'ok' | 'high' | 'critical' {
     return 'high';
   }
   return 'ok';
+}
+
+function sessionToneBadgeVariant(
+  tone: ReturnType<typeof sessionSizeTone>
+): 'success' | 'warning' | 'destructive' {
+  if (tone === 'critical') {
+    return 'destructive';
+  }
+
+  if (tone === 'high') {
+    return 'warning';
+  }
+
+  return 'success';
 }
 
 function countAlive(participants: ParticipantState[]): number {
@@ -922,6 +937,9 @@ export function MatchStudioPage({
     }
 
     if (runtime?.match_id === sessionMatchId) {
+      if (!infoMessage && runtime.turn_number === 0 && runtime.feed.length === 0) {
+        setInfoMessage(`Simulacion iniciada (${shortId(sessionMatchId)}).`);
+      }
       setHasAutoResumed(true);
       return;
     }
@@ -944,7 +962,10 @@ export function MatchStudioPage({
     localMatches,
     onOpenMatch,
     sessionMatchId,
-    runtime?.match_id
+    infoMessage,
+    runtime?.match_id,
+    runtime?.turn_number,
+    runtime?.feed.length
   ]);
 
   useEffect(() => {
@@ -1155,7 +1176,8 @@ export function MatchStudioPage({
   return (
     <main className={styles.page} aria-busy={isTransitioning}>
       <div className={styles.shell}>
-        <header className={styles.hero}>
+        <Card className={styles.hero}>
+          <CardContent>
           <div className={styles.heroTop}>
             <h1 className={styles.title}>Hunger Games Simulator</h1>
             <div className={styles.inlineControls}>
@@ -1172,29 +1194,18 @@ export function MatchStudioPage({
             <span>
               Sesion actual: <strong>{currentSessionSizeLabel}</strong>
             </span>
-            <span
-              className={`${styles.sessionTone} ${
-                currentSessionSizeTone === 'critical'
-                  ? styles.sessionToneCritical
-                  : currentSessionSizeTone === 'high'
-                    ? styles.sessionToneHigh
-                    : styles.sessionToneOk
-              }`}
-            >
+            <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
               {currentSessionSizeTone === 'critical'
                 ? 'Critico'
                 : currentSessionSizeTone === 'high'
                   ? 'Alto'
                   : 'OK'}
-            </span>
+            </Badge>
           </div>
-          <Label className={styles.autosaveToggle}>
-            <Switch
-              checked={autosaveEnabled}
-              onChange={(event) => onToggleAutosave(event.target.checked)}
-            />
+          <label className={styles.autosaveToggle}>
+            <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
             Guardar local
-          </Label>
+          </label>
           {!autosaveEnabled ? (
             <p className={styles.autosaveWarning}>
               Guardado local OFF: cualquier refresh o reinicio borra esta partida.
@@ -1223,12 +1234,17 @@ export function MatchStudioPage({
           <div className={styles.tension} aria-label="barra de tension">
             <strong>Tension {Math.round(tensionValue)}%</strong>
             <Progress
+              className={styles.tensionTrack}
+              role="progressbar"
               aria-label="Nivel de tension"
-              value={Math.round(Math.min(100, tensionValue))}
-              className="mt-2"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(Math.min(100, tensionValue))}
+              value={tensionValue}
             />
           </div>
-        </header>
+          </CardContent>
+        </Card>
 
         <div className={styles.columns}>
           {!runtime && !isSessionView ? (
