@@ -1,35 +1,40 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes } from 'react';
+import { cn } from '@/lib/utils';
 import styles from './ui.module.css';
 
-type ButtonVariant = 'default' | 'outline' | 'destructive';
-type ButtonSize = 'sm' | 'md';
+type ButtonVariant = 'default' | 'secondary' | 'outline' | 'destructive';
+type ButtonSize = 'default' | 'sm' | 'md';
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  children: ReactNode;
+type ButtonVariantOptions = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
 };
 
-const variantClassName: Record<ButtonVariant, string> = {
-  default: styles.buttonDefault,
-  outline: styles.buttonOutline,
-  destructive: styles.buttonDestructive
-};
-
-const sizeClassName: Record<ButtonSize, string> = {
-  sm: styles.buttonSm,
-  md: styles.buttonMd
-};
-
-export function Button({ children, variant = 'default', size = 'md', className, ...props }: ButtonProps) {
-  const classes = [styles.button, variantClassName[variant], sizeClassName[size], className]
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <button type="button" className={classes} {...props}>
-      {children}
-    </button>
+export function buttonVariants({
+  variant = 'default',
+  size = 'default',
+  className
+}: ButtonVariantOptions = {}): string {
+  return cn(
+    styles.button,
+    variant === 'default'
+      ? styles.buttonDefault
+      : variant === 'secondary'
+        ? styles.buttonSecondary
+        : variant === 'outline'
+          ? styles.buttonOutline
+          : styles.buttonDestructive,
+    size === 'sm' ? styles.buttonSm : size === 'md' ? styles.buttonMd : undefined,
+    className
   );
+}
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+};
+
+export function Button({ className, type = 'button', variant, size, ...props }: ButtonProps) {
+  return <button type={type} className={buttonVariants({ variant, size, className })} {...props} />;
 }

@@ -1,14 +1,18 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes } from 'react';
+import { cn } from '@/lib/utils';
 import styles from './ui.module.css';
 
+type BadgeVariant = 'default' | 'secondary';
+
 type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
-  children: ReactNode;
+  variant?: BadgeVariant;
 };
 
-export function Badge({ children, className, ...props }: BadgeProps) {
+export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   return (
-    <span className={[styles.badge, styles.badgeSecondary, className].filter(Boolean).join(' ')} {...props}>
-      {children}
-    </span>
+    <span
+      className={cn(styles.badge, variant === 'secondary' ? styles.badgeSecondary : undefined, className)}
+      {...props}
+    />
   );
 }

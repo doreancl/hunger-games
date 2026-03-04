@@ -2,18 +2,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.6rem;
-  border: 1px solid transparent;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.9rem;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
   font-weight: 600;
-  line-height: 1.2;
   text-decoration: none;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  border: 1px solid transparent;
+  min-height: 44px;
+  padding: 8px 12px;
+  line-height: 1.2;
   cursor: pointer;
 }
 
-.button:focus-visible,
+.button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 40%);
+}
+
 .input:focus-visible,
 .select:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent) 60%, white 40%);
@@ -21,12 +27,25 @@
 }
 
 .buttonDefault {
-  background: linear-gradient(120deg, var(--cta-a), var(--cta-b));
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
   color: var(--cta-ink);
 }
 
 .buttonDefault:hover {
-  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px color-mix(in oklab, var(--cta-b), transparent 72%);
+  filter: brightness(1.02);
+}
+
+.buttonSecondary {
+  background: color-mix(in oklab, var(--panel), #fff 20%);
+  border-color: color-mix(in oklab, var(--border), #fff 18%);
+  color: var(--ink);
+}
+
+.buttonSecondary:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel-strong), #fff 30%);
 }
 
 .buttonOutline {
@@ -36,6 +55,7 @@
 }
 
 .buttonOutline:hover {
+  transform: translateY(-1px);
   background: var(--panel-strong);
 }
 
@@ -45,40 +65,48 @@
 }
 
 .buttonDestructive:hover {
+  transform: translateY(-1px);
   filter: brightness(1.07);
 }
 
 .buttonSm {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.82rem;
+  min-height: 38px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
 }
 
 .buttonMd {
-  padding: 0.45rem 0.9rem;
+  min-height: 44px;
+  padding: 8px 12px;
 }
 
 .card {
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: var(--panel);
-  box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 42%, white 58%);
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel), #fff 24%);
+  color: var(--ink);
 }
 
 .cardHeader {
-  padding: 1rem 1.1rem 0.35rem;
+  display: grid;
+  gap: 4px;
+  padding: 14px 14px 0;
 }
 
 .cardTitle {
   margin: 0;
+  font-family: 'Baskerville', 'Georgia', serif;
   font-size: 1.05rem;
 }
 
 .cardDescription {
+  margin: 0;
   margin-top: 0.25rem;
   color: var(--muted);
 }
 
 .cardContent {
+  padding: 14px;
   padding: 0.6rem 1.1rem 1.1rem;
 }
 
@@ -107,17 +135,20 @@
 
 .badge {
   display: inline-flex;
+  align-items: center;
   border-radius: 999px;
-  border: 1px solid transparent;
-  padding: 0.18rem 0.6rem;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 14%);
+  padding: 4px 10px;
   font-size: 0.78rem;
   font-weight: 700;
+  background: color-mix(in oklab, var(--panel), #fff 35%);
+  color: var(--ink);
 }
 
 .badgeSecondary {
+  color: var(--muted);
   background: color-mix(in oklab, var(--panel-strong) 92%, var(--bg) 8%);
   border-color: var(--border);
-  color: var(--ink);
 }
 
 .alert {
