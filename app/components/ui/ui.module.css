@@ -1,0 +1,91 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  border: 1px solid transparent;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 40%);
+  outline-offset: 2px;
+}
+
+.buttonDefault {
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
+}
+
+.buttonDefault:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px color-mix(in oklab, var(--cta-b), transparent 72%);
+  filter: brightness(1.02);
+}
+
+.buttonSecondary {
+  background: color-mix(in oklab, var(--panel), #fff 20%);
+  border-color: color-mix(in oklab, var(--border), #fff 18%);
+  color: var(--ink);
+}
+
+.buttonSecondary:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel-strong), #fff 30%);
+}
+
+.buttonSm {
+  min-height: 38px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+}
+
+.card {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel), #fff 24%);
+  color: var(--ink);
+}
+
+.cardHeader {
+  display: grid;
+  gap: 4px;
+  padding: 14px 14px 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: 'Baskerville', 'Georgia', serif;
+}
+
+.cardDescription {
+  margin: 0;
+  color: var(--muted);
+}
+
+.cardContent {
+  padding: 14px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 14%);
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: color-mix(in oklab, var(--panel), #fff 35%);
+  color: var(--ink);
+}
+
+.badgeSecondary {
+  color: var(--muted);
+}

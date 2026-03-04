@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Badge } from '@/app/components/ui/badge';
+import { Card, CardContent } from '@/app/components/ui/card';
 import type { LocalMatchSummary } from '@/lib/local-matches';
 import { dateLabel, getLobbyStatus, phaseLabel, shortId, statusLabel } from '@/lib/match-ux';
 import styles from '@/app/page.module.css';
@@ -24,34 +26,38 @@ export function MatchList({ matches, emptyState, renderActions, showStatus = fal
         const status = getLobbyStatus(match);
 
         return (
-          <li key={match.id} className={styles.matchItem}>
-            <Link href={`/sessions/${match.id}`} className={styles.matchLink}>
-              <p>
-                <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno {match.turn_number}
-              </p>
-              <p>
-                Vivos: {match.alive_count}/{match.total_participants} · Seed: {match.settings.seed ?? 'sin seed'}
-              </p>
-              <p>Actualizada: {dateLabel(match.updated_at)}</p>
-            </Link>
+          <li key={match.id}>
+            <Card className={styles.matchItem}>
+              <CardContent>
+                <Link href={`/sessions/${match.id}`} className={styles.matchLink}>
+                  <p>
+                    <strong>{shortId(match.id)}</strong> · {phaseLabel(match.cycle_phase)} · turno {match.turn_number}
+                  </p>
+                  <p>
+                    Vivos: {match.alive_count}/{match.total_participants} · Seed: {match.settings.seed ?? 'sin seed'}
+                  </p>
+                  <p>Actualizada: {dateLabel(match.updated_at)}</p>
+                </Link>
 
-            {showStatus ? (
-              <p>
-                <span
-                  className={`${styles.statusBadge} ${
-                    status === 'running'
-                      ? styles.statusRunning
-                      : status === 'finished'
-                        ? styles.statusFinished
-                        : styles.statusSetup
-                  }`}
-                >
-                  {statusLabel(status)}
-                </span>
-              </p>
-            ) : null}
+                {showStatus ? (
+                  <p>
+                    <Badge
+                      className={
+                        status === 'running'
+                          ? styles.statusRunning
+                          : status === 'finished'
+                            ? styles.statusFinished
+                            : styles.statusSetup
+                      }
+                    >
+                      {statusLabel(status)}
+                    </Badge>
+                  </p>
+                ) : null}
 
-            <div className={styles.inlineControls}>{renderActions(match)}</div>
+                <div className={styles.inlineControls}>{renderActions(match)}</div>
+              </CardContent>
+            </Card>
           </li>
         );
       })}
