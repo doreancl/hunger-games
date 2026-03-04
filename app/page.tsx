@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
 import { MatchList } from '@/app/components/match-list';
+import { Badge } from '@/app/components/ui/badge';
+import { buttonVariants } from '@/app/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
 import { quickAccessMatches } from '@/lib/match-ux';
 
@@ -136,10 +139,10 @@ export default function Home() {
             </div>
             <p className={styles.heroMeta}>Crea una simulacion nueva o retoma una reciente en segundos.</p>
             <div className={styles.heroActions}>
-              <Link className={`${styles.button} ${styles.heroPrimary}`} href="/new" onClick={startTransitionToMatch}>
+              <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
                 Iniciar partida
               </Link>
-              <Link className={`${styles.button} ${styles.heroSecondary}`} href="/sessions">
+              <Link className={buttonVariants({ variant: 'secondary' })} href="/sessions">
                 Abrir historial
               </Link>
             </div>
@@ -156,39 +159,42 @@ export default function Home() {
             <article className={styles.heroStat}>
               <p className={styles.heroStatLabel}>Estado</p>
               {quickMatches.length > 0
-                ? <p className={styles.heroAsideHint}>Listo para reanudar.</p>
-                : <p className={styles.heroAsideHint}>Sin partidas guardadas.</p>}
+                ? <Badge className={styles.heroAsideHint}>Listo para reanudar.</Badge>
+                : <Badge variant="secondary" className={styles.heroAsideHint}>Sin partidas guardadas.</Badge>}
             </article>
           </div>
         </header>
 
-        <section className={styles.lobbyQuick}>
-          <h2 className={styles.cardTitle}>Acceso rapido</h2>
-          <p className={styles.cardHint}>Las partidas mas recientes aparecen primero.</p>
-
-          <MatchList
-            matches={quickMatches}
-            emptyState={
-              <div>
-                <p>No hay partidas guardadas todavia.</p>
-                <Link className={styles.button} href="/new" onClick={startTransitionToMatch}>
-                  Iniciar partida
-                </Link>
-              </div>
-            }
-            renderActions={(match) => (
-              <>
-                <Link
-                  className={styles.button}
-                  href={`/sessions/${match.id}`}
-                  onClick={startTransitionToMatch}
-                >
-                  Reanudar
-                </Link>
-              </>
-            )}
-          />
-        </section>
+        <Card className={styles.lobbyQuick}>
+          <CardHeader>
+            <CardTitle>Acceso rapido</CardTitle>
+            <CardDescription>Las partidas mas recientes aparecen primero.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MatchList
+              matches={quickMatches}
+              emptyState={
+                <div>
+                  <p>No hay partidas guardadas todavia.</p>
+                  <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
+                    Iniciar partida
+                  </Link>
+                </div>
+              }
+              renderActions={(match) => (
+                <>
+                  <Link
+                    className={buttonVariants({ size: 'sm' })}
+                    href={`/sessions/${match.id}`}
+                    onClick={startTransitionToMatch}
+                  >
+                    Reanudar
+                  </Link>
+                </>
+              )}
+            />
+          </CardContent>
+        </Card>
 
         {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
       </div>
