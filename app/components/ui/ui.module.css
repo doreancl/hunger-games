@@ -1,0 +1,192 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  border: 1px solid transparent;
+  min-height: 44px;
+  padding: 8px 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 40%);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, white 40%);
+  outline-offset: 2px;
+}
+
+.buttonDefault {
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+  color: var(--cta-ink);
+}
+
+.buttonDefault:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px color-mix(in oklab, var(--cta-b), transparent 72%);
+  filter: brightness(1.02);
+}
+
+.buttonSecondary {
+  background: color-mix(in oklab, var(--panel), #fff 20%);
+  border-color: color-mix(in oklab, var(--border), #fff 18%);
+  color: var(--ink);
+}
+
+.buttonSecondary:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel-strong), #fff 30%);
+}
+
+.buttonOutline {
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--panel) 85%, var(--bg) 15%);
+  color: var(--ink);
+}
+
+.buttonOutline:hover {
+  transform: translateY(-1px);
+  background: var(--panel-strong);
+}
+
+.buttonGhost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.buttonGhost:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel-strong), transparent 24%);
+}
+
+.buttonDestructive {
+  background: color-mix(in oklab, var(--danger) 88%, black 12%);
+  color: white;
+}
+
+.buttonDestructive:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
+.buttonSm {
+  min-height: 38px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+}
+
+.buttonMd {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.card {
+  border: 1px solid color-mix(in oklab, var(--border), #fff 16%);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel), #fff 24%);
+  color: var(--ink);
+}
+
+.cardHeader {
+  display: grid;
+  gap: 4px;
+  padding: 14px 14px 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: 'Baskerville', 'Georgia', serif;
+  font-size: 1.05rem;
+}
+
+.cardDescription {
+  margin: 0;
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+
+.cardContent {
+  padding: 14px;
+  padding: 0.6rem 1.1rem 1.1rem;
+}
+
+.input,
+.select {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--ink);
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 14%);
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: color-mix(in oklab, var(--panel), #fff 35%);
+  color: var(--ink);
+}
+
+.badgeSecondary {
+  color: var(--muted);
+  background: color-mix(in oklab, var(--panel-strong) 92%, var(--bg) 8%);
+  border-color: var(--border);
+}
+
+.badgeDestructive {
+  color: white;
+  background: color-mix(in oklab, var(--danger) 88%, black 12%);
+  border-color: color-mix(in oklab, var(--danger), black 20%);
+}
+
+.badgeWarning {
+  color: var(--ink);
+  background: color-mix(in oklab, #f2ca7f, white 25%);
+  border-color: color-mix(in oklab, #f2ca7f, var(--border) 35%);
+}
+
+.badgeSuccess {
+  color: var(--ink);
+  background: color-mix(in oklab, #97d2b2, white 20%);
+  border-color: color-mix(in oklab, #97d2b2, var(--border) 35%);
+}
+
+.alert {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--panel) 90%, var(--bg) 10%);
+  padding: 0.8rem 1rem;
+  color: var(--ink);
+}
+
+.alertDescription {
+  margin: 0;
+}
