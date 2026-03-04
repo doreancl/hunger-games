@@ -31,6 +31,13 @@ import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
 import { useRosterSelection } from './use-roster-selection';
 import { CatalogSelection } from './components/catalog-selection';
 import { RosterPreview } from './components/roster-preview';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -1181,14 +1188,13 @@ export function MatchStudioPage({
                   : 'OK'}
             </span>
           </div>
-          <label className={styles.autosaveToggle}>
-            <input
-              type="checkbox"
+          <Label className={styles.autosaveToggle}>
+            <Switch
               checked={autosaveEnabled}
               onChange={(event) => onToggleAutosave(event.target.checked)}
             />
             Guardar local
-          </label>
+          </Label>
           {!autosaveEnabled ? (
             <p className={styles.autosaveWarning}>
               Guardado local OFF: cualquier refresh o reinicio borra esta partida.
@@ -1216,19 +1222,11 @@ export function MatchStudioPage({
 
           <div className={styles.tension} aria-label="barra de tension">
             <strong>Tension {Math.round(tensionValue)}%</strong>
-            <div
-              className={styles.tensionTrack}
-              role="progressbar"
+            <Progress
               aria-label="Nivel de tension"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(Math.min(100, tensionValue))}
-            >
-              <div
-                className={styles.tensionBar}
-                style={{ transform: `scaleX(${Math.min(100, tensionValue) / 100})` }}
-              />
-            </div>
+              value={Math.round(Math.min(100, tensionValue))}
+              className="mt-2"
+            />
           </div>
         </header>
 
@@ -1243,8 +1241,7 @@ export function MatchStudioPage({
                   {isCatalogEmpty ? (
                     <div>
                       <p>No hay personajes disponibles en el catalogo.</p>
-                      <button
-                        className={styles.button}
+                      <Button
                         type="button"
                         onClick={() => {
                           setCatalogResult(
@@ -1256,7 +1253,7 @@ export function MatchStudioPage({
                         }}
                       >
                         Reintentar carga
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <div className={styles.catalogSetup}>
@@ -1283,48 +1280,45 @@ export function MatchStudioPage({
                 </div>
 
                 <div className={styles.controlsGrid}>
-                  <label className={styles.controlLabel}>
+                  <Label className={styles.controlLabel}>
                     Seed (opcional)
                     <div className={styles.inlineControls}>
-                      <input
-                        className={styles.input}
+                      <Input
                         value={seed}
                         onChange={(event) => setSeed(event.target.value)}
                         placeholder="manual o aleatoria"
                       />
-                      <button className={styles.button} type="button" onClick={generateSeed}>
+                      <Button type="button" onClick={generateSeed}>
                         Aleatoria
-                      </button>
+                      </Button>
                     </div>
-                  </label>
+                  </Label>
 
-                  <label className={styles.controlLabel}>
+                  <Label className={styles.controlLabel}>
                     Ritmo inicial
-                    <select
-                      className={styles.select}
+                    <Select
                       value={simulationSpeed}
                       onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
                     >
                       <option value="1x">1x</option>
                       <option value="2x">2x</option>
                       <option value="4x">4x</option>
-                    </select>
-                  </label>
+                    </Select>
+                  </Label>
 
-                  <button
-                    className={`${styles.button} ${styles.buttonGhost}`}
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => setShowAdvanced((current) => !current)}
                   >
                     {showAdvanced ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
-                  </button>
+                  </Button>
 
                   {showAdvanced ? (
                     <>
-                      <label className={styles.controlLabel}>
+                      <Label className={styles.controlLabel}>
                         Perfil de eventos
-                        <select
-                          className={styles.select}
+                        <Select
                           value={eventProfile}
                           onChange={(event) =>
                             setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
@@ -1333,13 +1327,12 @@ export function MatchStudioPage({
                           <option value="balanced">Balanced</option>
                           <option value="aggressive">Aggressive</option>
                           <option value="chaotic">Chaotic</option>
-                        </select>
-                      </label>
+                        </Select>
+                      </Label>
 
-                      <label className={styles.controlLabel}>
+                      <Label className={styles.controlLabel}>
                         Nivel de sorpresa
-                        <select
-                          className={styles.select}
+                        <Select
                           value={surpriseLevel}
                           onChange={(event) =>
                             setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')
@@ -1348,17 +1341,17 @@ export function MatchStudioPage({
                           <option value="low">Low</option>
                           <option value="normal">Normal</option>
                           <option value="high">High</option>
-                        </select>
-                      </label>
+                        </Select>
+                      </Label>
                     </>
                   ) : null}
                 </div>
 
                 <div>
-                  <strong>
+                  <Badge variant="secondary">
                     Roster: {selectedCharacters.length} | Seed:{' '}
                     {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
-                  </strong>
+                  </Badge>
                   {setupValidation.issues.length > 0 ? (
                     <ul>
                       {setupValidation.issues.map((issue) => (
@@ -1370,8 +1363,7 @@ export function MatchStudioPage({
                   )}
 
                   <div className={styles.inlineControls}>
-                    <button
-                      className={styles.button}
+                    <Button
                       type="button"
                       disabled={!setupCanStart || isBusy}
                       onClick={() => {
@@ -1379,9 +1371,8 @@ export function MatchStudioPage({
                       }}
                     >
                       Iniciar simulacion
-                    </button>
-                    <button
-                      className={styles.button}
+                    </Button>
+                    <Button
                       type="button"
                       onClick={() => {
                         router.replace('/new', { scroll: false });
@@ -1389,9 +1380,9 @@ export function MatchStudioPage({
                       }}
                     >
                       Nuevo setup
-                    </button>
+                    </Button>
                     <Link
-                      className={`${styles.button} ${styles.buttonGhost}`}
+                      className={buttonVariants({ variant: 'outline' })}
                       href="/"
                       onClick={onReturnToLobby}
                     >

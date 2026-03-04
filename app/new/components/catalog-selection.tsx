@@ -1,4 +1,8 @@
-import styles from '../page.module.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import type { FranchiseEntry } from '@/lib/domain/types';
 
 type MovieOption = {
@@ -28,67 +32,61 @@ export function CatalogSelection(props: CatalogSelectionProps) {
   } = props;
 
   return (
-    <>
-      <div>
-        <strong>1) Franquicia</strong>
-        <div className={styles.catalogSelectionGrid}>
+    <Card>
+      <CardHeader className="space-y-4">
+        <CardTitle className="text-base">1) Franquicia y catalogo</CardTitle>
+        <div className="flex flex-wrap gap-2">
           {franchiseOptions.map((franchise) => (
-            <button
+            <Button
               key={franchise.franchise_id}
               type="button"
-              className={`${styles.button} ${
-                selectedFranchiseId === franchise.franchise_id
-                  ? styles.buttonSelected
-                  : styles.buttonGhost
-              }`}
+              variant={selectedFranchiseId === franchise.franchise_id ? 'default' : 'outline'}
               onClick={() => onSelectFranchise(franchise.franchise_id)}
             >
               {franchise.franchise_name}
-            </button>
+            </Button>
           ))}
         </div>
-      </div>
-
-      <div>
-        <strong>2) Peliculas</strong>
-        {selectedFranchiseId ? (
-          moviesForSelectedFranchise.length > 0 ? (
-            <div className={styles.movieGrid}>
-              {moviesForSelectedFranchise.map((movie) => (
-                <label
-                  key={movie.movie_id}
-                  htmlFor={`movie-${movie.movie_id}`}
-                  className={styles.characterToggle}
-                >
-                  <input
-                    id={`movie-${movie.movie_id}`}
-                    type="checkbox"
-                    checked={selectedMovieIds.includes(movie.movie_id)}
-                    onChange={() => toggleMovie(movie.movie_id)}
-                  />
-                  {movie.movie_title}
-                </label>
-              ))}
-            </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold">2) Peliculas</h4>
+          {selectedFranchiseId ? (
+            moviesForSelectedFranchise.length > 0 ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {moviesForSelectedFranchise.map((movie) => {
+                  const checked = selectedMovieIds.includes(movie.movie_id);
+                  return (
+                    <Label key={movie.movie_id} htmlFor={`movie-${movie.movie_id}`} className="flex items-center gap-2 rounded-md border p-3">
+                      <Checkbox
+                        id={`movie-${movie.movie_id}`}
+                        checked={checked}
+                        onChange={() => toggleMovie(movie.movie_id)}
+                      />
+                      {movie.movie_title}
+                    </Label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No hay peliculas disponibles para la franquicia elegida.</p>
+            )
           ) : (
-            <p>No hay peliculas disponibles para la franquicia elegida.</p>
-          )
-        ) : (
-          <p>Selecciona una franquicia para habilitar peliculas.</p>
-        )}
-      </div>
+            <p className="text-sm text-muted-foreground">Selecciona una franquicia para habilitar peliculas.</p>
+          )}
+        </div>
 
-      <div className={styles.inlineControls}>
-        <button
-          className={styles.button}
-          type="button"
-          onClick={onGenerateRoster}
-          disabled={!selectedFranchiseId || selectedMovieIds.length === 0}
-        >
-          Generar roster
-        </button>
-        <span>Peliculas activas: {selectedMovieIds.length}</span>
-      </div>
-    </>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            onClick={onGenerateRoster}
+            disabled={!selectedFranchiseId || selectedMovieIds.length === 0}
+          >
+            Generar roster
+          </Button>
+          <Badge variant="secondary">Peliculas activas: {selectedMovieIds.length}</Badge>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
