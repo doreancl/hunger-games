@@ -12,10 +12,17 @@
   border: 1px solid transparent;
   min-height: 44px;
   padding: 8px 12px;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 .button:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 40%);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, white 40%);
   outline-offset: 2px;
 }
 
@@ -41,10 +48,36 @@
   background: color-mix(in oklab, var(--panel-strong), #fff 30%);
 }
 
+.buttonOutline {
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--panel) 85%, var(--bg) 15%);
+  color: var(--ink);
+}
+
+.buttonOutline:hover {
+  transform: translateY(-1px);
+  background: var(--panel-strong);
+}
+
+.buttonDestructive {
+  background: color-mix(in oklab, var(--danger) 88%, black 12%);
+  color: white;
+}
+
+.buttonDestructive:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
 .buttonSm {
   min-height: 38px;
   font-size: 0.85rem;
   padding: 6px 10px;
+}
+
+.buttonMd {
+  min-height: 44px;
+  padding: 8px 12px;
 }
 
 .card {
@@ -63,15 +96,41 @@
 .cardTitle {
   margin: 0;
   font-family: 'Baskerville', 'Georgia', serif;
+  font-size: 1.05rem;
 }
 
 .cardDescription {
   margin: 0;
+  margin-top: 0.25rem;
   color: var(--muted);
 }
 
 .cardContent {
   padding: 14px;
+  padding: 0.6rem 1.1rem 1.1rem;
+}
+
+.input,
+.select {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--ink);
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .badge {
@@ -88,4 +147,18 @@
 
 .badgeSecondary {
   color: var(--muted);
+  background: color-mix(in oklab, var(--panel-strong) 92%, var(--bg) 8%);
+  border-color: var(--border);
+}
+
+.alert {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--panel) 90%, var(--bg) 10%);
+  padding: 0.8rem 1rem;
+  color: var(--ink);
+}
+
+.alertDescription {
+  margin: 0;
 }

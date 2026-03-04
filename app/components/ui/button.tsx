@@ -2,8 +2,8 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import styles from './ui.module.css';
 
-type ButtonVariant = 'default' | 'secondary';
-type ButtonSize = 'default' | 'sm';
+type ButtonVariant = 'default' | 'secondary' | 'outline' | 'destructive';
+type ButtonSize = 'default' | 'sm' | 'md';
 
 type ButtonVariantOptions = {
   variant?: ButtonVariant;
@@ -18,12 +18,23 @@ export function buttonVariants({
 }: ButtonVariantOptions = {}): string {
   return cn(
     styles.button,
-    variant === 'default' ? styles.buttonDefault : styles.buttonSecondary,
-    size === 'sm' ? styles.buttonSm : undefined,
+    variant === 'default'
+      ? styles.buttonDefault
+      : variant === 'secondary'
+        ? styles.buttonSecondary
+        : variant === 'outline'
+          ? styles.buttonOutline
+          : styles.buttonDestructive,
+    size === 'sm' ? styles.buttonSm : size === 'md' ? styles.buttonMd : undefined,
     className
   );
 }
 
-export function Button({ className, type = 'button', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type={type} className={buttonVariants({ className })} {...props} />;
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+};
+
+export function Button({ className, type = 'button', variant, size, ...props }: ButtonProps) {
+  return <button type={type} className={buttonVariants({ variant, size, className })} {...props} />;
 }
