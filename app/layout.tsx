@@ -18,6 +18,7 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   const cloudflareAnalyticsToken =
     process.env.NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN;
+  const googleAnalyticsId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -29,6 +30,24 @@ export default function RootLayout({ children }: RootLayoutProps) {
         {children}
         <AgentationDevtools />
         <Analytics />
+        {googleAnalyticsId ? (
+          <>
+            <Script
+              id="ga4-script"
+              src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){window.dataLayer.push(arguments);}
+                window.gtag = gtag;
+                gtag('js', new Date());
+                gtag('config', '${googleAnalyticsId}', { send_page_view: true });
+              `}
+            </Script>
+          </>
+        ) : null}
         {cloudflareAnalyticsToken ? (
           <Script
             defer
