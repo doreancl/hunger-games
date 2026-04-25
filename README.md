@@ -49,9 +49,14 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 ## Observabilidad
 
 - Vercel Analytics habilitado en `app/layout.tsx` con `@vercel/analytics`.
+- Google Analytics 4 habilitado en `app/layout.tsx` con `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+- PostHog habilitado en `app/layout.tsx` con `NEXT_PUBLIC_POSTHOG_KEY` y `NEXT_PUBLIC_POSTHOG_HOST`.
 - Cloudflare Web Analytics habilitado en `app/layout.tsx` usando el beacon oficial.
-- Configuracion necesaria para Cloudflare:
-  - definir `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN` en el entorno de despliegue.
+- Configuracion necesaria:
+  - `NEXT_PUBLIC_GA_MEASUREMENT_ID`
+  - `NEXT_PUBLIC_POSTHOG_KEY`
+  - `NEXT_PUBLIC_POSTHOG_HOST`
+  - `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`
 
 ### Validar Vercel Analytics
 
@@ -64,6 +69,18 @@ Aplicacion local: [http://localhost:3000](http://localhost:3000)
 1. Configurar el token de Web Analytics de Cloudflare en `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`.
 2. Desplegar y navegar la app.
 3. Revisar `Cloudflare Dashboard -> Web Analytics` y confirmar page views/eventos.
+
+### Validar Google Analytics 4
+
+1. Configurar el measurement ID en `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+2. Desplegar y navegar la app.
+3. Revisar `Google Analytics -> Reports -> Realtime`.
+
+### Validar PostHog
+
+1. Configurar `NEXT_PUBLIC_POSTHOG_KEY` y `NEXT_PUBLIC_POSTHOG_HOST`.
+2. Desplegar y navegar la app.
+3. Revisar PostHog por host `hunger-games.sebecode.com`.
 
 ## Flujo funcional
 
