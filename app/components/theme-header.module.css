@@ -26,39 +26,6 @@
   font-size: 0.72rem;
 }
 
-.themes {
-  display: flex;
-  gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.themes::-webkit-scrollbar {
-  display: none;
-}
-
-.chip {
-  border: 1px solid color-mix(in oklab, var(--border), #fff 22%);
-  border-radius: 999px;
-  padding: 5px 9px;
-  background: color-mix(in oklab, var(--panel), #fff 22%);
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.7rem;
-  font-weight: 620;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.chipActive {
-  border-color: color-mix(in oklab, var(--accent-2), #fff 20%);
-  background: color-mix(in oklab, var(--accent-2), #fff 82%);
-  color: color-mix(in oklab, var(--ink), #000 8%);
-}
-
 .links {
   margin-left: auto;
   display: flex;
@@ -81,11 +48,51 @@
   background: color-mix(in oklab, var(--panel), #fff 18%);
 }
 
-.chip:focus-visible,
 .navLink:focus-visible,
-.brand:focus-visible {
+.brand:focus-visible,
+.themeSelect:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent-2), var(--accent) 35%);
   outline-offset: 2px;
+}
+
+.footer {
+  border-top: 1px solid color-mix(in oklab, var(--border), #fff 18%);
+  background: color-mix(in oklab, var(--bg), #fff 10%);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.footerInner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.themeField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 620;
+}
+
+.themeLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.themeSelect {
+  min-width: 180px;
+  border: 1px solid color-mix(in oklab, var(--border), #fff 22%);
+  border-radius: 8px;
+  padding: 6px 30px 6px 9px;
+  background: color-mix(in oklab, var(--panel), #fff 18%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {
@@ -93,12 +100,16 @@
     gap: 8px;
   }
 
-  .themes {
-    order: 3;
-    width: 100%;
-  }
-
   .links {
     margin-left: auto;
+  }
+
+  .footerInner {
+    justify-content: stretch;
+  }
+
+  .themeField,
+  .themeSelect {
+    width: 100%;
   }
 }

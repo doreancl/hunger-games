@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from '../page.module.css';
-import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { Badge } from '@/app/components/ui/badge';
-import { Button } from '@/app/components/ui/button';
-import { ButtonLink } from '@/app/components/ui/button-link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
-import { Select } from '@/app/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ButtonLink } from '@/components/ui/button-link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { loadLocalMatchesFromStorage, saveLocalMatchesToStorage, type LocalMatchSummary } from '@/lib/local-matches';
 import {
   dateLabel,
@@ -102,18 +102,37 @@ export default function MatchesHistoryPage() {
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
-        <header className={styles.hero}>
-          <div className={styles.heroTop}>
-            <h1 className={styles.title}>Historial de partidas</h1>
-            <strong>{localMatches.length} partidas locales</strong>
-          </div>
-          <p className={styles.heroMeta}>Gestiona todas tus partidas locales desde un solo lugar.</p>
+        <header className={styles.lobbyHero}>
+          <div className={styles.heroLead}>
+            <div className={styles.heroTop}>
+              <h1 className={styles.title}>Historial de partidas</h1>
+              <strong className={styles.heroCount}>{localMatches.length} partidas</strong>
+            </div>
+            <p className={styles.heroMeta}>Gestiona todas tus partidas locales desde un solo lugar.</p>
 
-          <div className={styles.inlineControls}>
-            <ButtonLink href="/new">Iniciar partida</ButtonLink>
-            <ButtonLink href="/" variant="outline">
-              Volver al lobby
-            </ButtonLink>
+            <div className={styles.heroActions}>
+              <ButtonLink href="/new">Iniciar partida</ButtonLink>
+              <ButtonLink href="/" variant="outline">
+                Volver al lobby
+              </ButtonLink>
+            </div>
+          </div>
+
+          <div className={styles.heroStats} aria-label="Resumen de historial">
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Partidas locales</p>
+              <p className={styles.heroStatValue}>{localMatches.length}</p>
+            </article>
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Visibles</p>
+              <p className={styles.heroStatValue}>{filteredMatches.length}</p>
+            </article>
+            <article className={styles.heroStat}>
+              <p className={styles.heroStatLabel}>Filtro</p>
+              <p className={styles.heroStatValue}>
+                {statusFilter === 'all' ? 'Todos' : statusLabel(statusFilter)}
+              </p>
+            </article>
           </div>
         </header>
 

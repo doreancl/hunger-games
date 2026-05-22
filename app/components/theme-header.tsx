@@ -16,9 +16,11 @@ function applyTheme(theme: LobbyTheme): void {
   document.documentElement.setAttribute('data-lobby-theme', theme);
 }
 
-export function ThemeHeader() {
+function useLobbyTheme(): {
+  theme: LobbyTheme;
+  onSwapTheme: (nextTheme: LobbyTheme) => void;
+} {
   const [theme, setTheme] = useState<LobbyTheme>(DEFAULT_LOBBY_THEME);
-  const pathname = usePathname();
 
   useEffect(() => {
     const raw = window.localStorage.getItem(LOBBY_THEME_STORAGE_KEY);
@@ -37,25 +39,18 @@ export function ThemeHeader() {
     applyTheme(nextTheme);
   }
 
+  return { theme, onSwapTheme };
+}
+
+export function ThemeHeader() {
+  const pathname = usePathname();
+
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
         <Link href="/" className={styles.brand}>
           Hunger Games
         </Link>
-
-        <div className={styles.themes} aria-label="Selector global de tema">
-          {LOBBY_THEMES.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`${styles.chip} ${theme === option.id ? styles.chipActive : ''}`}
-              onClick={() => onSwapTheme(option.id)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
 
         <nav className={styles.links} aria-label="Navegacion principal">
           <Link
@@ -79,5 +74,36 @@ export function ThemeHeader() {
         </nav>
       </div>
     </header>
+  );
+}
+
+export function ThemeFooter() {
+  const { theme, onSwapTheme } = useLobbyTheme();
+
+  return (
+    <footer className={styles.footer}>
+      <div className={styles.footerInner}>
+        <label className={styles.themeField}>
+          <span className={styles.themeLabel}>Tema</span>
+          <select
+            className={styles.themeSelect}
+            value={theme}
+            onChange={(event) => {
+              const nextTheme = event.target.value;
+              if (isLobbyTheme(nextTheme)) {
+                onSwapTheme(nextTheme);
+              }
+            }}
+            aria-label="Selector global de tema"
+          >
+            {LOBBY_THEMES.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </footer>
   );
 }

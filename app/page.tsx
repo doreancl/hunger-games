@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
 import { MatchList } from '@/app/components/match-list';
-import { Badge } from '@/app/components/ui/badge';
-import { buttonVariants } from '@/app/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
 import { quickAccessMatches } from '@/lib/match-ux';
 

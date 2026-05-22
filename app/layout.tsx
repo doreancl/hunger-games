@@ -3,8 +3,12 @@ import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { AgentationDevtools } from '@/app/components/agentation-devtools';
-import { ThemeHeader } from '@/app/components/theme-header';
+import { ThemeFooter, ThemeHeader } from '@/app/components/theme-header';
 import './theme.css';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'Hunger Games Simulator',
@@ -21,13 +25,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const googleAnalyticsId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body>
         <Script id="init-lobby-theme" strategy="beforeInteractive">
           {`(function(){try{const key='hg_lobby_theme';const raw=localStorage.getItem(key);const fallback='neon-future';const valid=['neon-future','retro-pixel','apple-bubbles','graphite-sport','forest-editorial'];const themeValue=valid.includes(raw)?raw:fallback;document.documentElement.setAttribute('data-lobby-theme',themeValue);}catch(_e){document.documentElement.setAttribute('data-lobby-theme','neon-future');}})();`}
         </Script>
         <ThemeHeader />
         {children}
+        <ThemeFooter />
         <AgentationDevtools />
         <Analytics />
         {googleAnalyticsId ? (

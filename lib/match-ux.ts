@@ -162,13 +162,6 @@ export function getSetupRosterPreview(args: {
   selectedCharacterIds: string[];
   selectableCharacterIds: string[];
 }): { mode: 'empty' | 'catalog' | 'fallback'; characterIds: string[] } {
-  if (args.selectedCharacterIds.length === 0) {
-    return {
-      mode: 'empty',
-      characterIds: []
-    };
-  }
-
   if (args.hasCatalogSelection) {
     if (args.selectableCharacterIds.length === 0) {
       return {
@@ -180,6 +173,13 @@ export function getSetupRosterPreview(args: {
     return {
       mode: 'catalog',
       characterIds: args.selectableCharacterIds
+    };
+  }
+
+  if (args.selectedCharacterIds.length === 0) {
+    return {
+      mode: 'empty',
+      characterIds: []
     };
   }
 

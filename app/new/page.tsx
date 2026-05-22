@@ -31,14 +31,13 @@ import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
 import { useRosterSelection } from './use-roster-selection';
 import { CatalogSelection } from './components/catalog-selection';
 import { RosterPreview } from './components/roster-preview';
-import { Badge } from '@/app/components/ui/badge';
-import { Button, buttonVariants } from '@/app/components/ui/button';
-import { Card, CardContent } from '@/app/components/ui/card';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
-import { Progress } from '@/app/components/ui/progress';
-import { Select } from '@/app/components/ui/select';
-import { Switch } from '@/app/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -1176,75 +1175,86 @@ export function MatchStudioPage({
   return (
     <main className={styles.page} aria-busy={isTransitioning}>
       <div className={styles.shell}>
-        <Card className={styles.hero}>
-          <CardContent>
-          <div className={styles.heroTop}>
-            <h1 className={styles.title}>Hunger Games Simulator</h1>
-            <div className={styles.inlineControls}>
-              <strong>{runtime?.phase === 'finished' ? 'Partida cerrada' : 'Simulacion en vivo'}</strong>
-              <Link className={styles.button} href="/" onClick={onReturnToLobby}>
+        <header className={styles.lobbyHero}>
+          <div className={styles.heroLead}>
+            <div className={styles.heroTop}>
+              <h1 className={styles.title}>{runtime ? 'Hunger Games Simulator' : 'Nueva partida'}</h1>
+              <strong className={styles.heroCount}>
+                {runtime?.phase === 'finished'
+                  ? 'Partida cerrada'
+                  : runtime
+                    ? 'Simulacion en vivo'
+                    : 'Setup'}
+              </strong>
+            </div>
+            <p className={styles.heroMeta}>
+              {runtime
+                ? <>Fase actual: <strong>{phaseLabel(currentPhase)}</strong></>
+                : 'Configura franquicia, peliculas, roster y ritmo antes de iniciar.'}
+            </p>
+            <div className={styles.heroActions}>
+              <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
                 Volver al Lobby
               </Link>
             </div>
-          </div>
-          <p className={styles.heroMeta}>
-            Fase actual: <strong>{phaseLabel(currentPhase)}</strong>
-          </p>
-          <div className={styles.sessionBar}>
-            <span>
-              Sesion actual: <strong>{currentSessionSizeLabel}</strong>
-            </span>
-            <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
-              {currentSessionSizeTone === 'critical'
-                ? 'Critico'
-                : currentSessionSizeTone === 'high'
-                  ? 'Alto'
-                  : 'OK'}
-            </Badge>
-          </div>
-          <label className={styles.autosaveToggle}>
-            <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
-            Guardar local
-          </label>
-          {!autosaveEnabled ? (
-            <p className={styles.autosaveWarning}>
-              Guardado local OFF: cualquier refresh o reinicio borra esta partida.
-            </p>
-          ) : null}
-
-          <div className={styles.kpis}>
-            <div className={styles.kpi} data-testid="kpi-turn">
-              <span className={styles.kpiLabel}>Turno</span>
-              <div className={styles.kpiValue}>{currentTurn}</div>
-            </div>
-            <div className={styles.kpi} data-testid="kpi-alive">
-              <span className={styles.kpiLabel}>Vivos</span>
-              <div className={styles.kpiValue}>{aliveCount}</div>
-            </div>
-            <div className={styles.kpi} data-testid="kpi-eliminated">
-              <span className={styles.kpiLabel}>Eliminados</span>
-              <div className={styles.kpiValue}>{eliminatedCount}</div>
-            </div>
-            <div className={styles.kpi} data-testid="kpi-speed">
-              <span className={styles.kpiLabel}>Ritmo</span>
-              <div className={styles.kpiValue}>{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</div>
-            </div>
+            {runtime ? (
+              <>
+                <div className={styles.sessionBar}>
+                  <span>
+                    Sesion actual: <strong>{currentSessionSizeLabel}</strong>
+                  </span>
+                  <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
+                    {currentSessionSizeTone === 'critical'
+                      ? 'Critico'
+                      : currentSessionSizeTone === 'high'
+                        ? 'Alto'
+                        : 'OK'}
+                  </Badge>
+                </div>
+                <label className={styles.autosaveToggle}>
+                  <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
+                  Guardar local
+                </label>
+                {!autosaveEnabled ? (
+                  <p className={styles.autosaveWarning}>
+                    Guardado local OFF: cualquier refresh o reinicio borra esta partida.
+                  </p>
+                ) : null}
+                <div className={styles.tension} aria-label="barra de tension">
+                  <strong>Tension {Math.round(tensionValue)}%</strong>
+                  <Progress
+                    className={styles.tensionTrack}
+                    role="progressbar"
+                    aria-label="Nivel de tension"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(Math.min(100, tensionValue))}
+                    value={tensionValue}
+                  />
+                </div>
+              </>
+            ) : null}
           </div>
 
-          <div className={styles.tension} aria-label="barra de tension">
-            <strong>Tension {Math.round(tensionValue)}%</strong>
-            <Progress
-              className={styles.tensionTrack}
-              role="progressbar"
-              aria-label="Nivel de tension"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(Math.min(100, tensionValue))}
-              value={tensionValue}
-            />
+          <div className={styles.heroStats} aria-label={runtime ? 'Estado de simulacion' : 'Estado de setup'}>
+            <article className={styles.heroStat} data-testid="kpi-turn">
+              <p className={styles.heroStatLabel}>{runtime ? 'Turno' : 'Roster'}</p>
+              <p className={styles.heroStatValue}>{runtime ? currentTurn : selectedCharacters.length}</p>
+            </article>
+            <article className={styles.heroStat} data-testid="kpi-alive">
+              <p className={styles.heroStatLabel}>{runtime ? 'Vivos' : 'Peliculas'}</p>
+              <p className={styles.heroStatValue}>{runtime ? aliveCount : selectedMovieIds.length}</p>
+            </article>
+            <article className={styles.heroStat} data-testid="kpi-eliminated">
+              <p className={styles.heroStatLabel}>{runtime ? 'Eliminados' : 'Estado'}</p>
+              <p className={styles.heroStatValue}>{runtime ? eliminatedCount : setupCanStart ? 'Listo' : 'Pendiente'}</p>
+            </article>
+            <article className={styles.heroStat} data-testid="kpi-speed">
+              <p className={styles.heroStatLabel}>Ritmo</p>
+              <p className={styles.heroStatValue}>{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</p>
+            </article>
           </div>
-          </CardContent>
-        </Card>
+        </header>
 
         <div className={styles.columns}>
           {!runtime && !isSessionView ? (

@@ -224,6 +224,11 @@ describe('match ux helpers', () => {
       selectedCharacterIds: ['sw-luke'],
       selectableCharacterIds: []
     });
+    const ungeneratedCatalogPreview = getSetupRosterPreview({
+      hasCatalogSelection: true,
+      selectedCharacterIds: [],
+      selectableCharacterIds: ['sw-luke', 'sw-leia']
+    });
     const catalogPreview = getSetupRosterPreview({
       hasCatalogSelection: true,
       selectedCharacterIds: ['sw-luke'],
@@ -233,6 +238,10 @@ describe('match ux helpers', () => {
     expect(emptyCatalogPreview).toEqual({
       mode: 'empty',
       characterIds: []
+    });
+    expect(ungeneratedCatalogPreview).toEqual({
+      mode: 'catalog',
+      characterIds: ['sw-luke', 'sw-leia']
     });
     expect(catalogPreview).toEqual({
       mode: 'catalog',

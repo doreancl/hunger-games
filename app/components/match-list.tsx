@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Badge } from '@/app/components/ui/badge';
-import { Card, CardContent } from '@/app/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import type { LocalMatchSummary } from '@/lib/local-matches';
 import { dateLabel, getLobbyStatus, phaseLabel, shortId, statusLabel } from '@/lib/match-ux';
 import styles from '@/app/page.module.css';

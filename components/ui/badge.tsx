@@ -7,14 +7,21 @@ const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 p
     variant: {
       default: 'border-transparent bg-primary text-primary-foreground',
       secondary: 'border-transparent bg-secondary text-secondary-foreground',
+      destructive: 'border-transparent bg-destructive/10 text-destructive',
+      warning: 'border-transparent bg-accent text-accent-foreground',
+      success: 'border-transparent bg-primary/10 text-primary',
       outline: 'text-foreground'
     }
   },
   defaultVariants: { variant: 'default' }
 });
 
-function Badge({ className, variant, ...props }: React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof badgeVariants>) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Badge({
+  className,
+  variant,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>) {
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 export { Badge, badgeVariants };
