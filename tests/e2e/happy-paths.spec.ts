@@ -5,11 +5,14 @@ const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 
 async function configureStarWarsRoster(page: Page, seed: string, speed: '1x' | '2x' | '4x' = '2x') {
   await page.goto('/new');
+  await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Star Wars' }).click();
+  await expect(page.getByLabel('A New Hope')).toBeVisible();
   await page.getByLabel('A New Hope').check();
   await page.getByLabel('The Empire Strikes Back').check();
+  await expect(page.getByText('Seleccionados: 12')).toBeVisible();
   await page.getByRole('button', { name: 'Generar roster' }).click();
 
   await expect(page.getByText('Roster: 12', { exact: false })).toBeVisible();
@@ -67,37 +70,51 @@ test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada',
   await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
   await expect(page.getByPlaceholder('manual o aleatoria')).toHaveValue('');
-  await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveValue('1x');
-  await expect(page.getByRole('button', { name: 'Paso' })).toBeDisabled();
-  await expect(page.getByTestId('feed-item')).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveValue('2x');
+  await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Participantes' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Relaciones destacadas' })).toHaveCount(0);
+});
+
+test('HP-04 selecciona roster por defecto y permite toggle global', async ({ page }) => {
+  await page.goto('/new');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Star Wars' }).click();
+  await expect(page.getByLabel('A New Hope')).toBeVisible();
+  await page.getByLabel('A New Hope').check();
+
+  await expect(page.getByText('Seleccionados: 6')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Seleccionar todo el roster' })).toBeChecked();
+
+  await page.getByRole('checkbox', { name: 'Seleccionar todo el roster' }).uncheck();
+  await expect(page.getByText('Seleccionados: 0')).toBeVisible();
+
+  await page.getByRole('checkbox', { name: 'Seleccionar todo el roster' }).check();
+  await expect(page.getByText('Seleccionados: 6')).toBeVisible();
 });
 
 test('HP-02 conserva progreso tras avanzar y refrescar', async ({ page }) => {
   await startSimulation(page, 'arena-hp02', '1x');
 
-  await page.getByRole('button', { name: 'Paso' }).click();
-  await expect(page.getByTestId('feed-item')).toHaveCount(1);
-  await expect(page.getByTestId('kpi-turn')).toContainText('1');
-
-  await page.getByRole('button', { name: 'Paso' }).click();
-  await expect(page.getByTestId('feed-item')).toHaveCount(2);
-  await expect(page.getByTestId('kpi-turn')).toContainText('2');
+  await expect.poll(() => getRuntimeTurn(page), { timeout: 7000 }).toBeGreaterThanOrEqual(2);
+  await page.getByRole('button', { name: 'Pausar simulacion' }).click();
+  const feedCountBeforeReload = await page.getByTestId('feed-item').count();
+  expect(feedCountBeforeReload).toBeGreaterThanOrEqual(2);
 
   const turnBeforeReload = await getRuntimeTurn(page);
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
-  await expect(page.getByTestId('feed-item')).toHaveCount(2);
+  await expect(page.getByTestId('feed-item')).toHaveCount(feedCountBeforeReload);
   await expect(page.getByTestId('kpi-turn')).toContainText(String(turnBeforeReload));
   await expect(page.getByTestId('kpi-alive')).toContainText(/\d+/);
-  await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Reproducir a 1x' })).toBeEnabled();
 });
 
 test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
   await startSimulation(page, 'arena-hp03', '4x');
-  await page.getByRole('button', { name: 'Paso' }).click();
-  await expect(page.getByTestId('kpi-turn')).toContainText('1');
-  await page.getByRole('button', { name: 'Pausa' }).click();
+  await expect.poll(() => getRuntimeTurn(page), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
+  await page.getByRole('button', { name: 'Pausar simulacion' }).click();
   await expect(page.getByTestId('kpi-speed')).toContainText('Pausa');
 
   const expectedTurn = await getRuntimeTurn(page);
@@ -110,5 +127,5 @@ test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
   await expect(page.getByTestId('feed-item').first()).toBeVisible();
   await expect(page.getByTestId('kpi-turn')).toContainText(String(expectedTurn));
-  await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Reproducir a 4x' })).toBeEnabled();
 });

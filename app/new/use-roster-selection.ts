@@ -31,6 +31,7 @@ export type UseRosterSelectionResult = {
   toggleMovie: (movieId: string) => void;
   generateRosterFromSelection: () => string[];
   toggleCharacter: (characterId: string) => void;
+  toggleAllCharacters: () => void;
   setSelectionFromRoster: (rosterCharacterIds: string[]) => void;
   resetSelection: () => void;
 };
@@ -132,9 +133,18 @@ export function useRosterSelection({
       if (previous.includes(movieId)) {
         return previous.filter((id) => id !== movieId);
       }
+
+      const movieCharacterIds = catalogCharacters
+        .filter(
+          (character) =>
+            character.franchise_id === selectedFranchiseId && character.movie_id === movieId
+        )
+        .map((character) => character.character_key);
+
+      setSelectedCharacters((current) => Array.from(new Set([...current, ...movieCharacterIds])));
       return [...previous, movieId];
     });
-  }, []);
+  }, [catalogCharacters, selectedFranchiseId, setSelectedCharacters]);
 
   const generateRosterFromSelection = useCallback(() => {
     const roster = buildRosterFromMovieSelection(
@@ -159,6 +169,25 @@ export function useRosterSelection({
       return [...previous, characterId];
     });
   }, [selectableCharacterIdSet, setSelectedCharacters]);
+
+  const toggleAllCharacters = useCallback(() => {
+    const selectableIds = selectableCharacters.map((character) => character.character_key);
+    if (selectableIds.length === 0) {
+      return;
+    }
+
+    setSelectedCharacters((previous) => {
+      const selectedSet = new Set(previous);
+      const hasSelectedAll = selectableIds.every((characterId) => selectedSet.has(characterId));
+
+      if (hasSelectedAll) {
+        const selectableIdSet = new Set(selectableIds);
+        return previous.filter((characterId) => !selectableIdSet.has(characterId));
+      }
+
+      return Array.from(new Set([...previous, ...selectableIds]));
+    });
+  }, [selectableCharacters, setSelectedCharacters]);
 
   const setSelectionFromRoster = useCallback((rosterCharacterIds: string[]) => {
     const nextSelection = deriveCatalogSelectionFromRoster(rosterCharacterIds, catalogCharacters);
@@ -187,6 +216,7 @@ export function useRosterSelection({
     toggleMovie,
     generateRosterFromSelection,
     toggleCharacter,
+    toggleAllCharacters,
     setSelectionFromRoster,
     resetSelection
   };

@@ -5,7 +5,8 @@ export const LOBBY_THEMES = [
   { id: 'retro-pixel', label: 'Retro Pixel' },
   { id: 'apple-bubbles', label: 'Bubble Glass' },
   { id: 'graphite-sport', label: 'Graphite Sport' },
-  { id: 'forest-editorial', label: 'Forest Editorial' }
+  { id: 'forest-editorial', label: 'Forest Editorial' },
+  { id: 'eng-runbook', label: 'Eng Runbook' }
 ] as const;
 
 export type LobbyTheme = (typeof LOBBY_THEMES)[number]['id'];

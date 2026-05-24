@@ -195,3 +195,434 @@ html[data-lobby-theme='forest-editorial'] {
   --cta-ink: oklch(0.98 0.004 130);
   --title-font: 'Baskerville', 'Georgia', serif;
 }
+
+html[data-lobby-theme='eng-runbook'] {
+  --accent: #6ee7b7;
+  --accent-2: #fbbf24;
+  --bg: #0c0e14;
+  --panel: #14171f;
+  --panel-strong: #1c2030;
+  --border: #262b3b;
+  --ink: #eaecf3;
+  --muted: #8b94ad;
+  --danger: #f87171;
+  --hero-grad-a: #0c0e14;
+  --hero-grad-b: #14171f;
+  --hero-grad-c: #1c2030;
+  --hero-ring: rgba(110, 231, 183, 0.3);
+  --cta-a: #6ee7b7;
+  --cta-b: #42c99b;
+  --cta-ink: #0c0e14;
+  --aside-panel: #14171f;
+  --ribbon-panel: #1c2030;
+  --title-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--bg);
+  --secondary: var(--panel-strong);
+  --secondary-foreground: var(--ink);
+  --muted: #8b94ad;
+  --muted-foreground: #8b94ad;
+  --input: var(--border);
+  --ring: var(--accent);
+}
+
+html[data-lobby-theme='eng-runbook'] body,
+html[data-lobby-theme='eng-runbook'] button,
+html[data-lobby-theme='eng-runbook'] input,
+html[data-lobby-theme='eng-runbook'] select,
+html[data-lobby-theme='eng-runbook'] textarea {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+}
+
+html[data-lobby-theme='eng-runbook'] code,
+html[data-lobby-theme='eng-runbook'] pre,
+html[data-lobby-theme='eng-runbook'] kbd,
+html[data-lobby-theme='eng-runbook'] select,
+html[data-lobby-theme='eng-runbook'] option {
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+}
+
+html[data-lobby-theme='eng-runbook'] body {
+  background: #0c0e14;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_header'] {
+  position: static;
+  background: #0c0e14;
+  border-bottom: 1px solid #262b3b;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_inner'] {
+  max-width: 1100px;
+  padding: 24px 28px 20px;
+  align-items: flex-end;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_brand'] {
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #8b94ad;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_links'] {
+  gap: 6px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_navLink'] {
+  border-radius: 999px;
+  color: #8b94ad;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
+  text-transform: uppercase;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_navLinkActive'] {
+  background: rgba(110, 231, 183, 0.1);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  color: #6ee7b7;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_page'] {
+  background: #0c0e14;
+  color: #eaecf3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  padding: 32px 28px 64px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_shell'] {
+  max-width: 1100px;
+  gap: 28px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_lobbyHero'],
+html[data-lobby-theme='eng-runbook'] [class*='page_hero'],
+html[data-lobby-theme='eng-runbook'] [class*='page_lobbyQuick'],
+html[data-lobby-theme='eng-runbook'] [class*='page_card'],
+html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card {
+  background: #14171f;
+  border: 1px solid #262b3b;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_lobbyHero'] {
+  padding: 22px 24px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_title'] {
+  color: #eaecf3;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroMeta'],
+html[data-lobby-theme='eng-runbook'] [class*='page_cardHint'] {
+  color: #8b94ad;
+  font-size: 13px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroCount'] {
+  background: rgba(110, 231, 183, 0.1);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: 999px;
+  color: #6ee7b7;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  text-transform: uppercase;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStat__'],
+html[data-lobby-theme='eng-runbook'] [class*='page_feedItem'],
+html[data-lobby-theme='eng-runbook'] [class*='page_participantItem'],
+html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] {
+  background: #1c2030;
+  border: 1px solid #262b3b;
+  border-radius: 6px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStatLabel'],
+html[data-lobby-theme='eng-runbook'] [class*='page_kpiLabel'],
+html[data-lobby-theme='eng-runbook'] [class*='page_feedMeta'],
+html[data-lobby-theme='eng-runbook'] [class*='page_tag'] {
+  color: #8b94ad;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStatValue'],
+html[data-lobby-theme='eng-runbook'] [class*='page_kpiValue'] {
+  color: #eaecf3;
+  font-size: 17px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStats'],
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStatLabel'],
+html[data-lobby-theme='eng-runbook'] [class*='page_heroStatValue'] {
+  background: transparent;
+}
+
+html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card > .p-6,
+html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card > .flex.p-6 {
+  padding: 22px 24px;
+}
+
+html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card > .p-6.pt-0 {
+  padding: 0 24px 22px;
+}
+
+html[data-lobby-theme='eng-runbook'] .text-xl {
+  font-size: 22px;
+  letter-spacing: -0.005em;
+}
+
+html[data-lobby-theme='eng-runbook'] .text-sm {
+  font-size: 13px;
+}
+
+html[data-lobby-theme='eng-runbook'] input,
+html[data-lobby-theme='eng-runbook'] select,
+html[data-lobby-theme='eng-runbook'] textarea {
+  background: #0c0e14;
+  border-color: #262b3b;
+  border-radius: 6px;
+  color: #eaecf3;
+}
+
+html[data-lobby-theme='eng-runbook'] button,
+html[data-lobby-theme='eng-runbook'] a[class*='group/button'] {
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+html[data-lobby-theme='eng-runbook'] .bg-primary {
+  background: #6ee7b7;
+  color: #0c0e14;
+}
+
+html[data-lobby-theme='eng-runbook'] .bg-background {
+  background: #0c0e14;
+}
+
+html[data-lobby-theme='eng-runbook'] .text-muted-foreground {
+  color: #8b94ad;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_footer'] {
+  background: #0c0e14;
+  border-top: 1px solid #262b3b;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_footerInner'] {
+  max-width: 1100px;
+  padding: 18px 28px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_themeField'] {
+  color: #8b94ad;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='theme-header_themeSelect'] {
+  background: #14171f;
+  border: 1px solid #262b3b;
+  border-radius: 8px;
+  color: #eaecf3;
+  font-size: 12.5px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_columns'] {
+  gap: 28px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_eventShell'] {
+  gap: 14px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_cardTitle'] {
+  color: #eaecf3;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_speedControls'] {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_speedButton'] {
+  align-items: center;
+  background: #1c2030;
+  border: 1px solid #262b3b;
+  border-radius: 4px;
+  color: #eaecf3;
+  display: inline-flex;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 3px 9px;
+  text-transform: uppercase;
+  width: auto;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_speedButton'] svg {
+  height: 13px;
+  width: 13px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_speedGlyph'] {
+  color: inherit;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_speedButtonActive'] {
+  background: rgba(110, 231, 183, 0.15);
+  border-color: rgba(110, 231, 183, 0.3);
+  color: #6ee7b7;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_feedFilters'] {
+  border-top: 1px solid #262b3b;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 4px;
+  padding-top: 14px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_controlLabel'] {
+  color: #8b94ad;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_select'],
+html[data-lobby-theme='eng-runbook'] [class*='page_input'] {
+  background: #1c2030;
+  border: 1px solid #262b3b;
+  border-radius: 6px;
+  color: #eaecf3;
+  font-size: 12.5px;
+  min-height: 34px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_feedList'] {
+  gap: 14px;
+  margin-top: 14px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_feedItem'] {
+  background: #14171f;
+  border: 1px solid #262b3b;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_feedHeadline'] {
+  color: #eaecf3;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 8px 0 4px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_feedImpact'] {
+  color: #8b94ad;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_tagRow'] {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_tag'] {
+  background: #1c2030;
+  border-radius: 4px;
+  color: #8b94ad;
+  padding: 2px 6px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_sideGrid'] {
+  gap: 14px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_participantList'],
+html[data-lobby-theme='eng-runbook'] [class*='page_relationsList'] {
+  gap: 8px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_participantItem'],
+html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] {
+  padding: 8px 12px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_participantItem'] strong,
+html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] strong {
+  color: #eaecf3;
+  font-size: 12.5px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_status'] {
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_statusAlive'],
+html[data-lobby-theme='eng-runbook'] [class*='page_relationPositive'] {
+  color: #6ee7b7;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_statusInjured'] {
+  color: #fbbf24;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_statusEliminated'],
+html[data-lobby-theme='eng-runbook'] [class*='page_relationNegative'] {
+  color: #f87171;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_info'] {
+  color: #8b94ad;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+@media (min-width: 980px) {
+  html[data-lobby-theme='eng-runbook'] [class*='page_eventShell'] {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  }
+}

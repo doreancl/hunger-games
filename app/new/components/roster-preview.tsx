@@ -15,6 +15,7 @@ type RosterPreviewProps = {
   selectedCharacters: string[];
   hasDuplicateDisplayNames: Map<string, number>;
   toggleCharacter: (characterId: string) => void;
+  toggleAllCharacters: () => void;
   characterName: (characterId: string) => string;
 };
 
@@ -26,13 +27,44 @@ export function RosterPreview(props: RosterPreviewProps) {
     selectedCharacters,
     hasDuplicateDisplayNames,
     toggleCharacter,
+    toggleAllCharacters,
     characterName
   } = props;
 
+  const selectedCharacterSet = new Set(selectedCharacters);
+  const selectedSelectableCount = selectableCharacters.filter((character) =>
+    selectedCharacterSet.has(character.character_key)
+  ).length;
+  const hasSelectableCharacters = selectableCharacters.length > 0;
+  const allSelectableCharactersSelected =
+    hasSelectableCharacters && selectedSelectableCount === selectableCharacters.length;
+  const someSelectableCharactersSelected =
+    selectedSelectableCount > 0 && selectedSelectableCount < selectableCharacters.length;
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="space-y-3">
         <CardTitle className="text-base">3) Roster generado</CardTitle>
+        {setupRosterPreview.mode === 'catalog' ? (
+          <Label
+            htmlFor="roster-select-all"
+            className="flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <Checkbox
+              id="roster-select-all"
+              aria-label="Seleccionar todo el roster"
+              checked={allSelectableCharactersSelected}
+              ref={(element) => {
+                if (element) {
+                  element.indeterminate = someSelectableCharactersSelected;
+                }
+              }}
+              onChange={toggleAllCharacters}
+              disabled={!hasSelectableCharacters}
+            />
+            Select all
+          </Label>
+        ) : null}
       </CardHeader>
       <CardContent>
         {hasEmptySelectionState ? (
@@ -51,7 +83,7 @@ export function RosterPreview(props: RosterPreviewProps) {
                   <Checkbox
                     id={checkboxId}
                     aria-label={`Seleccionar ${label}`}
-                    checked={selectedCharacters.includes(character.character_key)}
+                    checked={selectedCharacterSet.has(character.character_key)}
                     onChange={() => toggleCharacter(character.character_key)}
                   />
                   {label}

@@ -34,6 +34,15 @@
 - Add/update tests in `tests/` alongside behavioral changes in `app/` or `lib/`.
 - Run `pnpm run validate` before opening a PR.
 
+## Product & UI Decisions
+
+- Keep `Lobby`, `Nueva` and `Historial` visually aligned; avoid one-off page layouts.
+- The theme selector lives in the footer as a dropdown.
+- `Eng Runbook` should stay close to the source runbook template: dark technical palette, compact scale, mono metadata, minimal shadows.
+- A selected movie should select its roster characters by default; roster select-all behaves like Gmail's checkbox.
+- During setup, hide live-only sections (`Feed narrativo`, `Participantes`, `Relaciones destacadas`) until the match starts.
+- Matches should start playing at `2x` by default; playback controls are icon-first, and manual step is hidden.
+
 ## Commit & Pull Request Guidelines
 
 - Follow Conventional Commits with action-oriented subjects.
