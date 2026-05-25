@@ -1,17 +1,15 @@
-layer: 8
-name: integrations
 contracts:
   internal_http:
     - name: create_match
       method: POST
       path: /api/matches
       request:
-        roster_character_ids: "string[]"
+        roster_character_ids: string[]
         settings:
-          surprise_level: "low | normal | high"
-          event_profile: "balanced | aggressive | chaotic"
-          simulation_speed: "1x | 2x | 4x"
-          seed: "string | null"
+          surprise_level: low | normal | high
+          event_profile: balanced | aggressive | chaotic
+          simulation_speed: 1x | 2x | 4x
+          seed: string | null
       response:
         match_id: string
         phase: setup
@@ -19,12 +17,12 @@ contracts:
       method: PATCH
       path: /api/matches/{matchId}/settings
       request:
-        surprise_level: "low | normal | high"
-        event_profile: "balanced | aggressive | chaotic"
-        simulation_speed: "1x | 2x | 4x"
+        surprise_level: low | normal | high
+        event_profile: balanced | aggressive | chaotic
+        simulation_speed: 1x | 2x | 4x
       response:
         match_id: string
-        settings: "MatchSettings"
+        settings: MatchSettings
     - name: start_match
       method: POST
       path: /api/matches/{matchId}/start
@@ -37,21 +35,21 @@ contracts:
       method: POST
       path: /api/matches/resume
       request:
-        snapshot: "MatchSnapshot"
+        snapshot: MatchSnapshot
       response:
         match_id: string
         phase: string
         cycle_phase: string
         turn_number: number
         tension_level: number
-        settings: "MatchSettings"
-        participants: "ParticipantState[]"
-        recent_events: "Event[]"
+        settings: MatchSettings
+        participants: ParticipantState[]
+        recent_events: Event[]
     - name: advance_turn
       method: POST
       path: /api/matches/{matchId}/turns/advance
       request:
-        snapshot: "MatchSnapshot"
+        snapshot: MatchSnapshot
       response:
         turn_number: number
         cycle_phase: string
@@ -60,11 +58,11 @@ contracts:
           id: string
           type: string
           narrative_text: string
-          participant_ids: "string[]"
+          participant_ids: string[]
         survivors_count: number
-        eliminated_ids: "string[]"
+        eliminated_ids: string[]
         finished: boolean
-        snapshot: "MatchSnapshot"
+        snapshot: MatchSnapshot
     - name: get_match_state
       method: GET
       path: /api/matches/{matchId}
@@ -74,22 +72,24 @@ contracts:
         cycle_phase: string
         turn_number: number
         tension_level: number
-        settings: "MatchSettings"
-        participants: "ParticipantState[]"
-        recent_events: "Event[]"
+        settings: MatchSettings
+        participants: ParticipantState[]
+        recent_events: Event[]
     - name: export_match_state
       method: GET
       path: /api/matches/{matchId}/export
       response:
         file_format: json
-        payload: "MatchSnapshot"
-notes:
-  - "Sin contratos de share code en V1."
-  - "Sin lectura de partidas entre dispositivos en V1."
-  - "Continuidad de sesión basada en snapshot completo en localStorage del cliente."
-  - "La rehidratación no depende de estado previo en server."
+        payload: MatchSnapshot
+
 errors:
   - code: SNAPSHOT_INVALID
-    when: "Checksum/payload inválido o snapshot incompleto."
+    when: Checksum/payload invalido o snapshot incompleto.
   - code: SNAPSHOT_VERSION_UNSUPPORTED
-    when: "Versión de snapshot incompatible con la release actual."
+    when: Version de snapshot incompatible con la release actual.
+
+notes:
+  - Sin share code en V1.
+  - Sin lectura de partidas entre dispositivos en V1.
+  - Continuidad basada en snapshot completo en localStorage.
+  - La rehidratacion no depende de estado previo en server.
