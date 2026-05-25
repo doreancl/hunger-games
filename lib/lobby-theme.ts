@@ -11,7 +11,7 @@ export const LOBBY_THEMES = [
 
 export type LobbyTheme = (typeof LOBBY_THEMES)[number]['id'];
 
-export const DEFAULT_LOBBY_THEME: LobbyTheme = 'neon-future';
+export const DEFAULT_LOBBY_THEME: LobbyTheme = 'eng-runbook';
 
 export function isLobbyTheme(value: string): value is LobbyTheme {
   return LOBBY_THEMES.some((theme) => theme.id === value);

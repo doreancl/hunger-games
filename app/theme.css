@@ -309,7 +309,6 @@ html[data-lobby-theme='eng-runbook'] [class*='page_shell'] {
 
 html[data-lobby-theme='eng-runbook'] [class*='page_lobbyHero'],
 html[data-lobby-theme='eng-runbook'] [class*='page_hero'],
-html[data-lobby-theme='eng-runbook'] [class*='page_lobbyQuick'],
 html[data-lobby-theme='eng-runbook'] [class*='page_card'],
 html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card {
   background: #14171f;
@@ -589,6 +588,55 @@ html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] {
   padding: 8px 12px;
 }
 
+html[data-lobby-theme='eng-runbook'] [class*='page_matchList'] {
+  background: #14171f;
+  border: 0;
+  border-radius: 0;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchHeader'] {
+  background: #1c2030;
+  border-bottom: 1px solid #262b3b;
+  color: #8b94ad;
+  display: grid;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  gap: 8px;
+  grid-template-columns: minmax(96px, 0.7fr) minmax(90px, 0.75fr) minmax(120px, 1fr) minmax(130px, 1fr) auto;
+  letter-spacing: 0.06em;
+  padding: 12px 16px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchItem'] {
+  background: #14171f;
+  border-color: #262b3b;
+  border-radius: 0;
+  padding: 12px 16px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchLink'] {
+  gap: 8px;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchLink'] strong {
+  color: #eaecf3;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchLink'] small {
+  color: #8b94ad;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+html[data-lobby-theme='eng-runbook'] [class*='page_matchCode'] {
+  color: #eaecf3;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
 html[data-lobby-theme='eng-runbook'] [class*='page_participantItem'] strong,
 html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] strong {
   color: #eaecf3;
@@ -624,5 +672,11 @@ html[data-lobby-theme='eng-runbook'] [class*='page_info'] {
 @media (min-width: 980px) {
   html[data-lobby-theme='eng-runbook'] [class*='page_eventShell'] {
     grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-lobby-theme='eng-runbook'] [class*='page_matchHeader'] {
+    display: none;
   }
 }

@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
-import { MatchList } from '@/app/components/match-list';
+import { QuickAccessSection, QuickAccessTable } from '@/app/components/quick-access';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
-import { quickAccessMatches } from '@/lib/match-ux';
+import { dateLabel, phaseLabel, quickAccessMatches, shortId } from '@/lib/match-ux';
 
 const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
@@ -41,7 +40,57 @@ export default function Home() {
     }
   }, []);
 
+  const startTransitionToMatch = useCallback((): void => {
+    const startedAt = Date.now();
+    window.sessionStorage.setItem(
+      TRANSITION_STORAGE_KEY,
+      JSON.stringify({ direction: 'lobby_to_match', startedAt })
+    );
+    setTransitionOverlay({
+      direction: 'lobby_to_match',
+      showLongWait: false,
+      isExiting: false
+    });
+
+    window.setTimeout(() => {
+      setTransitionOverlay((current) => {
+        if (!current || current.direction !== 'lobby_to_match' || current.isExiting) {
+          return current;
+        }
+
+        return { ...current, showLongWait: true };
+      });
+    }, TRANSITION_LONG_WAIT_MS);
+  }, []);
+
   const quickMatches = useMemo(() => quickAccessMatches(localMatches, 6), [localMatches]);
+  const quickAccessRows = useMemo(
+    () =>
+      quickMatches.map((match) => ({
+        id: match.id,
+        code: (
+          <Link href={`/sessions/${match.id}`} className="font-mono font-bold text-foreground">
+            {shortId(match.id)}
+          </Link>
+        ),
+        phase: phaseLabel(match.cycle_phase),
+        turn: `Turno ${match.turn_number}`,
+        roster: `${match.alive_count}/${match.total_participants} vivos`,
+        seed: `Seed: ${match.settings.seed ?? 'sin seed'}`,
+        updatedAt: dateLabel(match.updated_at),
+        settings: `${match.settings.simulation_speed} · ${match.settings.event_profile}`,
+        action: (
+          <Link
+            className={buttonVariants({ size: 'sm' })}
+            href={`/sessions/${match.id}`}
+            onClick={startTransitionToMatch}
+          >
+            Reanudar
+          </Link>
+        )
+      })),
+    [quickMatches, startTransitionToMatch]
+  );
   const isTransitioning = transitionOverlay !== null;
 
   useEffect(() => {
@@ -105,29 +154,6 @@ export default function Home() {
     };
   }, []);
 
-  function startTransitionToMatch(): void {
-    const startedAt = Date.now();
-    window.sessionStorage.setItem(
-      TRANSITION_STORAGE_KEY,
-      JSON.stringify({ direction: 'lobby_to_match', startedAt })
-    );
-    setTransitionOverlay({
-      direction: 'lobby_to_match',
-      showLongWait: false,
-      isExiting: false
-    });
-
-    window.setTimeout(() => {
-      setTransitionOverlay((current) => {
-        if (!current || current.direction !== 'lobby_to_match' || current.isExiting) {
-          return current;
-        }
-
-        return { ...current, showLongWait: true };
-      });
-    }, TRANSITION_LONG_WAIT_MS);
-  }
-
   return (
     <main id="main-content" className={styles.page} aria-busy={isTransitioning}>
       <div className={styles.shell}>
@@ -165,36 +191,23 @@ export default function Home() {
           </div>
         </header>
 
-        <Card className={styles.lobbyQuick}>
-          <CardHeader>
-            <CardTitle>Acceso rapido</CardTitle>
-            <CardDescription>Las partidas mas recientes aparecen primero.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MatchList
-              matches={quickMatches}
-              emptyState={
-                <div>
-                  <p>No hay partidas guardadas todavia.</p>
-                  <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
-                    Iniciar partida
-                  </Link>
-                </div>
-              }
-              renderActions={(match) => (
-                <>
-                  <Link
-                    className={buttonVariants({ size: 'sm' })}
-                    href={`/sessions/${match.id}`}
-                    onClick={startTransitionToMatch}
-                  >
-                    Reanudar
-                  </Link>
-                </>
-              )}
-            />
-          </CardContent>
-        </Card>
+        <QuickAccessSection
+          index="02"
+          title="Acceso rapido"
+          description="Las partidas mas recientes aparecen primero."
+        >
+          <QuickAccessTable
+            rows={quickAccessRows}
+            emptyState={{
+              message: 'No hay partidas guardadas todavia.',
+              action: (
+                <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
+                  Iniciar partida
+                </Link>
+              )
+            }}
+          />
+        </QuickAccessSection>
 
         {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
       </div>

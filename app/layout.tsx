@@ -28,7 +28,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="es" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body>
         <Script id="init-lobby-theme" strategy="beforeInteractive">
-          {`(function(){try{const key='hg_lobby_theme';const raw=localStorage.getItem(key);const fallback='neon-future';const valid=['neon-future','retro-pixel','apple-bubbles','graphite-sport','forest-editorial','eng-runbook'];const themeValue=valid.includes(raw)?raw:fallback;document.documentElement.setAttribute('data-lobby-theme',themeValue);}catch(_e){document.documentElement.setAttribute('data-lobby-theme','neon-future');}})();`}
+          {`(function(){try{const key='hg_lobby_theme';const raw=localStorage.getItem(key);const fallback='eng-runbook';const valid=['neon-future','retro-pixel','apple-bubbles','graphite-sport','forest-editorial','eng-runbook'];const themeValue=valid.includes(raw)?raw:fallback;document.documentElement.setAttribute('data-lobby-theme',themeValue);}catch(_e){document.documentElement.setAttribute('data-lobby-theme','eng-runbook');}})();`}
         </Script>
         <ThemeHeader />
         {children}
