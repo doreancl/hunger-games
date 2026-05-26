@@ -2,12 +2,10 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import styles from './page.module.css';
 import { QuickAccessSection, QuickAccessTable } from '@/app/components/quick-access';
-import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { loadLocalMatchesFromStorage, type LocalMatchSummary } from '@/lib/local-matches';
-import { dateLabel, phaseLabel, quickAccessMatches, shortId } from '@/lib/match-ux';
+import { dateLabel, getLobbyStatus, phaseLabel, quickAccessMatches, shortId } from '@/lib/match-ux';
 
 const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
@@ -20,6 +18,18 @@ type TransitionOverlayState = {
   showLongWait: boolean;
   isExiting: boolean;
 };
+
+function phaseTone(match: LocalMatchSummary): 'danger' | 'warning' | 'success' {
+  if (match.cycle_phase === 'bloodbath' || match.cycle_phase === 'finale') {
+    return 'danger';
+  }
+
+  if (getLobbyStatus(match) === 'finished') {
+    return 'success';
+  }
+
+  return 'warning';
+}
 
 function waitMs(durationMs: number): Promise<void> {
   return new Promise((resolve) => {
@@ -74,6 +84,7 @@ export default function Home() {
           </Link>
         ),
         phase: phaseLabel(match.cycle_phase),
+        phaseTone: phaseTone(match),
         turn: `Turno ${match.turn_number}`,
         roster: `${match.alive_count}/${match.total_participants} vivos`,
         seed: `Seed: ${match.settings.seed ?? 'sin seed'}`,
@@ -85,7 +96,7 @@ export default function Home() {
             href={`/sessions/${match.id}`}
             onClick={startTransitionToMatch}
           >
-            Reanudar
+            {getLobbyStatus(match) === 'finished' ? 'Resumen' : 'Reanudar'}
           </Link>
         )
       })),
@@ -155,46 +166,25 @@ export default function Home() {
   }, []);
 
   return (
-    <main id="main-content" className={styles.page} aria-busy={isTransitioning}>
-      <div className={styles.shell}>
-        <header className={styles.lobbyHero}>
-          <div className={styles.heroLead}>
-            <div className={styles.heroTop}>
-              <h1 className={styles.title}>Hunger Games Lobby</h1>
-              <strong className={styles.heroCount}>{localMatches.length} partidas</strong>
+    <main
+      id="main-content"
+      className="min-h-screen bg-background px-3 pb-9 pt-4 text-foreground transition-colors sm:px-6 sm:pt-7"
+      aria-busy={isTransitioning}
+    >
+      <div className="mx-auto grid max-w-[1180px] gap-5">
+        <header className="grid border-b pb-7 transition-colors">
+          <div className="grid gap-2.5">
+            <div>
+              <h1 className="m-0 font-sans text-[clamp(2.9rem,7vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground">
+                hunger-games
+              </h1>
             </div>
-            <p className={styles.heroMeta}>Crea una simulacion nueva o retoma una reciente en segundos.</p>
-            <div className={styles.heroActions}>
-              <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
-                Iniciar partida
-              </Link>
-              <Link className={buttonVariants({ variant: 'secondary' })} href="/sessions">
-                Abrir historial
-              </Link>
-            </div>
-          </div>
-          <div className={styles.heroStats} aria-label="Estado general">
-            <article className={styles.heroStat}>
-              <p className={styles.heroStatLabel}>Partidas locales</p>
-              <p className={styles.heroStatValue}>{localMatches.length}</p>
-            </article>
-            <article className={styles.heroStat}>
-              <p className={styles.heroStatLabel}>Acceso rapido</p>
-              <p className={styles.heroStatValue}>{quickMatches.length}</p>
-            </article>
-            <article className={styles.heroStat}>
-              <p className={styles.heroStatLabel}>Estado</p>
-              {quickMatches.length > 0
-                ? <Badge className={styles.heroAsideHint}>Listo para reanudar.</Badge>
-                : <Badge variant="secondary" className={styles.heroAsideHint}>Sin partidas guardadas.</Badge>}
-            </article>
           </div>
         </header>
 
         <QuickAccessSection
           index="02"
           title="Acceso rapido"
-          description="Las partidas mas recientes aparecen primero."
         >
           <QuickAccessTable
             rows={quickAccessRows}
@@ -209,23 +199,26 @@ export default function Home() {
           />
         </QuickAccessSection>
 
-        {infoMessage ? <p className={styles.info}>{infoMessage}</p> : null}
+        {infoMessage ? <p className="mt-2.5 font-semibold text-muted-foreground">{infoMessage}</p> : null}
       </div>
       {transitionOverlay ? (
         <div
-          className={`${styles.transitionOverlay} ${transitionOverlay.isExiting ? styles.transitionOverlayExit : ''}`}
+          className={`fixed inset-0 z-[120] grid place-items-center bg-foreground/70 transition-opacity duration-200 ${transitionOverlay.isExiting ? 'opacity-0' : 'opacity-100'}`}
           role="status"
           aria-live="polite"
           aria-atomic="true"
         >
-          <div className={styles.transitionContent}>
-            <div className={styles.transitionSpinner} aria-hidden="true" />
-            <p className={styles.transitionTitle}>
+          <div className="w-[min(90vw,420px)] rounded-xl border bg-card px-5 py-5 text-center shadow-2xl">
+            <div
+              className="mx-auto mb-3 size-[46px] animate-spin rounded-full border-4 border-border/55 border-t-primary"
+              aria-hidden="true"
+            />
+            <p className="m-0 text-lg font-bold text-foreground">
               {transitionOverlay.direction === 'match_to_lobby'
                 ? 'Volviendo al lobby...'
                 : 'Preparando la arena...'}
             </p>
-            <p className={styles.transitionHint}>
+            <p className="mt-2 text-muted-foreground">
               {transitionOverlay.showLongWait
                 ? 'Esto esta tardando mas de lo esperado. Espera un momento...'
                 : 'Sincronizando estado de la partida.'}

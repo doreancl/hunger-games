@@ -254,47 +254,6 @@ html[data-lobby-theme='eng-runbook'] body {
   line-height: 1.6;
 }
 
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_header'] {
-  position: static;
-  background: #0c0e14;
-  border-bottom: 1px solid #262b3b;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_inner'] {
-  max-width: 1100px;
-  padding: 24px 28px 20px;
-  align-items: flex-end;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_brand'] {
-  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #8b94ad;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_links'] {
-  gap: 6px;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_navLink'] {
-  border-radius: 999px;
-  color: #8b94ad;
-  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 5px 12px;
-  text-transform: uppercase;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='theme-header_navLinkActive'] {
-  background: rgba(110, 231, 183, 0.1);
-  border: 1px solid rgba(110, 231, 183, 0.3);
-  color: #6ee7b7;
-}
-
 html[data-lobby-theme='eng-runbook'] [class*='page_page'] {
   background: #0c0e14;
   color: #eaecf3;
@@ -307,7 +266,6 @@ html[data-lobby-theme='eng-runbook'] [class*='page_shell'] {
   gap: 28px;
 }
 
-html[data-lobby-theme='eng-runbook'] [class*='page_lobbyHero'],
 html[data-lobby-theme='eng-runbook'] [class*='page_hero'],
 html[data-lobby-theme='eng-runbook'] [class*='page_card'],
 html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card {
@@ -318,37 +276,36 @@ html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card {
 }
 
 html[data-lobby-theme='eng-runbook'] [class*='page_lobbyHero'] {
-  padding: 22px 24px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #262b3b;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 28px;
 }
 
 html[data-lobby-theme='eng-runbook'] [class*='page_title'] {
   color: #eaecf3;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-size: clamp(48px, 7vw, 76px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
 }
 
 html[data-lobby-theme='eng-runbook'] [class*='page_heroMeta'],
 html[data-lobby-theme='eng-runbook'] [class*='page_cardHint'] {
   color: #8b94ad;
-  font-size: 13px;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='page_heroCount'] {
-  background: rgba(110, 231, 183, 0.1);
-  border: 1px solid rgba(110, 231, 183, 0.3);
-  border-radius: 999px;
-  color: #6ee7b7;
   font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  padding: 5px 12px;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStat__'],
+html[data-lobby-theme='eng-runbook'] [class*='page_heroMeta'] span {
+  color: #6ee7b7;
+}
+
 html[data-lobby-theme='eng-runbook'] [class*='page_feedItem'],
 html[data-lobby-theme='eng-runbook'] [class*='page_participantItem'],
 html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] {
@@ -357,7 +314,6 @@ html[data-lobby-theme='eng-runbook'] [class*='page_relationItem'] {
   border-radius: 6px;
 }
 
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStatLabel'],
 html[data-lobby-theme='eng-runbook'] [class*='page_kpiLabel'],
 html[data-lobby-theme='eng-runbook'] [class*='page_feedMeta'],
 html[data-lobby-theme='eng-runbook'] [class*='page_tag'] {
@@ -368,16 +324,9 @@ html[data-lobby-theme='eng-runbook'] [class*='page_tag'] {
   text-transform: uppercase;
 }
 
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStatValue'],
 html[data-lobby-theme='eng-runbook'] [class*='page_kpiValue'] {
   color: #eaecf3;
   font-size: 17px;
-}
-
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStats'],
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStatLabel'],
-html[data-lobby-theme='eng-runbook'] [class*='page_heroStatValue'] {
-  background: transparent;
 }
 
 html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card > .p-6,

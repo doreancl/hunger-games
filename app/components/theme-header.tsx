@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import styles from './theme-header.module.css';
+import { cn } from '@/lib/utils';
 import {
   DEFAULT_LOBBY_THEME,
   isLobbyTheme,
@@ -46,28 +47,41 @@ export function ThemeHeader() {
   const pathname = usePathname();
 
   return (
-    <header className={styles.header}>
-      <div className={styles.inner}>
-        <Link href="/" className={styles.brand}>
+    <header className="static bg-background transition-colors">
+      <div className="flex  flex-wrap items-end gap-3 px-7 pb-5 pt-6">
+        <Link
+          href="/"
+          className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           Hunger Games
         </Link>
 
-        <nav className={styles.links} aria-label="Navegacion principal">
+        <nav className="ml-auto flex flex-wrap gap-1.5" aria-label="Navegacion principal">
           <Link
             href="/"
-            className={`${styles.navLink} ${pathname === '/' ? styles.navLinkActive : ''}`}
+            className={cn(
+              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              pathname === '/' && 'border border-primary/30 bg-primary/10 text-primary'
+            )}
           >
             Lobby
           </Link>
           <Link
             href="/new"
-            className={`${styles.navLink} ${pathname.startsWith('/new') || pathname.startsWith('/sessions/') ? styles.navLinkActive : ''}`}
+            className={cn(
+              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              (pathname.startsWith('/new') || pathname.startsWith('/sessions/')) &&
+                'border border-primary/30 bg-primary/10 text-primary'
+            )}
           >
             Nueva
           </Link>
           <Link
             href="/sessions"
-            className={`${styles.navLink} ${pathname === '/sessions' ? styles.navLinkActive : ''}`}
+            className={cn(
+              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              pathname === '/sessions' && 'border border-primary/30 bg-primary/10 text-primary'
+            )}
           >
             Historial
           </Link>

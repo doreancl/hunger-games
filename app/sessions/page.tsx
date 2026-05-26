@@ -189,7 +189,7 @@ export default function MatchesHistoryPage() {
 
                       <div className={styles.inlineControls}>
                         <ButtonLink href={`/sessions/${match.id}`} size="sm">
-                          Reanudar
+                          {status === 'finished' ? 'Resumen' : 'Reanudar'}
                         </ButtonLink>
                         <ButtonLink href={`/new?prefill=${match.id}`} variant="outline" size="sm">
                           Duplicar setup
