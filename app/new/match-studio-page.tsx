@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pause, Play, Save, Share2 } from 'lucide-react';
-import baseStyles from '../page.module.css';
-import localStyles from './page.module.css';
 import {
   createLocalMatchFromSetup,
   getSetupValidation,
@@ -39,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -86,6 +85,7 @@ const TRANSITION_STORAGE_KEY = 'hg_transition';
 const TRANSITION_MIN_VISIBLE_MS = 700;
 const TRANSITION_LONG_WAIT_MS = 3000;
 const TRANSITION_FADE_OUT_MS = 180;
+const FIRST_AUTOPLAY_DELAY_MS = 1200;
 const INVALID_CATALOG_VERSION_ALERT_THRESHOLD = process.env.NODE_ENV === 'production' ? 1 : 3;
 
 type PlaybackSpeed = SimulationSpeed | 'pause';
@@ -121,7 +121,18 @@ type SimulationRuntime = {
 };
 
 const EMPTY_FEED: FeedEvent[] = [];
-const styles = { ...baseStyles, ...localStyles };
+const setupGridClassName = 'grid gap-[14px]';
+const cardClassName = 'rounded-xl border bg-card p-[14px]';
+const cardTitleClassName =
+  'm-0 font-sans text-[22px] font-bold leading-tight tracking-[-0.005em] text-foreground';
+const cardHintClassName = 'mb-3 mt-1 text-muted-foreground';
+const controlLabelClassName = 'grid gap-1 text-[0.94rem]';
+const selectClassName =
+  'rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const speedButtonClassName =
+  'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
+const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
+const tagClassName = 'rounded-full bg-secondary px-2 py-[3px] text-[0.78rem] text-foreground';
 
 type MatchStudioPageProps = {
   sessionMatchId?: string | null;
@@ -428,6 +439,7 @@ export function MatchStudioPage({
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
   const [hasAutoPrefilled, setHasAutoPrefilled] = useState(false);
   const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
+  const [autoplayReadyAt, setAutoplayReadyAt] = useState<number | null>(null);
   const isSessionView = sessionMatchId !== null;
 
   const catalogCharacters = catalogResult.catalog.characters;
@@ -668,12 +680,16 @@ export function MatchStudioPage({
           ? runtimeLoad.runtime.settings.simulation_speed
           : 'pause'
       );
+      setAutoplayReadyAt(
+        runtimeLoad.runtime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
+      );
       const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
       if (runtimeMatch) {
         applySetupFromMatch(runtimeMatch);
       }
     } else {
       setRuntime(null);
+      setAutoplayReadyAt(null);
       if (!sessionMatchId) {
         clearEditorStateForNewMatch();
       }
@@ -825,6 +841,7 @@ export function MatchStudioPage({
         winner_id: null
       };
 
+      setAutoplayReadyAt(Date.now() + FIRST_AUTOPLAY_DELAY_MS);
       setRuntime(runtimeState);
       if (autosaveEnabled) {
         const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, runtimeState);
@@ -909,6 +926,9 @@ export function MatchStudioPage({
       setPlaybackSpeed(
         nextRuntime.phase === 'running' ? nextRuntime.settings.simulation_speed : 'pause'
       );
+      setAutoplayReadyAt(
+        nextRuntime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
+      );
       if (autosaveEnabled) {
         const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
         if (!saveRuntimeResult.ok) {
@@ -924,6 +944,9 @@ export function MatchStudioPage({
           runtimeLoad.runtime.phase === 'running'
             ? runtimeLoad.runtime.settings.simulation_speed
             : 'pause'
+        );
+        setAutoplayReadyAt(
+          runtimeLoad.runtime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
         );
         router.replace(`/sessions/${match.id}`, { scroll: false });
         setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
@@ -1098,18 +1121,25 @@ export function MatchStudioPage({
   }, [applySetupFromMatch, autosaveEnabled, characterName, isBusy, localMatches, persistLocalMatches, runtime]);
 
   useEffect(() => {
-    if (!runtime || runtime.phase !== 'running' || playbackSpeed === 'pause' || isBusy) {
+    if (
+      !runtime ||
+      runtime.phase !== 'running' ||
+      playbackSpeed === 'pause' ||
+      isBusy ||
+      autoplayReadyAt === null
+    ) {
       return;
     }
 
+    const remainingInitialDelayMs = autoplayReadyAt ? autoplayReadyAt - Date.now() : 0;
     const timeoutId = window.setTimeout(() => {
       void onAdvanceStep();
-    }, SPEED_INTERVAL_MS[playbackSpeed]);
+    }, Math.max(SPEED_INTERVAL_MS[playbackSpeed], remainingInitialDelayMs));
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isBusy, onAdvanceStep, playbackSpeed, runtime]);
+  }, [autoplayReadyAt, isBusy, onAdvanceStep, playbackSpeed, runtime]);
 
   async function onShareSnapshot() {
     if (!runtime) {
@@ -1189,127 +1219,230 @@ export function MatchStudioPage({
     }, TRANSITION_LONG_WAIT_MS);
   }
 
+  const setupSteps = [
+    {
+      id: 'franchise',
+      label: 'Selecciona una franquicia',
+      detail: selectedFranchiseId ? 'Franquicia lista.' : 'Elige el universo base de la simulacion.',
+      isComplete: Boolean(selectedFranchiseId)
+    },
+    {
+      id: 'movies',
+      label: 'Activa peliculas',
+      detail:
+        selectedMovieIds.length > 0
+          ? `${selectedMovieIds.length} peliculas activas.`
+          : 'Marca al menos una pelicula para cargar personajes.',
+      isComplete: selectedMovieIds.length > 0
+    },
+    {
+      id: 'roster',
+      label: 'Completa el roster',
+      detail:
+        selectedCharacters.length >= 10
+          ? `${selectedCharacters.length} personajes seleccionados.`
+          : `${selectedCharacters.length}/10 personajes seleccionados.`,
+      isComplete: selectedCharacters.length >= 10
+    }
+  ];
+
   return (
-    <main className={styles.page} aria-busy={isTransitioning}>
-      <div className={styles.shell}>
-        <header className={styles.lobbyHero}>
-          <div className={styles.heroLead}>
-            <div className={styles.heroTop}>
-              <h1 className={styles.title}>{runtime ? 'Hunger Games Simulator' : 'Nueva partida'}</h1>
-              <strong className={styles.heroCount}>
-                {runtime?.phase === 'finished'
-                  ? 'Partida cerrada'
-                  : runtime
-                    ? 'Simulacion en vivo'
-                    : 'Setup'}
-              </strong>
-            </div>
-            <p className={styles.heroMeta}>
-              {runtime
-                ? <>Fase actual: <strong>{phaseLabel(currentPhase)}</strong></>
-                : 'Configura franquicia, peliculas, roster y ritmo antes de iniciar.'}
-            </p>
-            <div className={styles.heroActions}>
-              <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
-                Volver al Lobby
-              </Link>
-              {runtime ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={onSaveSnapshot}
-                    disabled={isBusy || !autosaveEnabled}
-                    aria-label="Guardar snapshot"
-                    title="Guardar snapshot"
-                  >
-                    <Save aria-hidden="true" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={() => {
-                      void onShareSnapshot();
-                    }}
-                    aria-label="Compartir snapshot"
-                    title="Compartir snapshot"
-                  >
-                    <Share2 aria-hidden="true" />
-                  </Button>
-                </>
-              ) : null}
-            </div>
+    <main
+      className="min-h-screen bg-background px-3 pb-9 pt-4 text-foreground transition-colors sm:px-6 sm:pt-7"
+      aria-busy={isTransitioning}
+    >
+      <div className="mx-auto grid max-w-[1180px] gap-5">
+        <header className="grid border-b pb-7 transition-colors">
+          <h1 className="m-0 font-sans text-[clamp(2.9rem,7vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground">
+            {runtime ? 'hunger-games' : 'nueva-partida'}
+          </h1>
+        </header>
+
+        <section className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
+              Volver al Lobby
+            </Link>
             {runtime ? (
               <>
-                <div className={styles.sessionBar}>
-                  <span>
-                    Sesion actual: <strong>{currentSessionSizeLabel}</strong>
-                  </span>
-                  <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
-                    {currentSessionSizeTone === 'critical'
-                      ? 'Critico'
-                      : currentSessionSizeTone === 'high'
-                        ? 'Alto'
-                        : 'OK'}
-                  </Badge>
-                </div>
-                <label className={styles.autosaveToggle}>
-                  <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
-                  Guardar local
-                </label>
-                {!autosaveEnabled ? (
-                  <p className={styles.autosaveWarning}>
-                    Guardado local OFF: cualquier refresh o reinicio borra esta partida.
-                  </p>
-                ) : null}
-                <div className={styles.tension} aria-label="barra de tension">
-                  <strong>Tension {Math.round(tensionValue)}%</strong>
-                  <Progress
-                    className={styles.tensionTrack}
-                    role="progressbar"
-                    aria-label="Nivel de tension"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(Math.min(100, tensionValue))}
-                    value={tensionValue}
-                  />
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={onSaveSnapshot}
+                  disabled={isBusy || !autosaveEnabled}
+                  aria-label="Guardar snapshot"
+                  title="Guardar snapshot"
+                >
+                  <Save aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    void onShareSnapshot();
+                  }}
+                  aria-label="Compartir snapshot"
+                  title="Compartir snapshot"
+                >
+                  <Share2 aria-hidden="true" />
+                </Button>
               </>
             ) : null}
           </div>
 
-          <div className={styles.heroStats} aria-label={runtime ? 'Estado de simulacion' : 'Estado de setup'}>
-            <article className={styles.heroStat} data-testid="kpi-turn">
-              <p className={styles.heroStatLabel}>{runtime ? 'Turno' : 'Roster'}</p>
-              <p className={styles.heroStatValue}>{runtime ? currentTurn : selectedCharacters.length}</p>
-            </article>
-            <article className={styles.heroStat} data-testid="kpi-alive">
-              <p className={styles.heroStatLabel}>{runtime ? 'Vivos' : 'Peliculas'}</p>
-              <p className={styles.heroStatValue}>{runtime ? aliveCount : selectedMovieIds.length}</p>
-            </article>
-            <article className={styles.heroStat} data-testid="kpi-eliminated">
-              <p className={styles.heroStatLabel}>{runtime ? 'Eliminados' : 'Estado'}</p>
-              <p className={styles.heroStatValue}>{runtime ? eliminatedCount : setupCanStart ? 'Listo' : 'Pendiente'}</p>
-            </article>
-            <article className={styles.heroStat} data-testid="kpi-speed">
-              <p className={styles.heroStatLabel}>Ritmo</p>
-              <p className={styles.heroStatValue}>{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</p>
-            </article>
+          <div
+            className="grid gap-3 border-b pb-5 text-sm text-muted-foreground md:grid-cols-[minmax(0,1fr)_auto]"
+            aria-label={runtime ? 'Estado de simulacion' : 'Estado de setup'}
+          >
+            <p className="m-0 font-mono text-[13px] font-bold leading-snug tracking-[0.02em]">
+              {runtime ? (
+                <>
+                  Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
+                </>
+              ) : (
+                'Configura franquicia, peliculas, roster y ritmo antes de iniciar.'
+              )}
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em]">
+              <span data-testid="kpi-turn">
+                <span className="text-muted-foreground">{runtime ? 'Turno' : 'Roster'} </span>
+                <strong className="text-foreground">{runtime ? currentTurn : selectedCharacters.length}</strong>
+              </span>
+              <span data-testid="kpi-alive">
+                <span className="text-muted-foreground">{runtime ? 'Vivos' : 'Peliculas'} </span>
+                <strong className="text-foreground">{runtime ? aliveCount : selectedMovieIds.length}</strong>
+              </span>
+              <span data-testid="kpi-eliminated">
+                <span className="text-muted-foreground">{runtime ? 'Eliminados' : 'Estado'} </span>
+                <strong className="text-foreground">{runtime ? eliminatedCount : setupCanStart ? 'Listo' : 'Pendiente'}</strong>
+              </span>
+              <span data-testid="kpi-speed">
+                <span className="text-muted-foreground">Ritmo </span>
+                <strong className="text-foreground">{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</strong>
+              </span>
+            </div>
           </div>
-        </header>
 
-        <div className={styles.columns}>
+          {runtime ? (
+            <div className="grid gap-3 rounded-xl border bg-card p-4">
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-muted-foreground">
+                <span>
+                  Sesion actual: <strong className="text-foreground">{currentSessionSizeLabel}</strong>
+                </span>
+                <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
+                  {currentSessionSizeTone === 'critical'
+                    ? 'Critico'
+                    : currentSessionSizeTone === 'high'
+                      ? 'Alto'
+                      : 'OK'}
+                </Badge>
+              </div>
+              <label className="mt-1.5 inline-flex items-center gap-2 font-semibold">
+                <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
+                Guardar local
+              </label>
+              {!autosaveEnabled ? (
+                <p className="m-0 mt-2 font-bold text-destructive">
+                  Guardado local OFF: cualquier refresh o reinicio borra esta partida.
+                </p>
+              ) : null}
+              <div className="mt-3.5 grid gap-1" aria-label="barra de tension">
+                <strong>Tension {Math.round(tensionValue)}%</strong>
+                <Progress
+                  className="h-3 overflow-hidden rounded-full border bg-secondary"
+                  role="progressbar"
+                  aria-label="Nivel de tension"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(Math.min(100, tensionValue))}
+                  value={tensionValue}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className={!runtime && !isSessionView ? 'grid gap-5' : 'grid gap-[14px] lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:items-start'}>
           {!runtime && !isSessionView ? (
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Setup de partida</h2>
-              <p className={styles.cardHint}>Define roster, seed y perfil antes de iniciar.</p>
+            <>
+              <div
+                className={cn(
+                  'grid gap-4 rounded-xl border px-6 py-[22px] md:grid-cols-[minmax(0,1fr)_auto] md:items-center',
+                  setupCanStart
+                    ? 'border-[#164e3f] bg-[#10231d]'
+                    : 'border-[#5f4a18] bg-[#211b0f]'
+                )}
+              >
+                <div className="grid gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'w-fit',
+                        setupCanStart
+                          ? 'bg-[rgba(110,231,183,0.15)] text-[#6ee7b7]'
+                          : 'bg-[rgba(251,191,36,0.15)] text-[#fbbf24]'
+                      )}
+                    >
+                      {setupCanStart ? 'Listo para iniciar' : 'Setup pendiente'}
+                    </Badge>
+                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Roster: {selectedCharacters.length} | Seed:{' '}
+                      {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
+                    </span>
+                  </div>
 
-              <div className={styles.setupGrid}>
-                <div className={styles.rosterGrid}>
+                  <ol className="m-0 grid list-none gap-2 p-0 md:grid-cols-3">
+                    {setupSteps.map((step, index) => (
+                      <li key={step.id} className="flex gap-3">
+                        <span
+                          className={cn(
+                            'grid size-6 shrink-0 place-items-center rounded-full font-mono text-[11px] font-bold',
+                            step.isComplete
+                              ? 'bg-[#6ee7b7] text-[#0c0e14]'
+                              : 'bg-[rgba(251,191,36,0.18)] text-[#fbbf24]'
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                        <span className="grid gap-0.5">
+                          <strong className="text-sm text-foreground">{step.label}</strong>
+                          <span className="text-sm text-muted-foreground">{step.detail}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  <Button
+                    type="button"
+                    aria-label="Iniciar simulacion"
+                    disabled={!setupCanStart || isBusy}
+                    onClick={() => {
+                      void onStartMatch();
+                    }}
+                  >
+                    Iniciar
+                  </Button>
+                </div>
+              </div>
+
+              <section className="grid gap-6">
+                <div className="grid gap-3">
+                  <h2 className="m-0 flex items-baseline gap-3 font-sans text-[22px] font-bold leading-tight tracking-normal text-foreground">
+                    <span className="font-mono text-xs font-bold text-muted-foreground">
+                      01
+                    </span>
+                    <span>Setup de partida</span>
+                  </h2>
+                </div>
+
+                <div className={setupGridClassName}>
                   {isCatalogEmpty ? (
-                    <div>
+                    <div className="rounded-xl border bg-card p-4">
                       <p>No hay personajes disponibles en el catalogo.</p>
                       <Button
                         type="button"
@@ -1326,7 +1459,7 @@ export function MatchStudioPage({
                       </Button>
                     </div>
                   ) : (
-                    <div className={styles.catalogSetup}>
+                    <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_minmax(0,1.4fr)] md:items-start">
                       <CatalogSelection
                         franchiseOptions={franchiseOptions}
                         selectedFranchiseId={selectedFranchiseId}
@@ -1348,12 +1481,12 @@ export function MatchStudioPage({
                       />
                     </div>
                   )}
-                </div>
 
-                <div className={styles.controlsGrid}>
-                  <Label className={styles.controlLabel}>
-                    Seed (opcional)
-                    <div className={styles.inlineControls}>
+                <div className="grid gap-4 rounded-xl border bg-card px-6 py-[22px] md:grid-cols-[minmax(0,1fr)_minmax(180px,240px)]">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Seed (opcional)
+                      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <Input
                         value={seed}
                         onChange={(event) => setSeed(event.target.value)}
@@ -1362,125 +1495,85 @@ export function MatchStudioPage({
                       <Button type="button" onClick={generateSeed}>
                         Aleatoria
                       </Button>
-                    </div>
-                  </Label>
+                      </div>
+                    </Label>
 
-                  <Label className={styles.controlLabel}>
-                    Ritmo inicial
-                    <Select
-                      value={simulationSpeed}
-                      onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
-                    >
-                      <option value="1x">1x</option>
-                      <option value="2x">2x</option>
-                      <option value="4x">4x</option>
-                    </Select>
-                  </Label>
+                    <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Ritmo inicial
+                      <Select
+                        value={simulationSpeed}
+                        onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
+                      >
+                        <option value="1x">1x</option>
+                        <option value="2x">2x</option>
+                        <option value="4x">4x</option>
+                      </Select>
+                    </Label>
+
+                    {showAdvanced ? (
+                      <>
+                        <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                          Perfil de eventos
+                          <Select
+                            value={eventProfile}
+                            onChange={(event) =>
+                              setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
+                            }
+                          >
+                            <option value="balanced">Balanced</option>
+                            <option value="aggressive">Aggressive</option>
+                            <option value="chaotic">Chaotic</option>
+                          </Select>
+                        </Label>
+
+                        <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                          Nivel de sorpresa
+                          <Select
+                            value={surpriseLevel}
+                            onChange={(event) =>
+                              setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')
+                            }
+                          >
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                          </Select>
+                        </Label>
+                      </>
+                    ) : null}
+                  </div>
 
                   <Button
                     variant="outline"
                     type="button"
+                    className="self-end"
                     onClick={() => setShowAdvanced((current) => !current)}
                   >
                     {showAdvanced ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
                   </Button>
-
-                  {showAdvanced ? (
-                    <>
-                      <Label className={styles.controlLabel}>
-                        Perfil de eventos
-                        <Select
-                          value={eventProfile}
-                          onChange={(event) =>
-                            setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
-                          }
-                        >
-                          <option value="balanced">Balanced</option>
-                          <option value="aggressive">Aggressive</option>
-                          <option value="chaotic">Chaotic</option>
-                        </Select>
-                      </Label>
-
-                      <Label className={styles.controlLabel}>
-                        Nivel de sorpresa
-                        <Select
-                          value={surpriseLevel}
-                          onChange={(event) =>
-                            setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')
-                          }
-                        >
-                          <option value="low">Low</option>
-                          <option value="normal">Normal</option>
-                          <option value="high">High</option>
-                        </Select>
-                      </Label>
-                    </>
-                  ) : null}
                 </div>
-
-                <div>
-                  <Badge variant="secondary">
-                    Roster: {selectedCharacters.length} | Seed:{' '}
-                    {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
-                  </Badge>
-                  {setupValidation.issues.length > 0 ? (
-                    <ul>
-                      {setupValidation.issues.map((issue) => (
-                        <li key={issue}>{issue}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>Configuracion valida para iniciar.</p>
-                  )}
-
-                  <div className={styles.inlineControls}>
-                    <Button
-                      type="button"
-                      disabled={!setupCanStart || isBusy}
-                      onClick={() => {
-                        void onStartMatch();
-                      }}
-                    >
-                      Iniciar simulacion
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        router.replace('/new', { scroll: false });
-                        clearEditorStateForNewMatch();
-                      }}
-                    >
-                      Nuevo setup
-                    </Button>
-                    <Link
-                      className={buttonVariants({ variant: 'outline' })}
-                      href="/"
-                      onClick={onReturnToLobby}
-                    >
-                      Volver al Lobby
-                    </Link>
-                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </>
           ) : null}
 
           {runtime ? (
-            <section className={styles.eventShell}>
-              <article className={styles.card}>
-                <h2 className={styles.cardTitle}>Feed narrativo</h2>
-                <p className={styles.cardHint}>
+            <section className="grid gap-[14px] lg:col-span-2 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start">
+              <article className={cardClassName}>
+                <h2 className={cardTitleClassName}>Feed narrativo</h2>
+                <p className={cardHintClassName}>
                   Cada evento resume quien, que y su impacto directo en 1-2 lineas.
                 </p>
 
-              <div className={styles.speedControls} aria-label="Controles de reproduccion">
+              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap" aria-label="Controles de reproduccion">
                 <button
                   type="button"
                   aria-label="Pausar simulacion"
                   title="Pausar simulacion"
-                  className={`${styles.speedButton} ${
-                    playbackSpeed === 'pause' ? styles.speedButtonActive : ''
-                  }`}
+                  className={cn(
+                    speedButtonClassName,
+                    playbackSpeed === 'pause' && activeSpeedButtonClassName
+                  )}
                   onClick={() => setPlaybackSpeed('pause')}
                   disabled={!runtime || runtime.phase !== 'running'}
                 >
@@ -1490,9 +1583,10 @@ export function MatchStudioPage({
                   type="button"
                   aria-label="Reproducir a 1x"
                   title="Reproducir a 1x"
-                  className={`${styles.speedButton} ${
-                    playbackSpeed === '1x' ? styles.speedButtonActive : ''
-                  }`}
+                  className={cn(
+                    speedButtonClassName,
+                    playbackSpeed === '1x' && activeSpeedButtonClassName
+                  )}
                   onClick={() => {
                     setSimulationSpeed('1x');
                     setPlaybackSpeed('1x');
@@ -1505,16 +1599,17 @@ export function MatchStudioPage({
                   type="button"
                   aria-label="Reproducir a 2x"
                   title="Reproducir a 2x"
-                  className={`${styles.speedButton} ${
-                    playbackSpeed === '2x' ? styles.speedButtonActive : ''
-                  }`}
+                  className={cn(
+                    speedButtonClassName,
+                    playbackSpeed === '2x' && activeSpeedButtonClassName
+                  )}
                   onClick={() => {
                     setSimulationSpeed('2x');
                     setPlaybackSpeed('2x');
                   }}
                   disabled={!runtime || runtime.phase !== 'running'}
                 >
-                  <span aria-hidden="true" className={styles.speedGlyph}>
+                  <span aria-hidden="true" className="font-extrabold leading-none">
                     &gt;&gt;
                   </span>
                 </button>
@@ -1522,26 +1617,27 @@ export function MatchStudioPage({
                   type="button"
                   aria-label="Reproducir a 4x"
                   title="Reproducir a 4x"
-                  className={`${styles.speedButton} ${
-                    playbackSpeed === '4x' ? styles.speedButtonActive : ''
-                  }`}
+                  className={cn(
+                    speedButtonClassName,
+                    playbackSpeed === '4x' && activeSpeedButtonClassName
+                  )}
                   onClick={() => {
                     setSimulationSpeed('4x');
                     setPlaybackSpeed('4x');
                   }}
                   disabled={!runtime || runtime.phase !== 'running'}
                 >
-                  <span aria-hidden="true" className={styles.speedGlyph}>
+                  <span aria-hidden="true" className="font-extrabold leading-none">
                     &gt;&gt;&gt;
                   </span>
                 </button>
               </div>
 
-              <div className={styles.feedFilters}>
-                <label className={styles.controlLabel}>
+              <div className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+                <label className={controlLabelClassName}>
                   Filtro por personaje
                   <select
-                    className={styles.select}
+                    className={selectClassName}
                     value={filterCharacterId}
                     onChange={(event) => setFilterCharacterId(event.target.value)}
                   >
@@ -1554,10 +1650,10 @@ export function MatchStudioPage({
                   </select>
                 </label>
 
-                <label className={styles.controlLabel}>
+                <label className={controlLabelClassName}>
                   Filtro por tipo
                   <select
-                    className={styles.select}
+                    className={selectClassName}
                     value={filterEventType}
                     onChange={(event) =>
                       setFilterEventType(event.target.value as 'all' | EventType)
@@ -1580,29 +1676,30 @@ export function MatchStudioPage({
                     : 'Inicia una simulacion para ver el feed en vivo.'}
                 </p>
               ) : (
-                <ul className={styles.feedList} data-testid="feed-list">
+                <ul className="m-0 grid list-none gap-2.5 p-0" data-testid="feed-list">
                   {filteredFeed.map((event) => (
                     <li
                       key={event.id}
                       data-testid="feed-item"
-                      className={`${styles.feedItem} ${
-                        latestFeedEventId === event.id ? styles.feedItemNew : ''
-                      }`}
+                      className={cn(
+                        'rounded-xl border bg-card px-3 py-2.5',
+                        latestFeedEventId === event.id && 'animate-in fade-in slide-in-from-top-2 duration-500'
+                      )}
                     >
-                      <p className={styles.feedMeta}>
+                      <p className="m-0 flex justify-between text-[0.82rem] text-muted-foreground">
                         <span>
                           Turno {event.turn_number} · {phaseLabel(event.phase)}
                         </span>
                         <span>{EVENT_TYPE_LABEL[event.type]}</span>
                       </p>
-                      <p className={styles.feedHeadline}>{event.headline}</p>
-                      <p className={styles.feedImpact}>{event.impact}</p>
-                      <div className={styles.tagRow}>
+                      <p className="mb-1 mt-1 font-bold">{event.headline}</p>
+                      <p className="m-0 text-muted-foreground">{event.impact}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {event.character_ids.length === 0 ? (
-                          <span className={styles.tag}>Sin participantes trazables</span>
+                          <span className={tagClassName}>Sin participantes trazables</span>
                         ) : (
                           event.character_ids.map((characterId) => (
-                            <span key={`${event.id}-${characterId}`} className={styles.tag}>
+                            <span key={`${event.id}-${characterId}`} className={tagClassName}>
                               {characterName(characterId)}
                             </span>
                           ))
@@ -1614,23 +1711,23 @@ export function MatchStudioPage({
               )}
               </article>
 
-              <aside className={styles.sideGrid}>
-                <section className={styles.card}>
-                  <h3 className={styles.cardTitle}>Participantes</h3>
-                  <ul className={styles.participantList}>
+              <aside className="grid content-start gap-[14px]">
+                <section className={cardClassName}>
+                  <h3 className={cardTitleClassName}>Participantes</h3>
+                  <ul className="m-0 grid list-none overflow-hidden rounded-xl border p-0">
                     {participantStatusList.map((participant) => {
                         const statusClassName =
                           participant.status === 'alive'
-                            ? styles.statusAlive
+                            ? 'text-[#247454]'
                             : participant.status === 'injured'
-                              ? styles.statusInjured
-                              : styles.statusEliminated;
+                              ? 'text-[#9f5e00]'
+                              : 'text-destructive';
 
                         return (
-                          <li key={participant.id} className={styles.participantItem}>
+                          <li key={participant.id} className="rounded-[10px] border bg-card px-2.5 py-2">
                             <strong>{characterName(participant.character_id)}</strong>
                             <div>
-                              <span className={`${styles.status} ${statusClassName}`}>
+                              <span className={cn('text-xs font-bold uppercase', statusClassName)}>
                                 {statusLabel(participant.status)}
                               </span>{' '}
                               · Salud {participant.current_health}
@@ -1641,21 +1738,19 @@ export function MatchStudioPage({
                   </ul>
                 </section>
 
-                <section className={styles.card}>
-                  <h3 className={styles.cardTitle}>Relaciones destacadas</h3>
-                  <ul className={styles.relationsList}>
+                <section className={cardClassName}>
+                  <h3 className={cardTitleClassName}>Relaciones destacadas</h3>
+                  <ul className="m-0 grid list-none overflow-hidden rounded-xl border p-0">
                     {relationHighlights.length === 0 ? (
-                      <li className={styles.relationItem}>Todavia no hay relaciones significativas.</li>
+                      <li className="rounded-[10px] border bg-card px-2.5 py-2">Todavia no hay relaciones significativas.</li>
                     ) : (
                       relationHighlights.map((relation) => (
-                        <li key={`${relation.pair[0]}-${relation.pair[1]}`} className={styles.relationItem}>
+                        <li key={`${relation.pair[0]}-${relation.pair[1]}`} className="rounded-[10px] border bg-card px-2.5 py-2">
                           <strong>
                             {characterName(relation.pair[0])} · {characterName(relation.pair[1])}
                           </strong>
                           <div
-                            className={
-                              relation.score >= 0 ? styles.relationPositive : styles.relationNegative
-                            }
+                            className={relation.score >= 0 ? 'text-[#1a6f57]' : 'text-[#9d2e20]'}
                           >
                             {relationTone(relation.score)}
                           </div>
@@ -1670,23 +1765,33 @@ export function MatchStudioPage({
           ) : null}
         </div>
 
-        {infoMessage ? <p className={styles.info} data-testid="info-message">{infoMessage}</p> : null}
+        {infoMessage ? (
+          <p className="mt-2.5 font-semibold text-muted-foreground" data-testid="info-message">
+            {infoMessage}
+          </p>
+        ) : null}
       </div>
       {transitionOverlay ? (
         <div
-          className={`${styles.transitionOverlay} ${transitionOverlay.isExiting ? styles.transitionOverlayExit : ''}`}
+          className={cn(
+            'fixed inset-0 z-[120] grid place-items-center bg-foreground/70 transition-opacity duration-200',
+            transitionOverlay.isExiting ? 'opacity-0' : 'opacity-100'
+          )}
           role="status"
           aria-live="polite"
           aria-atomic="true"
         >
-          <div className={styles.transitionContent}>
-            <div className={styles.transitionSpinner} aria-hidden="true" />
-            <p className={styles.transitionTitle}>
+          <div className="w-[min(90vw,420px)] rounded-xl border bg-card px-5 py-5 text-center shadow-2xl">
+            <div
+              className="mx-auto mb-3 size-[46px] animate-spin rounded-full border-4 border-border/55 border-t-primary"
+              aria-hidden="true"
+            />
+            <p className="m-0 text-lg font-bold text-foreground">
               {transitionOverlay.direction === 'match_to_lobby'
                 ? 'Volviendo al lobby...'
                 : 'Preparando la arena...'}
             </p>
-            <p className={styles.transitionHint}>
+            <p className="mt-2 text-muted-foreground">
               {transitionOverlay.showLongWait
                 ? 'Esto esta tardando mas de lo esperado. Espera un momento...'
                 : 'Sincronizando estado de la partida.'}

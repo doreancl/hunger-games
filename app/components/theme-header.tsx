@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import styles from './theme-header.module.css';
 import { cn } from '@/lib/utils';
 import {
   DEFAULT_LOBBY_THEME,
@@ -95,12 +94,12 @@ export function ThemeFooter() {
   const { theme, onSwapTheme } = useLobbyTheme();
 
   return (
-    <footer className={styles.footer}>
-      <div className={styles.footerInner}>
-        <label className={styles.themeField}>
-          <span className={styles.themeLabel}>Tema</span>
+    <footer className="border-t bg-background transition-colors">
+      <div className="mx-auto flex max-w-[1180px] justify-end px-3 py-3.5 max-[900px]:justify-stretch">
+        <label className="flex items-center gap-2 text-[0.74rem] font-semibold text-muted-foreground max-[900px]:w-full">
+          <span className="uppercase tracking-[0.04em]">Tema</span>
           <select
-            className={styles.themeSelect}
+            className="min-w-[180px] cursor-pointer rounded-lg border bg-card py-1.5 pl-2.5 pr-8 text-[0.78rem] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring max-[900px]:w-full"
             value={theme}
             onChange={(event) => {
               const nextTheme = event.target.value;

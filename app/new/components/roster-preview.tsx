@@ -42,9 +42,11 @@ export function RosterPreview(props: RosterPreviewProps) {
     selectedSelectableCount > 0 && selectedSelectableCount < selectableCharacters.length;
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <CardTitle className="text-base">3) Roster generado</CardTitle>
+    <Card className="h-full">
+      <CardHeader className="space-y-4 px-6 py-[22px]">
+        <CardTitle className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          3) Roster generado
+        </CardTitle>
         {setupRosterPreview.mode === 'catalog' ? (
           <Label
             htmlFor="roster-select-all"
@@ -66,7 +68,7 @@ export function RosterPreview(props: RosterPreviewProps) {
           </Label>
         ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-6 pb-[22px]">
         {hasEmptySelectionState ? (
           <p className="text-sm text-muted-foreground">Selecciona franquicia y peliculas para empezar.</p>
         ) : setupRosterPreview.mode === 'empty' ? (
@@ -79,7 +81,11 @@ export function RosterPreview(props: RosterPreviewProps) {
                 (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1;
               const label = buildCharacterLabel(character, hasNameCollision);
               return (
-                <Label key={character.character_key} htmlFor={checkboxId} className="flex items-center gap-2 rounded-md border p-3">
+                <Label
+                  key={character.character_key}
+                  htmlFor={checkboxId}
+                  className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-[12.5px]"
+                >
                   <Checkbox
                     id={checkboxId}
                     aria-label={`Seleccionar ${label}`}
@@ -97,7 +103,11 @@ export function RosterPreview(props: RosterPreviewProps) {
               const checkboxId = `roster-selected-${characterId}`;
               const label = characterName(characterId);
               return (
-                <Label key={characterId} htmlFor={checkboxId} className="flex items-center gap-2 rounded-md border p-3 opacity-75">
+                <Label
+                  key={characterId}
+                  htmlFor={checkboxId}
+                  className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-[12.5px] opacity-75"
+                >
                   <Checkbox
                     id={checkboxId}
                     aria-label={`Roster seleccionado ${label}`}

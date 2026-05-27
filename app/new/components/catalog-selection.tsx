@@ -32,15 +32,18 @@ export function CatalogSelection(props: CatalogSelectionProps) {
   } = props;
 
   return (
-    <Card>
-      <CardHeader className="space-y-4">
-        <CardTitle className="text-base">1) Franquicia y catalogo</CardTitle>
-        <div className="flex flex-wrap gap-2">
+    <Card className="h-full">
+      <CardHeader className="space-y-4 px-6 py-[22px]">
+        <CardTitle className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          1) Franquicia y catalogo
+        </CardTitle>
+        <div className="grid gap-2 font-mono text-[12.5px]">
           {franchiseOptions.map((franchise) => (
             <Button
               key={franchise.franchise_id}
               type="button"
               variant={selectedFranchiseId === franchise.franchise_id ? 'default' : 'outline'}
+              className="justify-start"
               onClick={() => onSelectFranchise(franchise.franchise_id)}
             >
               {franchise.franchise_name}
@@ -48,16 +51,22 @@ export function CatalogSelection(props: CatalogSelectionProps) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-6 pb-[22px]">
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold">2) Peliculas</h4>
+          <h4 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            2) Peliculas
+          </h4>
           {selectedFranchiseId ? (
             moviesForSelectedFranchise.length > 0 ? (
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2 font-mono text-[12.5px]">
                 {moviesForSelectedFranchise.map((movie) => {
                   const checked = selectedMovieIds.includes(movie.movie_id);
                   return (
-                    <Label key={movie.movie_id} htmlFor={`movie-${movie.movie_id}`} className="flex items-center gap-2 rounded-md border p-3">
+                    <Label
+                      key={movie.movie_id}
+                      htmlFor={`movie-${movie.movie_id}`}
+                      className="flex items-center gap-2 rounded-md bg-muted px-3 py-2"
+                    >
                       <Checkbox
                         id={`movie-${movie.movie_id}`}
                         checked={checked}
@@ -69,14 +78,16 @@ export function CatalogSelection(props: CatalogSelectionProps) {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No hay peliculas disponibles para la franquicia elegida.</p>
+              <p className="text-sm text-muted-foreground">
+                No hay peliculas disponibles para la franquicia elegida.
+              </p>
             )
           ) : (
             <p className="text-sm text-muted-foreground">Selecciona una franquicia para habilitar peliculas.</p>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="grid gap-2">
           <Button
             type="button"
             onClick={onGenerateRoster}
@@ -84,7 +95,9 @@ export function CatalogSelection(props: CatalogSelectionProps) {
           >
             Generar roster
           </Button>
-          <Badge variant="secondary">Peliculas activas: {selectedMovieIds.length}</Badge>
+          <Badge variant="secondary" className="w-fit">
+            Peliculas activas: {selectedMovieIds.length}
+          </Badge>
         </div>
       </CardContent>
     </Card>

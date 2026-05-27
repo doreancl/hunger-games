@@ -182,6 +182,35 @@ export default function Home() {
           </div>
         </header>
 
+        <section className="grid gap-6">
+          <h2 className="m-0 flex items-baseline gap-3 font-sans text-[22px] font-bold leading-tight tracking-normal text-foreground">
+            <span className="font-mono text-xs font-bold text-muted-foreground">
+              01
+            </span>
+            <span>Service summary</span>
+          </h2>
+
+          <div className="grid gap-3 rounded-xl border bg-card px-6 py-[22px] text-sm leading-[1.6] text-foreground">
+            <div className="max-w-[860px]">
+              <p className="m-0 mb-3">
+                <strong>hunger-games</strong> arma simulaciones de supervivencia con rosters
+                personalizados, ritmo configurable y eventos narrativos listos para seguir
+                como un runbook de arena.
+              </p>
+              <p className="m-0">
+                Si una partida ya existe, puedes retomarla desde el acceso rapido. Si quieres
+                abrir una nueva arena, prepara franquicias, peliculas, seed y velocidad antes
+                del primer turno.
+              </p>
+            </div>
+            <div className="pt-1">
+              <Link className={buttonVariants()} href="/new" onClick={startTransitionToMatch}>
+                Nueva partida
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <QuickAccessSection
           index="02"
           title="Acceso rapido"

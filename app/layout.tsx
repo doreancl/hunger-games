@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { AgentationDevtools } from '@/app/components/agentation-devtools';
 import { ThemeFooter, ThemeHeader } from '@/app/components/theme-header';
+import { DEFAULT_LOBBY_THEME } from '@/lib/lobby-theme';
 import './theme.css';
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const googleAnalyticsId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
-    <html lang="es" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
-      <body>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={cn("font-sans", geist.variable)}
+      data-lobby-theme={DEFAULT_LOBBY_THEME}
+      style={{ backgroundColor: '#0c0e14', colorScheme: 'dark' }}
+    >
+      <body style={{ backgroundColor: '#0c0e14' }}>
         <Script id="init-lobby-theme" strategy="beforeInteractive">
           {`(function(){try{const key='hg_lobby_theme';const raw=localStorage.getItem(key);const fallback='eng-runbook';const valid=['neon-future','retro-pixel','apple-bubbles','graphite-sport','forest-editorial','eng-runbook'];const themeValue=valid.includes(raw)?raw:fallback;document.documentElement.setAttribute('data-lobby-theme',themeValue);}catch(_e){document.documentElement.setAttribute('data-lobby-theme','eng-runbook');}})();`}
         </Script>
