@@ -1,64 +1,24 @@
 # UX
 
-## Principio
+## Regla Visual
 
-Interfaz de reality show de supervivencia: rapida, clara y dramatica.
+`Lobby`, `Nueva` e `Historial` usan el mismo lenguaje `Eng Runbook`: fondo oscuro, type scale grande para titulo, metadata mono, tablas compactas, bordes suaves y sombras minimas.
 
-## Setup
+## Aha Moments UI
 
-- Lista/grid de personajes con busqueda y seleccion.
-- CTA primario: `Iniciar simulacion`.
-- Resumen en vivo: cantidad seleccionada y dificultad estimada.
-- Seed manual o aleatoria.
-- Ritmo inicial.
-- Opciones avanzadas colapsables: sorpresas, perfil de eventos, tamano de roster.
-- Una pelicula seleccionada selecciona por defecto sus personajes.
-- El select-all de roster se comporta como checkbox de Gmail.
-- Ocultar secciones live-only hasta que empiece la partida:
-  - `Feed narrativo`
-  - `Participantes`
-  - `Relaciones destacadas`
+- Lobby: titulo simple `hunger-games`, accion secundaria solo donde aporte, tabla alineada y boton `Resumen` si la partida termino.
+- Nueva: despues del titulo aparece una caja de inicio con pasos visibles; amarillo si falta setup, verde si esta listo.
+- Nueva: el CTA visible es `Iniciar`; el resto de acciones no compiten.
+- Setup: `Franquicia y catalogo` y `Roster generado` viven en 2 columnas desktop, apiladas en mobile.
+- Historial: misma tabla, mismas columnas y misma jerarquia visual que Lobby.
+- Runtime: feed primero, controles icon-first, tension y estado sin ocupar mas espacio que la narrativa.
+- Final: ganador, momentos clave y orden de eliminacion.
 
-## Simulacion
+## No Negociables
 
-- Header con vivos, eliminados, turno, fase y barra de tension.
-- La partida empieza reproduciendose a `2x` por defecto.
-- Controles icon-first: `1x`, `2x`, `4x`, `pausa`.
-- El avance manual esta oculto.
-- Feed central con eventos narrativos, mas reciente arriba.
-- Panel lateral con estado de personajes y relaciones destacadas.
-- Toggle `Guardar local` con warning persistente cuando esta `OFF`.
-- Filtro rapido por personaje y tipo de evento.
-- Menu local para reabrir partidas guardadas.
-
-## Final
-
-- Ganador destacado.
-- Momentos clave: muertes, traiciones, remontadas y sorpresas.
-- Tabla final con orden de eliminacion.
-- CTAs:
-  - `Jugar de nuevo` con mismo roster.
-  - `Nuevo roster`.
-  - `Repetir con misma seed`.
-  - `Compartir resultado`.
-
-## Legibilidad
-
-- Cada evento responde: quien, que paso, impacto.
-- Texto por evento: 1-2 lineas.
-- Eventos multi-personaje resaltan a todos los involucrados.
-- Transiciones criticas tienen feedback visual fuerte.
-- Animaciones breves y legibles, menores a 700ms.
-- Colores semanticos consistentes para estado y riesgo.
-- Contraste suficiente en desktop y movil.
-
-## Layout
-
-- `Lobby`, `Nueva` e `Historial` deben mantenerse visualmente alineados.
-- El selector de tema vive en el footer como dropdown.
-- `Eng Runbook` mantiene paleta tecnica oscura, escala compacta, metadata mono y sombras minimas.
-- La vista principal usa contenedor centrado con `max-width`.
-- En simulacion activa, `Feed + panel lateral` ocupa el ancho disponible.
-- El feed mantiene prioridad visual y no puede quedar cubierto por paneles laterales.
-- Los controles de ritmo se mantienen visibles y clicables en desktop.
-- `Participantes`, `Relaciones destacadas` y `Partidas locales` mantienen orden vertical estable.
+- Tailwind en componentes; no CSS modules para nuevas pantallas.
+- Componentes presentacionales sin logica de negocio.
+- El selector de tema vive en el footer.
+- No mostrar secciones live-only antes de iniciar.
+- Texto visible breve; si una explicacion no ayuda a actuar, se elimina.
+- Estado de fase usa pastillas compactas estilo runbook.

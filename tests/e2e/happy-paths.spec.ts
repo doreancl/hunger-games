@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
 const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 
-async function configureStarWarsRoster(page: Page, seed: string, speed: '1x' | '2x' | '4x' = '2x') {
+async function configureStarWarsRoster(page: Page, seed: string) {
   await page.goto('/new');
   await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
@@ -17,17 +17,20 @@ async function configureStarWarsRoster(page: Page, seed: string, speed: '1x' | '
 
   await expect(page.getByText('Roster: 12', { exact: false })).toBeVisible();
   await page.getByPlaceholder('manual o aleatoria').fill(seed);
-  await page.getByRole('combobox', { name: 'Ritmo inicial' }).selectOption(speed);
 }
 
 async function startSimulation(page: Page, seed: string, speed: '1x' | '2x' | '4x' = '2x') {
-  await configureStarWarsRoster(page, seed, speed);
+  await configureStarWarsRoster(page, seed);
   await page.getByRole('button', { name: 'Iniciar simulacion' }).click();
 
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
   await expect(page.getByTestId('info-message')).toContainText('Simulacion iniciada');
   await expect(page.getByTestId('kpi-turn')).toContainText('0');
   await expect(page.getByTestId('kpi-alive')).toContainText('12');
+
+  if (speed !== '2x') {
+    await page.getByRole('button', { name: `Reproducir a ${speed}` }).click();
+  }
 }
 
 async function getRuntimeTurn(page: Page) {
@@ -70,7 +73,7 @@ test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada',
   await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
   await expect(page.getByPlaceholder('manual o aleatoria')).toHaveValue('');
-  await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveValue('2x');
+  await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Participantes' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Relaciones destacadas' })).toHaveCount(0);

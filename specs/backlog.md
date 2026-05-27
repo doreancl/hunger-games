@@ -2,34 +2,23 @@
 
 ## Now
 
-- `US-002` Ciclo de vida base de partida.
-- `US-003A` Motor, director y catalogo.
-- `US-003B` Setup UX y menu de partidas locales.
+- `AHA-SETUP` Nueva partida: caja de pasos clara, 2 columnas desktop, CTA unico `Iniciar`.
+- `AHA-HISTORY` Historial alineado visualmente con Lobby.
+- `AHA-FINAL` Partida terminada muestra `Resumen` y no `Reanudar`.
 
 ## Next
 
-- `US-005A` UX simulacion en vivo.
-- `US-005B` Continuidad local y recuperacion.
-- `US-006A` Pantalla final y replay.
-- `US-006B` Seguridad y hardening API.
-- `US-006C` Observabilidad y reproducibilidad operativa.
-
-## Later
-
-- `US-007` Suite de pruebas integral.
-- `US-008` Gate final de release.
+- `AHA-LIVE` Runtime: feed narrativo primero, controles icon-first, tension compacta.
+- `AHA-RESUME` Reanudacion local: refresh y lobby no requieren explicacion.
+- `AHA-SUMMARY` Pantalla final: ganador, momentos clave y tabla de eliminacion.
 
 ## Done
 
-- `US-001` Contratos y modelo base de dominio.
-- `US-004` Avance de turnos stateless con snapshot.
+- Contratos y modelo base.
+- Avance stateless con snapshot.
+- Lobby Eng Runbook con tabla compacta.
+- Migracion principal a Tailwind sin CSS modules.
 
-## Story Shape
+## Regla
 
-Cada item activo debe poder expresarse asi:
-
-- Usuario/plataforma beneficiada.
-- Resultado esperado.
-- Criterios de aceptacion verificables.
-- Archivos o contratos impactados.
-- Comandos de validacion.
+Todo item debe cerrar un momento aha visible o un riesgo tecnico verificable.

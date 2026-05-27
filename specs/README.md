@@ -1,14 +1,13 @@
 # Specs
 
-Lee en este orden:
+Leer solo lo necesario:
 
-1. `product.md` - que estamos construyendo.
-2. `ux.md` - experiencia visible.
-3. `data.yaml` - modelo de dominio y snapshot.
-4. `api.yaml` - contratos HTTP internos.
-5. `architecture.md` - organizacion tecnica.
-6. `quality.md` - performance, seguridad, testing y release.
-7. `backlog.md` - trabajo actual.
-8. `decisions.md` - decisiones vigentes.
+1. `product.md` - momentos aha y alcance.
+2. `backlog.md` - prioridades actuales.
+3. `ux.md` - reglas visuales que no se negocian.
+4. `architecture.md` - limites tecnicos.
+5. `quality.md` - gate de validacion.
+6. `decisions.md` - decisiones vigentes.
+7. `data.yaml` / `api.yaml` - contratos.
 
-Regla: `/specs` contiene la verdad vigente, no changelog.
+Regla: `/specs` decide que construir; no documenta historia.

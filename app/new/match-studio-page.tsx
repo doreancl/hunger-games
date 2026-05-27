@@ -23,10 +23,36 @@ import { classifyAdvanceFailure, recoveryMessageForAdvanceFailure } from '@/lib/
 import {
   buildCharacterLabel,
   DEFAULT_FRANCHISE_CATALOG_SOURCE,
-  normalizeFranchiseCatalog,
-  type NormalizeFranchiseCatalogResult
-} from '@/lib/domain/franchise-catalog';
-import { recordCounterMetric, recordThresholdAlert } from '@/lib/observability';
+  DEFAULT_CHARACTERS,
+  DEFAULT_EVENT_PROFILE,
+  DEFAULT_SIMULATION_SPEED,
+  DEFAULT_SURPRISE_LEVEL,
+  EMPTY_FEED,
+  EVENT_TYPE_LABEL,
+  FIRST_AUTOPLAY_DELAY_MS,
+  SPEED_INTERVAL_MS,
+  TRANSITION_FADE_OUT_MS,
+  TRANSITION_LONG_WAIT_MS,
+  TRANSITION_MIN_VISIBLE_MS,
+  TRANSITION_STORAGE_KEY,
+  countAlive,
+  createBrowserUuid,
+  feedFromAdvance,
+  feedFromSnapshot,
+  formatBytes,
+  normalizeCatalogWithObservability,
+  phaseLabel,
+  relationDelta,
+  relationTone,
+  requestJson,
+  sessionSizeTone,
+  sessionToneBadgeVariant,
+  statusLabel,
+  waitMs,
+  type PlaybackSpeed,
+  type SimulationRuntime,
+  type TransitionOverlayState
+} from './match-studio-logic';
 import { useRosterSelection } from './use-roster-selection';
 import { CatalogSelection } from './components/catalog-selection';
 import { RosterPreview } from './components/roster-preview';
@@ -41,86 +67,13 @@ import { cn } from '@/lib/utils';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
-  CyclePhase,
   EventType,
   GetMatchStateResponse,
-  MatchPhase,
   ParticipantState,
   SimulationSpeed,
   StartMatchResponse
 } from '@/lib/domain/types';
 
-const DEFAULT_CHARACTERS: string[] = [];
-const DEFAULT_SIMULATION_SPEED: SimulationSpeed = '2x';
-const DEFAULT_EVENT_PROFILE = 'balanced' as const;
-const DEFAULT_SURPRISE_LEVEL = 'normal' as const;
-
-const EVENT_TYPE_LABEL: Record<EventType, string> = {
-  combat: 'Combate',
-  alliance: 'Alianza',
-  betrayal: 'Traicion',
-  resource: 'Recursos',
-  hazard: 'Peligro',
-  surprise: 'Sorpresa'
-};
-
-const EVENT_ACTION: Record<EventType, string> = {
-  combat: 'chocan en combate directo',
-  alliance: 'sellan una alianza estrategica',
-  betrayal: 'rompen la confianza con una traicion',
-  resource: 'aseguran recursos criticos',
-  hazard: 'resisten una amenaza del entorno',
-  surprise: 'quedan atrapados en un giro inesperado'
-};
-
-const SPEED_INTERVAL_MS: Record<SimulationSpeed, number> = {
-  '1x': 1700,
-  '2x': 980,
-  '4x': 560
-};
-
-const SESSION_SIZE_HIGH_BYTES = 1024 * 1024;
-const SESSION_SIZE_CRITICAL_BYTES = 1536 * 1024;
-const TRANSITION_STORAGE_KEY = 'hg_transition';
-const TRANSITION_MIN_VISIBLE_MS = 700;
-const TRANSITION_LONG_WAIT_MS = 3000;
-const TRANSITION_FADE_OUT_MS = 180;
-const FIRST_AUTOPLAY_DELAY_MS = 1200;
-const INVALID_CATALOG_VERSION_ALERT_THRESHOLD = process.env.NODE_ENV === 'production' ? 1 : 3;
-
-type PlaybackSpeed = SimulationSpeed | 'pause';
-type TransitionDirection = 'lobby_to_match' | 'match_to_lobby';
-
-type TransitionOverlayState = {
-  direction: TransitionDirection;
-  showLongWait: boolean;
-  isExiting: boolean;
-};
-
-type FeedEvent = {
-  id: string;
-  turn_number: number;
-  phase: CyclePhase;
-  type: EventType;
-  headline: string;
-  impact: string;
-  character_ids: string[];
-  created_at: string;
-};
-
-type SimulationRuntime = {
-  match_id: string;
-  phase: MatchPhase;
-  cycle_phase: CyclePhase;
-  turn_number: number;
-  tension_level: number;
-  settings: GetMatchStateResponse['settings'];
-  participants: ParticipantState[];
-  feed: FeedEvent[];
-  winner_id: string | null;
-};
-
-const EMPTY_FEED: FeedEvent[] = [];
 const setupGridClassName = 'grid gap-[14px]';
 const cardClassName = 'rounded-xl border bg-card p-[14px]';
 const cardTitleClassName =
@@ -138,274 +91,6 @@ type MatchStudioPageProps = {
   sessionMatchId?: string | null;
   prefillMatchId?: string | null;
 };
-
-function normalizeCatalogWithObservability(
-  source: unknown,
-  sourceLabel: string
-): NormalizeFranchiseCatalogResult {
-  const result = normalizeFranchiseCatalog(source);
-  const invalidVersionCount = result.diagnostics.invalid_version_count;
-
-  if (invalidVersionCount > 0) {
-    const dimensions = {
-      source: sourceLabel,
-      environment: process.env.NODE_ENV ?? 'development'
-    };
-    const metric = recordCounterMetric(
-      'catalog.invalid_version_count',
-      invalidVersionCount,
-      dimensions
-    );
-    recordThresholdAlert(
-      'catalog.invalid_version_count.threshold',
-      metric.total,
-      INVALID_CATALOG_VERSION_ALERT_THRESHOLD,
-      dimensions
-    );
-  }
-
-  return result;
-}
-
-function createBrowserUuid(): string | null {
-  if (typeof window === 'undefined' || typeof crypto === 'undefined') {
-    return null;
-  }
-
-  if (typeof crypto.randomUUID !== 'function') {
-    return null;
-  }
-
-  return crypto.randomUUID();
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${Math.round((bytes / 1024) * 10) / 10} KB`;
-  }
-  return `${Math.round((bytes / (1024 * 1024)) * 100) / 100} MB`;
-}
-
-function waitMs(durationMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, durationMs);
-  });
-}
-
-function sessionSizeTone(bytes: number): 'ok' | 'high' | 'critical' {
-  if (bytes >= SESSION_SIZE_CRITICAL_BYTES) {
-    return 'critical';
-  }
-  if (bytes >= SESSION_SIZE_HIGH_BYTES) {
-    return 'high';
-  }
-  return 'ok';
-}
-
-function sessionToneBadgeVariant(
-  tone: ReturnType<typeof sessionSizeTone>
-): 'success' | 'warning' | 'destructive' {
-  if (tone === 'critical') {
-    return 'destructive';
-  }
-
-  if (tone === 'high') {
-    return 'warning';
-  }
-
-  return 'success';
-}
-
-function countAlive(participants: ParticipantState[]): number {
-  return participants.filter((participant) => participant.status !== 'eliminated').length;
-}
-
-function phaseLabel(phase: CyclePhase | 'setup'): string {
-  const labels: Record<CyclePhase | 'setup', string> = {
-    setup: 'Setup',
-    bloodbath: 'Bloodbath',
-    day: 'Dia',
-    night: 'Noche',
-    finale: 'Finale',
-    god_mode: 'Modo Dios'
-  };
-
-  return labels[phase];
-}
-
-function statusLabel(status: ParticipantState['status']): string {
-  if (status === 'alive') {
-    return 'Vivo';
-  }
-  if (status === 'injured') {
-    return 'Herido';
-  }
-
-  return 'Eliminado';
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  if (!('error' in payload)) {
-    return null;
-  }
-
-  const errorValue = (payload as { error?: unknown }).error;
-  if (!errorValue || typeof errorValue !== 'object') {
-    return null;
-  }
-
-  if (!('message' in errorValue)) {
-    return null;
-  }
-
-  const message = (errorValue as { message?: unknown }).message;
-  return typeof message === 'string' ? message : null;
-}
-
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
-  const payload = (await response.json().catch(() => null)) as unknown;
-
-  if (!response.ok) {
-    const message =
-      extractErrorMessage(payload) ?? `Request failed (${response.status}) for ${input}`;
-    throw new Error(message);
-  }
-
-  return payload as T;
-}
-
-function feedFromSnapshot(state: GetMatchStateResponse): FeedEvent[] {
-  return [...state.recent_events]
-    .sort((left, right) => right.turn_number - left.turn_number)
-    .map((event) => ({
-      id: event.id,
-      turn_number: event.turn_number,
-      phase: event.phase,
-      type: event.type,
-      headline: event.narrative_text,
-      impact: event.lethal
-        ? 'Impacto: evento letal en el ultimo intercambio.'
-        : 'Impacto: tension sube sin bajas directas.',
-      character_ids: [],
-      created_at: event.created_at
-    }));
-}
-
-function summarizeActors(characterNames: string[]): string {
-  if (characterNames.length === 0) {
-    return 'La arena';
-  }
-
-  if (characterNames.length === 1) {
-    return characterNames[0];
-  }
-
-  if (characterNames.length === 2) {
-    return `${characterNames[0]} y ${characterNames[1]}`;
-  }
-
-  return `${characterNames[0]}, ${characterNames[1]} +${characterNames.length - 2}`;
-}
-
-function impactByType(type: EventType): string {
-  if (type === 'alliance') {
-    return 'Impacto: cohesion tactica en aumento.';
-  }
-
-  if (type === 'betrayal') {
-    return 'Impacto: confianza rota y riesgo social alto.';
-  }
-
-  if (type === 'resource') {
-    return 'Impacto: ventaja temporal de recursos.';
-  }
-
-  if (type === 'hazard') {
-    return 'Impacto: presion ambiental sobre el roster.';
-  }
-
-  if (type === 'surprise') {
-    return 'Impacto: la tension global cambia sin previo aviso.';
-  }
-
-  return 'Impacto: intercambio agresivo entre participantes.';
-}
-
-function feedFromAdvance(
-  advance: AdvanceTurnResponse,
-  participants: ParticipantState[],
-  getCharacterName: (characterId: string) => string
-): FeedEvent {
-  const participantsById = new Map(participants.map((participant) => [participant.id, participant]));
-  const characterIds = advance.event.participant_ids
-    .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId));
-  const actorNames = characterIds.map((characterId) => getCharacterName(characterId));
-  const eliminatedNames = advance.eliminated_ids
-    .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId))
-    .map((characterId) => getCharacterName(characterId));
-
-  const impact =
-    eliminatedNames.length > 0
-      ? `Impacto: ${eliminatedNames.join(', ')} queda fuera de la simulacion.`
-      : impactByType(advance.event.type);
-
-  return {
-    id: advance.event.id,
-    turn_number: advance.turn_number,
-    phase: advance.event.phase,
-    type: advance.event.type,
-    headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
-    impact,
-    character_ids: characterIds,
-    created_at: new Date().toISOString()
-  };
-}
-
-function relationDelta(type: EventType): number {
-  if (type === 'alliance' || type === 'resource') {
-    return 2;
-  }
-
-  if (type === 'betrayal') {
-    return -3;
-  }
-
-  if (type === 'combat' || type === 'hazard') {
-    return -1;
-  }
-
-  return 0;
-}
-
-function relationTone(score: number): string {
-  if (score >= 3) {
-    return 'Alianza fuerte';
-  }
-
-  if (score >= 1) {
-    return 'Coordinacion estable';
-  }
-
-  if (score <= -3) {
-    return 'Rivalidad critica';
-  }
-
-  if (score <= -1) {
-    return 'Friccion activa';
-  }
-
-  return 'Relacion neutra';
-}
 
 export function MatchStudioPage({
   sessionMatchId = null,
@@ -1258,74 +943,64 @@ export function MatchStudioPage({
           </h1>
         </header>
 
-        <section className="grid gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
-              Volver al Lobby
-            </Link>
-            {runtime ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={onSaveSnapshot}
-                  disabled={isBusy || !autosaveEnabled}
-                  aria-label="Guardar snapshot"
-                  title="Guardar snapshot"
-                >
-                  <Save aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={() => {
-                    void onShareSnapshot();
-                  }}
-                  aria-label="Compartir snapshot"
-                  title="Compartir snapshot"
-                >
-                  <Share2 aria-hidden="true" />
-                </Button>
-              </>
-            ) : null}
-          </div>
-
-          <div
-            className="grid gap-3 border-b pb-5 text-sm text-muted-foreground md:grid-cols-[minmax(0,1fr)_auto]"
-            aria-label={runtime ? 'Estado de simulacion' : 'Estado de setup'}
-          >
-            <p className="m-0 font-mono text-[13px] font-bold leading-snug tracking-[0.02em]">
-              {runtime ? (
-                <>
-                  Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
-                </>
-              ) : (
-                'Configura franquicia, peliculas, roster y ritmo antes de iniciar.'
-              )}
-            </p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em]">
-              <span data-testid="kpi-turn">
-                <span className="text-muted-foreground">{runtime ? 'Turno' : 'Roster'} </span>
-                <strong className="text-foreground">{runtime ? currentTurn : selectedCharacters.length}</strong>
-              </span>
-              <span data-testid="kpi-alive">
-                <span className="text-muted-foreground">{runtime ? 'Vivos' : 'Peliculas'} </span>
-                <strong className="text-foreground">{runtime ? aliveCount : selectedMovieIds.length}</strong>
-              </span>
-              <span data-testid="kpi-eliminated">
-                <span className="text-muted-foreground">{runtime ? 'Eliminados' : 'Estado'} </span>
-                <strong className="text-foreground">{runtime ? eliminatedCount : setupCanStart ? 'Listo' : 'Pendiente'}</strong>
-              </span>
-              <span data-testid="kpi-speed">
-                <span className="text-muted-foreground">Ritmo </span>
-                <strong className="text-foreground">{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</strong>
-              </span>
+        {runtime ? (
+          <section className="grid gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
+                Volver al Lobby
+              </Link>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={onSaveSnapshot}
+                disabled={isBusy || !autosaveEnabled}
+                aria-label="Guardar snapshot"
+                title="Guardar snapshot"
+              >
+                <Save aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => {
+                  void onShareSnapshot();
+                }}
+                aria-label="Compartir snapshot"
+                title="Compartir snapshot"
+              >
+                <Share2 aria-hidden="true" />
+              </Button>
             </div>
-          </div>
 
-          {runtime ? (
+            <div
+              className="grid gap-3 border-b pb-5 text-sm text-muted-foreground md:grid-cols-[minmax(0,1fr)_auto]"
+              aria-label="Estado de simulacion"
+            >
+              <p className="m-0 font-mono text-[13px] font-bold leading-snug tracking-[0.02em]">
+                Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
+              </p>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em]">
+                <span data-testid="kpi-turn">
+                  <span className="text-muted-foreground">Turno </span>
+                  <strong className="text-foreground">{currentTurn}</strong>
+                </span>
+                <span data-testid="kpi-alive">
+                  <span className="text-muted-foreground">Vivos </span>
+                  <strong className="text-foreground">{aliveCount}</strong>
+                </span>
+                <span data-testid="kpi-eliminated">
+                  <span className="text-muted-foreground">Eliminados </span>
+                  <strong className="text-foreground">{eliminatedCount}</strong>
+                </span>
+                <span data-testid="kpi-speed">
+                  <span className="text-muted-foreground">Ritmo </span>
+                  <strong className="text-foreground">{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</strong>
+                </span>
+              </div>
+            </div>
+
             <div className="grid gap-3 rounded-xl border bg-card p-4">
               <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-muted-foreground">
                 <span>
@@ -1361,8 +1036,8 @@ export function MatchStudioPage({
                 />
               </div>
             </div>
-          ) : null}
-        </section>
+          </section>
+        ) : null}
 
         <div className={!runtime && !isSessionView ? 'grid gap-5' : 'grid gap-[14px] lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:items-start'}>
           {!runtime && !isSessionView ? (
@@ -1483,7 +1158,7 @@ export function MatchStudioPage({
                   )}
 
                 <div className="grid gap-4 rounded-xl border bg-card px-6 py-[22px] md:grid-cols-[minmax(0,1fr)_minmax(180px,240px)]">
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3">
                     <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                       Seed (opcional)
                       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -1496,18 +1171,6 @@ export function MatchStudioPage({
                         Aleatoria
                       </Button>
                       </div>
-                    </Label>
-
-                    <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                      Ritmo inicial
-                      <Select
-                        value={simulationSpeed}
-                        onChange={(event) => setSimulationSpeed(event.target.value as SimulationSpeed)}
-                      >
-                        <option value="1x">1x</option>
-                        <option value="2x">2x</option>
-                        <option value="4x">4x</option>
-                      </Select>
                     </Label>
 
                     {showAdvanced ? (

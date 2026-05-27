@@ -2,7 +2,8 @@
 
 - Deploy en Vercel.
 - Framework de produccion: Next.js App Router.
-- Entornos: `preview` y `production`.
+- UI: shadcn/ui + Tailwind CSS.
+- Tema default: `Eng Runbook`.
 - Server stateless para continuidad.
 - El cliente conserva snapshot completo en `localStorage`.
 - La rehidratacion usa snapshot enviado por el cliente.
@@ -14,3 +15,4 @@
 - La entrada al juego abre la ultima partida disponible.
 - No hay limite fijo de partidas locales en V1.
 - V1 no requiere cuentas de usuario.
+- No usar CSS modules en pantallas nuevas.
