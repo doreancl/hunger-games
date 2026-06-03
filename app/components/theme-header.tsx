@@ -60,16 +60,7 @@ export function ThemeHeader() {
             href="/"
             className={cn(
               'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-              pathname === '/' && 'border border-primary/30 bg-primary/10 text-primary'
-            )}
-          >
-            Lobby
-          </Link>
-          <Link
-            href="/new"
-            className={cn(
-              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-              (pathname.startsWith('/new') || pathname.startsWith('/sessions/')) &&
+              (pathname === '/' || pathname.startsWith('/sessions/')) &&
                 'border border-primary/30 bg-primary/10 text-primary'
             )}
           >

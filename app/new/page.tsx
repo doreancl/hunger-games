@@ -1,15 +1,12 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect, useState } from 'react';
-import { MatchStudioPage } from './match-studio-page';
+type NewMatchPageProps = {
+  searchParams: Promise<{
+    prefill?: string;
+  }>;
+};
 
-export default function NewMatchPage() {
-  const [prefillMatchId, setPrefillMatchId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    setPrefillMatchId(query.get('prefill'));
-  }, []);
-
-  return <MatchStudioPage prefillMatchId={prefillMatchId} />;
+export default async function NewMatchPage({ searchParams }: NewMatchPageProps) {
+  const { prefill } = await searchParams;
+  redirect(prefill ? `/?prefill=${encodeURIComponent(prefill)}` : '/');
 }

@@ -125,7 +125,7 @@ describe('match ux helpers', () => {
     ]);
   });
 
-  it('supports quick access slicing and updated_at sorting', () => {
+  it('supports recent match slicing and updated_at sorting', () => {
     const matches = Array.from({ length: 8 }, (_, index) =>
       buildMatch(`m-${index + 1}`, {
         updated_at: `2026-02-16T10:${String(index).padStart(2, '0')}:00.000Z`

@@ -2,25 +2,25 @@
 
 ## Stack
 
-- Next.js App Router + TypeScript estricto.
+- Next.js App Router + strict TypeScript.
 - shadcn/ui + Tailwind CSS.
 - React state + `localStorage`.
 - Route Handlers stateless.
-- Zod en API y snapshots.
+- Zod in API and snapshots.
 - Vitest + Playwright.
 
-## Limites
+## Boundaries
 
-- `app/*`: UI y orquestacion de pantalla.
-- `app/**/components`: presentacional; recibe datos y callbacks.
-- `lib/*`: dominio, simulacion, snapshots, storage y contratos.
-- `tests/*`: contratos, reglas y flujos.
+- `app/*`: UI and screen orchestration.
+- `app/**/components`: presentational; receives data and callbacks.
+- `lib/*`: domain, simulation, snapshots, storage, and contracts.
+- `tests/*`: contracts, rules, and flows.
 
-## Reglas
+## Rules
 
-- UI no contiene reglas de negocio.
-- Motor no conoce React, Next ni browser APIs.
-- RNG siempre recibe seed.
-- Snapshot versionado incluye settings, RNG y estado de partida.
-- Server no recupera desde DB, memoria ni filesystem.
-- Cambios de contrato actualizan `schemas.ts`, `types.ts` y `domain-contracts.test.ts`.
+- UI contains no business rules.
+- Engine does not know React, Next, or browser APIs.
+- RNG always receives a seed.
+- Versioned snapshot includes settings, RNG, and match state.
+- Server does not recover from DB, memory, or filesystem.
+- Contract changes update `schemas.ts`, `types.ts`, and `domain-contracts.test.ts`.

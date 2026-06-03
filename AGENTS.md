@@ -36,7 +36,7 @@
 
 ## Product & UI Decisions
 
-- Keep `Lobby`, `Nueva` and `Historial` visually aligned; avoid one-off page layouts.
+- Keep `Nueva`, `Historial`, and runtime visually aligned; avoid one-off page layouts.
 - The theme selector lives in the footer as a dropdown.
 - `Eng Runbook` should stay close to the source runbook template: dark technical palette, compact scale, mono metadata, minimal shadows.
 - A selected movie should select its roster characters by default; roster select-all behaves like Gmail's checkbox.

@@ -127,7 +127,7 @@ export function useMatchesHistory() {
           settings: `${match.settings.simulation_speed} · ${match.settings.event_profile}`,
           primaryActionLabel: status === 'finished' ? 'Resumen' : 'Reanudar',
           sessionHref: `/sessions/${match.id}`,
-          duplicateHref: `/new?prefill=${match.id}`
+          duplicateHref: `/?prefill=${match.id}`
         };
       }),
     [filteredMatches]

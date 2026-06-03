@@ -2,23 +2,23 @@
 
 ## Now
 
-- `AHA-SETUP` Nueva partida: caja de pasos clara, 2 columnas desktop, CTA unico `Iniciar`.
-- `AHA-HISTORY` Historial alineado visualmente con Lobby.
-- `AHA-FINAL` Partida terminada muestra `Resumen` y no `Reanudar`.
+- `AHA-SETUP` New match: clear step box, 2 desktop columns, single `Iniciar` CTA.
+- `AHA-HISTORY` History visually aligned with New and runtime.
+- `AHA-FINAL` Finished match shows `Resumen`, not `Reanudar`.
 
 ## Next
 
-- `AHA-LIVE` Runtime: feed narrativo primero, controles icon-first, tension compacta.
-- `AHA-RESUME` Reanudacion local: refresh y lobby no requieren explicacion.
-- `AHA-SUMMARY` Pantalla final: ganador, momentos clave y tabla de eliminacion.
+- `AHA-LIVE` Runtime: narrative feed first, icon-first controls, compact tension.
+- `AHA-RESUME` Local resume: refresh and history need no explanation.
+- `AHA-SUMMARY` Final screen: winner, key moments, and elimination table.
 
 ## Done
 
-- Contratos y modelo base.
-- Avance stateless con snapshot.
-- Lobby Eng Runbook con tabla compacta.
-- Migracion principal a Tailwind sin CSS modules.
+- Contracts and base model.
+- Stateless advance with snapshot.
+- `/new` redirects to `/`; the root route is the single new-match entry.
+- Main migration to Tailwind without CSS modules.
 
-## Regla
+## Rule
 
-Todo item debe cerrar un momento aha visible o un riesgo tecnico verificable.
+Every item must close a visible aha moment or a verifiable technical risk.

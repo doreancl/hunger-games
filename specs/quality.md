@@ -8,20 +8,20 @@
 - `pnpm run test:e2e`
 - `pnpm run build`
 
-## Criterios
+## Criteria
 
-- Setup usable sin instrucciones externas.
-- Refresh no muestra flash blanco.
-- Partida de 10-48 personajes termina con ganador unico.
-- Reanudacion local conserva settings, RNG y estado.
-- Snapshot invalido se rechaza.
-- Runtime no depende de estado server previo.
-- Flujo principal cumple WCAG 2.1 AA.
+- Setup is usable without external instructions.
+- Refresh does not show a white flash.
+- A 10-48 character match ends with a single winner.
+- Local resume preserves settings, RNG, and state.
+- Invalid snapshot is rejected.
+- Runtime does not depend on previous server state.
+- Main flow meets WCAG 2.1 AA.
 
-## Umbrales
+## Thresholds
 
 - Initial load `<= 2.5s p75`.
-- Render de turno `<= 100ms p95`.
-- API partida `<= 250ms p95`.
-- Variedad minima: `>= 8` plantillas en primeros 20 turnos.
-- Repeticion de tipo de evento: `<= 35%` en ventana de 20 turnos.
+- Turn render `<= 100ms p95`.
+- Match API `<= 250ms p95`.
+- Minimum variety: `>= 8` templates in first 20 turns.
+- Event-type repetition: `<= 35%` in a 20-turn window.

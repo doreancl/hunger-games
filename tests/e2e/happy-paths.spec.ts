@@ -4,7 +4,7 @@ const LOCAL_MATCHES_STORAGE_KEY = 'hunger-games.local-matches.v1';
 const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
 
 async function configureStarWarsRoster(page: Page, seed: string) {
-  await page.goto('/new');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
 
@@ -48,7 +48,7 @@ async function getRuntimeTurn(page: Page) {
   return runtime as number;
 }
 
-test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
+test('HP-01 starts a valid simulation from setup', async ({ page }) => {
   await startSimulation(page, 'arena-hp01', '2x');
 
   await expect(page).toHaveURL(/\/sessions\//);
@@ -63,12 +63,12 @@ test('HP-01 inicia una simulacion valida desde setup', async ({ page }) => {
   expect(localState).toEqual({ hasMatches: true, hasRuntime: true });
 });
 
-test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada', async ({ page }) => {
+test('HP-00 new match opens clean setup even when a saved match exists', async ({ page }) => {
   await startSimulation(page, 'arena-hp00', '4x');
 
-  await page.goto('/new');
+  await page.goto('/');
 
-  await expect(page).toHaveURL(/\/new$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
   await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
@@ -79,8 +79,8 @@ test('HP-00 nueva partida abre setup limpio aunque exista una partida guardada',
   await expect(page.getByRole('heading', { name: 'Relaciones destacadas' })).toHaveCount(0);
 });
 
-test('HP-04 selecciona roster por defecto y permite toggle global', async ({ page }) => {
-  await page.goto('/new');
+test('HP-04 selects roster by default and allows global toggle', async ({ page }) => {
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   await page.getByRole('button', { name: 'Star Wars' }).click();
   await expect(page.getByLabel('A New Hope')).toBeVisible();
@@ -96,7 +96,14 @@ test('HP-04 selecciona roster por defecto y permite toggle global', async ({ pag
   await expect(page.getByText('Seleccionados: 6')).toBeVisible();
 });
 
-test('HP-02 conserva progreso tras avanzar y refrescar', async ({ page }) => {
+test('HP-05 /new redirects to the main setup', async ({ page }) => {
+  await page.goto('/new');
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
+});
+
+test('HP-02 preserves progress after advancing and refreshing', async ({ page }) => {
   await startSimulation(page, 'arena-hp02', '1x');
 
   await expect.poll(() => getRuntimeTurn(page), { timeout: 7000 }).toBeGreaterThanOrEqual(2);
@@ -114,7 +121,7 @@ test('HP-02 conserva progreso tras avanzar y refrescar', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reproducir a 1x' })).toBeEnabled();
 });
 
-test('HP-03 reanuda una partida guardada desde historial', async ({ page }) => {
+test('HP-03 resumes a saved match from history', async ({ page }) => {
   await startSimulation(page, 'arena-hp03', '4x');
   await expect.poll(() => getRuntimeTurn(page), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
   await page.getByRole('button', { name: 'Pausar simulacion' }).click();

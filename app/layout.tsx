@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { Analytics } from '@vercel/analytics/react';
@@ -6,10 +7,8 @@ import { AgentationDevtools } from '@/app/components/agentation-devtools';
 import { ThemeFooter, ThemeHeader } from '@/app/components/theme-header';
 import { DEFAULT_LOBBY_THEME } from '@/lib/lobby-theme';
 import './theme.css';
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'Hunger Games Simulator',
@@ -29,7 +28,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html
       lang="es"
       suppressHydrationWarning
-      className={cn("font-sans", geist.variable)}
+      className={inter.variable}
       data-lobby-theme={DEFAULT_LOBBY_THEME}
       style={{ backgroundColor: '#0c0e14', colorScheme: 'dark' }}
     >

@@ -84,12 +84,12 @@ contracts:
 
 errors:
   - code: SNAPSHOT_INVALID
-    when: Checksum/payload invalido o snapshot incompleto.
+    when: Invalid checksum/payload or incomplete snapshot.
   - code: SNAPSHOT_VERSION_UNSUPPORTED
-    when: Version de snapshot incompatible con la release actual.
+    when: Snapshot version is incompatible with the current release.
 
 notes:
-  - Sin share code en V1.
-  - Sin lectura de partidas entre dispositivos en V1.
-  - Continuidad basada en snapshot completo en localStorage.
-  - La rehidratacion no depende de estado previo en server.
+  - No share code in V1.
+  - No cross-device match reads in V1.
+  - Continuity is based on a full snapshot in localStorage.
+  - Rehydration does not depend on previous server state.

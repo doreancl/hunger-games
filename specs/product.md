@@ -1,31 +1,32 @@
 # Product
 
-## Norte
+## North Star
 
-Simulador web de supervivencia social: el usuario arma un roster, inicia una simulacion automatica y entiende rapido quien gana, quien cae y por que.
+Web social survival simulator: the user builds a roster, starts an automatic simulation, and quickly understands who wins, who falls, and why.
 
 ## Aha Moments
 
-1. Setup claro: en menos de 30 segundos el usuario entiende que debe elegir franquicia, peliculas, roster y presionar `Iniciar`.
-2. Primera partida viva: al iniciar, aparece un evento narrativo legible sin configurar nada extra.
-3. Drama emergente: las relaciones, traiciones, remontadas y eliminaciones cambian el curso de la partida.
-4. Continuidad obvia: al volver al lobby, una partida local se puede retomar o resumir sin explicar storage.
-5. Final compartible: la partida terminada muestra ganador, momentos clave y accion `Resumen`.
+1. Clear setup: in under 30 seconds the user understands they must choose franchise, movies, roster, and press `Iniciar`.
+2. First live match: after starting, a readable narrative event appears without extra configuration.
+3. Emergent drama: relationships, betrayals, comebacks, and eliminations change the match outcome.
+4. Obvious continuity: a local match can be resumed, duplicated, or summarized from history without explaining storage.
+5. Shareable finale: the finished match shows winner, key moments, and `Resumen` action.
 
-## Alcance V1
+## V1 Scope
 
-- Roster inicial: 10-48 personajes.
-- Ritmo default: `2x`.
-- Fases: `setup`, `bloodbath`, `day`, `night`, `finale`, `finished`.
-- Un evento narrativo principal por turno.
-- Ganador unico garantizado.
-- Continuidad local por snapshot en `localStorage`.
+- Initial roster: 10-48 characters.
+- Default speed: `2x`.
+- Phases: `setup`, `bloodbath`, `day`, `night`, `finale`, `finished`.
+- One primary narrative event per turn.
+- Guaranteed single winner.
+- Local continuity through snapshot in `localStorage`.
+- Main setup entry at `/`; `/new` redirects to `/`.
 - Server stateless.
 
-## Reglas Core
+## Core Rules
 
-- RNG seedable y reproducible.
-- Interaccion base de 2 personajes; eventos de 3+ son raros y ponderados.
-- Tension global sube con sequia de eliminaciones y tramo final.
-- Catalogo ponderado evita repeticion reciente.
-- Snapshot invalido o incompatible se rechaza sin fallback.
+- RNG is seedable and reproducible.
+- Base interaction uses 2 characters; 3+ participant events are rare and weighted.
+- Global tension rises during elimination droughts and final stretch.
+- Weighted catalog avoids recent repetition.
+- Invalid or incompatible snapshots are rejected without fallback.

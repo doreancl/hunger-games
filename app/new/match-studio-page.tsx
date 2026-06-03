@@ -75,7 +75,7 @@ import type {
 } from '@/lib/domain/types';
 
 const setupGridClassName = 'grid gap-[14px]';
-const cardClassName = 'rounded-xl border bg-card p-[14px]';
+const cardClassName = 'rounded-xl border bg-card px-6 py-[22px]';
 const cardTitleClassName =
   'm-0 font-sans text-[22px] font-bold leading-tight tracking-[-0.005em] text-foreground';
 const cardHintClassName = 'mb-3 mt-1 text-muted-foreground';
@@ -881,7 +881,7 @@ export function MatchStudioPage({
     setInfoMessage(`Progreso guardado (${shortId(summary.id)}).`);
   }
 
-  function onReturnToLobby(): void {
+  function onReturnToNewSetup(): void {
     const startedAt = Date.now();
     window.sessionStorage.setItem(
       TRANSITION_STORAGE_KEY,
@@ -938,108 +938,163 @@ export function MatchStudioPage({
     >
       <div className="mx-auto grid max-w-[1180px] gap-5">
         <header className="grid border-b pb-7 transition-colors">
-          <h1 className="m-0 font-sans text-[clamp(2.9rem,7vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground">
+          <h1 className="m-0 text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground sm:text-7xl">
             {runtime ? 'hunger-games' : 'nueva-partida'}
           </h1>
         </header>
 
         {runtime ? (
           <section className="grid gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Link className={buttonVariants({ variant: 'outline' })} href="/" onClick={onReturnToLobby}>
-                Volver al Lobby
-              </Link>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={onSaveSnapshot}
-                disabled={isBusy || !autosaveEnabled}
-                aria-label="Guardar snapshot"
-                title="Guardar snapshot"
-              >
-                <Save aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={() => {
-                  void onShareSnapshot();
-                }}
-                aria-label="Compartir snapshot"
-                title="Compartir snapshot"
-              >
-                <Share2 aria-hidden="true" />
-              </Button>
-            </div>
-
             <div
-              className="grid gap-3 border-b pb-5 text-sm text-muted-foreground md:grid-cols-[minmax(0,1fr)_auto]"
-              aria-label="Estado de simulacion"
+              className={cn(
+                'grid gap-4 rounded-xl border px-6 py-[22px] md:grid-cols-[minmax(0,1fr)_auto] md:items-center',
+                playbackSpeed === 'pause'
+                  ? 'border-[#5f4a18] bg-[#211b0f]'
+                  : 'border-[#164e3f] bg-[#10231d]'
+              )}
             >
-              <p className="m-0 font-mono text-[13px] font-bold leading-snug tracking-[0.02em]">
-                Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
-              </p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em]">
-                <span data-testid="kpi-turn">
-                  <span className="text-muted-foreground">Turno </span>
-                  <strong className="text-foreground">{currentTurn}</strong>
-                </span>
-                <span data-testid="kpi-alive">
-                  <span className="text-muted-foreground">Vivos </span>
-                  <strong className="text-foreground">{aliveCount}</strong>
-                </span>
-                <span data-testid="kpi-eliminated">
-                  <span className="text-muted-foreground">Eliminados </span>
-                  <strong className="text-foreground">{eliminatedCount}</strong>
-                </span>
-                <span data-testid="kpi-speed">
-                  <span className="text-muted-foreground">Ritmo </span>
-                  <strong className="text-foreground">{playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}</strong>
-                </span>
-              </div>
-            </div>
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      'w-fit',
+                      playbackSpeed === 'pause'
+                        ? 'bg-[rgba(251,191,36,0.15)] text-[#fbbf24]'
+                        : 'bg-[rgba(110,231,183,0.15)] text-[#6ee7b7]'
+                    )}
+                  >
+                    {playbackSpeed === 'pause' ? 'Simulacion pausada' : 'Simulacion activa'}
+                  </Badge>
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <span data-testid="kpi-turn">
+                      Turno <strong className="text-foreground">{currentTurn}</strong>
+                    </span>{' '}
+                    |{' '}
+                    <span data-testid="kpi-alive">
+                      Vivos <strong className="text-foreground">{aliveCount}</strong>
+                    </span>{' '}
+                    |{' '}
+                    <span data-testid="kpi-eliminated">
+                      Eliminados <strong className="text-foreground">{eliminatedCount}</strong>
+                    </span>{' '}
+                    |{' '}
+                    <span data-testid="kpi-speed">
+                      Ritmo{' '}
+                      <strong className="text-foreground">
+                        {playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}
+                      </strong>
+                    </span>
+                  </span>
+                </div>
 
-            <div className="grid gap-3 rounded-xl border bg-card p-4">
-              <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-muted-foreground">
-                <span>
-                  Sesion actual: <strong className="text-foreground">{currentSessionSizeLabel}</strong>
-                </span>
-                <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
-                  {currentSessionSizeTone === 'critical'
-                    ? 'Critico'
-                    : currentSessionSizeTone === 'high'
-                      ? 'Alto'
-                      : 'OK'}
-                </Badge>
+                <ol className="m-0 grid list-none gap-3 p-0 md:grid-cols-3">
+                  <li className="flex gap-3">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#6ee7b7] font-mono text-[11px] font-bold text-[#0c0e14]">
+                      1
+                    </span>
+                    <span className="grid gap-0.5">
+                      <strong className="text-sm text-foreground">
+                        Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
+                      </strong>
+                      <span className="text-sm text-muted-foreground">
+                        La arena avanza turno a turno.
+                      </span>
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#6ee7b7] font-mono text-[11px] font-bold text-[#0c0e14]">
+                      2
+                    </span>
+                    <span className="grid min-w-0 flex-1 gap-1">
+                      <strong className="text-sm text-foreground">
+                        Tension {Math.round(tensionValue)}%
+                      </strong>
+                      <Progress
+                        className="h-2.5 overflow-hidden rounded-full border bg-secondary"
+                        role="progressbar"
+                        aria-label="Nivel de tension"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(Math.min(100, tensionValue))}
+                        value={tensionValue}
+                      />
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span
+                      className={cn(
+                        'grid size-6 shrink-0 place-items-center rounded-full font-mono text-[11px] font-bold',
+                        autosaveEnabled
+                          ? 'bg-[#6ee7b7] text-[#0c0e14]'
+                          : 'bg-[rgba(251,191,36,0.18)] text-[#fbbf24]'
+                      )}
+                    >
+                      3
+                    </span>
+                    <span className="grid gap-1">
+                      <label className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
+                        Guardar local
+                      </label>
+                      <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Sesion: <strong className="text-foreground">{currentSessionSizeLabel}</strong>{' '}
+                        <Badge variant={sessionToneBadgeVariant(currentSessionSizeTone)}>
+                          {currentSessionSizeTone === 'critical'
+                            ? 'Critico'
+                            : currentSessionSizeTone === 'high'
+                              ? 'Alto'
+                              : 'OK'}
+                        </Badge>
+                      </span>
+                    </span>
+                  </li>
+                </ol>
+
+                {!autosaveEnabled ? (
+                  <p className="m-0 font-bold text-destructive">
+                    Guardado local OFF: cualquier refresh o reinicio borra esta partida.
+                  </p>
+                ) : null}
               </div>
-              <label className="mt-1.5 inline-flex items-center gap-2 font-semibold">
-                <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
-                Guardar local
-              </label>
-              {!autosaveEnabled ? (
-                <p className="m-0 mt-2 font-bold text-destructive">
-                  Guardado local OFF: cualquier refresh o reinicio borra esta partida.
-                </p>
-              ) : null}
-              <div className="mt-3.5 grid gap-1" aria-label="barra de tension">
-                <strong>Tension {Math.round(tensionValue)}%</strong>
-                <Progress
-                  className="h-3 overflow-hidden rounded-full border bg-secondary"
-                  role="progressbar"
-                  aria-label="Nivel de tension"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(Math.min(100, tensionValue))}
-                  value={tensionValue}
-                />
+
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={onSaveSnapshot}
+                  disabled={isBusy || !autosaveEnabled}
+                  aria-label="Guardar snapshot"
+                  title="Guardar snapshot"
+                >
+                  <Save aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => {
+                    void onShareSnapshot();
+                  }}
+                  aria-label="Compartir snapshot"
+                  title="Compartir snapshot"
+                >
+                  <Share2 aria-hidden="true" />
+                </Button>
+                <Link
+                  className={buttonVariants({ variant: 'outline' })}
+                  href="/"
+                  onClick={onReturnToNewSetup}
+                >
+                  Nueva partida
+                </Link>
               </div>
             </div>
           </section>
         ) : null}
 
-        <div className={!runtime && !isSessionView ? 'grid gap-5' : 'grid gap-[14px] lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:items-start'}>
+        <div className="grid gap-5">
           {!runtime && !isSessionView ? (
             <>
               <div
@@ -1221,7 +1276,17 @@ export function MatchStudioPage({
           ) : null}
 
           {runtime ? (
-            <section className="grid gap-[14px] lg:col-span-2 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start">
+            <section className="grid gap-6">
+              <div className="grid gap-3">
+                <h2 className="m-0 flex items-baseline gap-3 font-sans text-[22px] font-bold leading-tight tracking-normal text-foreground">
+                  <span className="font-mono text-xs font-bold text-muted-foreground">
+                    01
+                  </span>
+                  <span>Simulacion en progreso</span>
+                </h2>
+              </div>
+
+              <div className="grid gap-[14px] lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start">
               <article className={cardClassName}>
                 <h2 className={cardTitleClassName}>Feed narrativo</h2>
                 <p className={cardHintClassName}>
@@ -1345,7 +1410,7 @@ export function MatchStudioPage({
                       key={event.id}
                       data-testid="feed-item"
                       className={cn(
-                        'rounded-xl border bg-card px-3 py-2.5',
+                        'border-t py-3 first:border-t-0',
                         latestFeedEventId === event.id && 'animate-in fade-in slide-in-from-top-2 duration-500'
                       )}
                     >
@@ -1424,6 +1489,7 @@ export function MatchStudioPage({
                 </section>
 
               </aside>
+              </div>
             </section>
           ) : null}
         </div>
@@ -1451,7 +1517,7 @@ export function MatchStudioPage({
             />
             <p className="m-0 text-lg font-bold text-foreground">
               {transitionOverlay.direction === 'match_to_lobby'
-                ? 'Volviendo al lobby...'
+                ? 'Volviendo al setup...'
                 : 'Preparando la arena...'}
             </p>
             <p className="mt-2 text-muted-foreground">

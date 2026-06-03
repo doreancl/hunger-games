@@ -5,6 +5,15 @@ const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'var(--theme-font-sans)',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'sans-serif'
+        ]
+      },
       colors: {
         border: 'var(--border)',
         input: 'var(--border)',

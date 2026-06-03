@@ -1,106 +1,107 @@
 # Hunger Games Simulator
 
-Simulador narrativo tipo battle royale construido con Next.js + TypeScript.  
-Permite crear partidas, avanzar turnos con tension dinamica y reanudar sesiones usando snapshots locales.
+Narrative battle royale simulator built with Next.js + TypeScript.
+It lets users create matches, advance turns with dynamic tension, and resume sessions with local snapshots.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
 ![Vitest](https://img.shields.io/badge/Vitest-3.0-6E9F18?logo=vitest&logoColor=white)
 ![Zod](https://img.shields.io/badge/Zod-3.25-3E67B1)
 
-## Que resuelve
+## What It Solves
 
-- Simulacion automatica por turnos (`bloodbath -> day/night -> finale`) hasta un unico ganador.
-- Roster configurable de `10` a `48` participantes.
-- Tension progresiva y variedad de eventos (`combat`, `alliance`, `betrayal`, `resource`, `hazard`, `surprise`).
-- Lobby con acceso rapido, historial y acciones de reanudar/duplicar setup/eliminar.
-- Persistencia local con checksum para detectar snapshots corruptos.
+- Automatic turn-based simulation (`bloodbath -> day/night -> finale`) until one winner remains.
+- Configurable roster from `10` to `48` participants.
+- Progressive tension and event variety (`combat`, `alliance`, `betrayal`, `resource`, `hazard`, `surprise`).
+- Root setup screen plus history actions to resume, duplicate setup, summarize, or delete local matches.
+- Local persistence with checksum to detect corrupted snapshots.
 
-## Stack tecnico
+## Technical Stack
 
 - Framework: Next.js App Router
-- Lenguaje: TypeScript estricto
-- Validacion de contratos: Zod
-- Testing: Vitest + cobertura V8 (threshold `90%`) + Playwright E2E
-- Estado de juego server-side: memoria en proceso (`Map` en `lib/matches/lifecycle.ts`)
+- Language: strict TypeScript
+- Contract validation: Zod
+- Testing: Vitest + V8 coverage (threshold `90%`) + Playwright E2E
+- Server-side game state: in-process memory (`Map` in `lib/matches/lifecycle.ts`)
 
-## Inicio rapido
+## Quick Start
 
 ```bash
 pnpm install
 pnpm run dev
 ```
 
-Aplicacion local: [http://localhost:3000](http://localhost:3000)
+Local app: [http://localhost:3000](http://localhost:3000)
 
 ## Scripts
 
-| Comando | Descripcion |
+| Command | Description |
 | --- | --- |
-| `pnpm run dev` | Levanta entorno local |
-| `pnpm run build` | Build de produccion |
-| `pnpm run start` | Ejecuta build generado |
-| `pnpm run lint` | Lint de Next.js |
-| `pnpm run test:e2e` | Tests E2E con Playwright |
-| `pnpm run test:unit` | Tests unitarios |
-| `pnpm run test:coverage` | Tests con cobertura |
-| `pnpm run validate` | Gate completo (`lint + unit + coverage + e2e`) |
+| `pnpm run dev` | Start local dev environment |
+| `pnpm run build` | Production build |
+| `pnpm run start` | Run generated build |
+| `pnpm run lint` | Next.js lint |
+| `pnpm run test:e2e` | Playwright E2E tests |
+| `pnpm run test:unit` | Unit tests |
+| `pnpm run test:coverage` | Coverage tests |
+| `pnpm run validate` | Full gate (`lint + unit + coverage + e2e`) |
 
-## Observabilidad
+## Observability
 
-- Vercel Analytics habilitado en `app/layout.tsx` con `@vercel/analytics`.
-- Google Analytics 4 habilitado en `app/layout.tsx` con `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
-- PostHog habilitado en `app/layout.tsx` con `NEXT_PUBLIC_POSTHOG_KEY` y `NEXT_PUBLIC_POSTHOG_HOST`.
-- Cloudflare Web Analytics habilitado en `app/layout.tsx` usando el beacon oficial.
-- Configuracion necesaria:
+- Vercel Analytics enabled in `app/layout.tsx` with `@vercel/analytics`.
+- Google Analytics 4 enabled in `app/layout.tsx` with `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+- PostHog enabled in `app/layout.tsx` with `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST`.
+- Cloudflare Web Analytics enabled in `app/layout.tsx` using the official beacon.
+- Required configuration:
   - `NEXT_PUBLIC_GA_MEASUREMENT_ID`
   - `NEXT_PUBLIC_POSTHOG_KEY`
   - `NEXT_PUBLIC_POSTHOG_HOST`
   - `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`
 
-### Validar Vercel Analytics
+### Validate Vercel Analytics
 
-1. Desplegar la app en Vercel.
-2. Navegar por la app para generar trafico.
-3. Revisar `Vercel Dashboard -> Project -> Analytics`.
+1. Deploy the app to Vercel.
+2. Navigate through the app to generate traffic.
+3. Check `Vercel Dashboard -> Project -> Analytics`.
 
-### Validar Cloudflare Web Analytics
+### Validate Cloudflare Web Analytics
 
-1. Configurar el token de Web Analytics de Cloudflare en `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`.
-2. Desplegar y navegar la app.
-3. Revisar `Cloudflare Dashboard -> Web Analytics` y confirmar page views/eventos.
+1. Configure the Cloudflare Web Analytics token in `NEXT_PUBLIC_CLOUDFLARE_ANALYTICS_TOKEN`.
+2. Deploy and navigate the app.
+3. Check `Cloudflare Dashboard -> Web Analytics` and confirm page views/events.
 
-### Validar Google Analytics 4
+### Validate Google Analytics 4
 
-1. Configurar el measurement ID en `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
-2. Desplegar y navegar la app.
-3. Revisar `Google Analytics -> Reports -> Realtime`.
+1. Configure the measurement ID in `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+2. Deploy and navigate the app.
+3. Check `Google Analytics -> Reports -> Realtime`.
 
-### Validar PostHog
+### Validate PostHog
 
-1. Configurar `NEXT_PUBLIC_POSTHOG_KEY` y `NEXT_PUBLIC_POSTHOG_HOST`.
-2. Desplegar y navegar la app.
-3. Revisar PostHog por host `hunger-games.sebecode.com`.
+1. Configure `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST`.
+2. Deploy and navigate the app.
+3. Check PostHog for host `hunger-games.sebecode.com`.
 
-## Flujo funcional
+## Functional Flow
 
-1. Crear setup de partida (`/matches/new`) con roster, seed opcional y perfil.
-2. Iniciar partida (crea match + `start`).
-3. Avanzar simulacion en vivo (auto o paso a paso).
-4. Visualizar feed narrativo, estado de participantes y tension.
-5. Guardar/reabrir partidas en localStorage y recuperar contexto tras refresh.
+1. Create match setup (`/`) with roster, optional seed, and profile.
+2. Start match (creates match + `start`).
+3. Advance live simulation automatically.
+4. View narrative feed, participant state, and tension.
+5. Save/reopen matches in localStorage and recover context after refresh.
+6. Use `/sessions` to resume, summarize, duplicate, or delete local matches.
 
-## API principal
+## Main API
 
-| Metodo | Ruta | Uso |
+| Method | Route | Use |
 | --- | --- | --- |
-| `POST` | `/api/matches` | Crear partida en fase `setup` |
-| `POST` | `/api/matches/:matchId/start` | Pasar a fase `running` |
-| `POST` | `/api/matches/:matchId/turns/advance` | Avanzar un turno |
-| `GET` | `/api/matches/:matchId` | Leer estado actual |
-| `POST` | `/api/matches/resume` | Rehidratar estado desde snapshot |
+| `POST` | `/api/matches` | Create match in `setup` phase |
+| `POST` | `/api/matches/:matchId/start` | Move to `running` phase |
+| `POST` | `/api/matches/:matchId/turns/advance` | Advance one turn |
+| `GET` | `/api/matches/:matchId` | Read current state |
+| `POST` | `/api/matches/resume` | Rehydrate state from snapshot |
 
-### Ejemplo rapido: crear partida
+### Quick Example: Create Match
 
 ```bash
 curl -X POST http://localhost:3000/api/matches \
@@ -116,37 +117,39 @@ curl -X POST http://localhost:3000/api/matches \
   }'
 ```
 
-### Rate limiting (por IP / `x-forwarded-for`)
+### Rate Limiting (by IP / `x-forwarded-for`)
 
 - `create`: 20 req/min
 - `advance`: 120 req/min
 - `resume`: 60 req/min
 
-## Persistencia local
+## Local Persistence
 
-Claves usadas en `localStorage`:
+Keys used in `localStorage`:
 
-- `hunger-games.local-matches.v1`: historial de partidas resumidas.
-- `hunger-games.local-runtime.v1`: snapshot runtime de la simulacion activa.
-- `hunger-games.local-prefs.v1`: preferencias (ej. `autosave_enabled`).
+- `hunger-games.local-matches.v1`: history of resumable matches.
+- `hunger-games.local-runtime.v1`: runtime snapshot for the active simulation.
+- `hunger-games.local-prefs.v1`: preferences, for example `autosave_enabled`.
 
-Si un snapshot/version/checksum no valida, la app marca la partida como no recuperable y permite iniciar una nueva.
+If snapshot/version/checksum validation fails, the app marks the match as unrecoverable and allows starting a new one.
 
-## Estructura del proyecto
+## Project Structure
 
 ```text
 app/
-  api/matches/...         # Endpoints de juego
-  matches/...             # UI de lobby, setup y detalle
+  api/matches/...         # Game endpoints
+  _sessions/...           # History helpers
+  new/...                 # Setup/runtime shared implementation
+  sessions/...            # History and match detail routes
 lib/
-  domain/                 # Tipos y schemas (contratos)
+  domain/                 # Types and schemas (contracts)
   matches/lifecycle.ts    # Motor lifecycle in-memory
-  simulation-state.ts     # RNG, director de tension, seleccion de eventos
+  simulation-state.ts     # RNG, tension director, event selection
 tests/                    # Suite Vitest
-specs/                    # Especificaciones por capas + planes
+specs/                    # Layered specs + plans
 ```
 
-## Notas de arquitectura
+## Architecture Notes
 
 ```mermaid
 flowchart LR
@@ -157,11 +160,11 @@ flowchart LR
   Local --> UI
 ```
 
-## Calidad y contribucion
+## Quality and Contribution
 
-- Mantener contratos sincronizados en:
+- Keep contracts synchronized in:
   - `lib/domain/schemas.ts`
   - `lib/domain/types.ts`
   - `tests/domain-contracts.test.ts`
-- Antes de abrir PR: `pnpm run validate`.
-- Convencion de commits: Conventional Commits.
+- Before opening a PR: `pnpm run validate`.
+- Commit convention: Conventional Commits.

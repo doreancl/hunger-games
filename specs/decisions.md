@@ -1,18 +1,20 @@
 # Decisions
 
-- Deploy en Vercel.
-- Framework de produccion: Next.js App Router.
+- Deploy on Vercel.
+- Production framework: Next.js App Router.
 - UI: shadcn/ui + Tailwind CSS.
-- Tema default: `Eng Runbook`.
-- Server stateless para continuidad.
-- El cliente conserva snapshot completo en `localStorage`.
-- La rehidratacion usa snapshot enviado por el cliente.
-- No hay DB, memoria compartida ni filesystem para recuperar partidas en V1.
-- La continuidad solo se garantiza en el mismo navegador/dispositivo.
-- No se garantiza compatibilidad de snapshots entre versiones.
-- Snapshot corrupto o incompatible se rechaza sin fallback.
-- Se permite exportar snapshot como JSON.
-- La entrada al juego abre la ultima partida disponible.
-- No hay limite fijo de partidas locales en V1.
-- V1 no requiere cuentas de usuario.
-- No usar CSS modules en pantallas nuevas.
+- Default theme: `Eng Runbook`.
+- Stateless server for continuity.
+- Client keeps full snapshot in `localStorage`.
+- Rehydration uses the client-submitted snapshot.
+- No DB, shared memory, or filesystem recovery for matches in V1.
+- Continuity is only guaranteed on the same browser/device.
+- Snapshot compatibility across versions is not guaranteed.
+- Corrupted or incompatible snapshots are rejected without fallback.
+- Snapshot export as JSON is allowed.
+- Game entry (`/`) opens new-match setup.
+- `/new` redirects to `/`; it is not an accessible screen.
+- History (`/sessions`) concentrates resume, summarize, duplicate, and delete for local matches.
+- No fixed local match limit in V1.
+- V1 does not require user accounts.
+- Do not use CSS modules in new screens.

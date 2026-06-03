@@ -1,13 +1,13 @@
 # Specs
 
-Leer solo lo necesario:
+Read only what is needed:
 
-1. `product.md` - momentos aha y alcance.
-2. `backlog.md` - prioridades actuales.
-3. `ux.md` - reglas visuales que no se negocian.
-4. `architecture.md` - limites tecnicos.
-5. `quality.md` - gate de validacion.
-6. `decisions.md` - decisiones vigentes.
-7. `data.yaml` / `api.yaml` - contratos.
+1. `product.md` - aha moments and scope.
+2. `backlog.md` - current priorities.
+3. `ux.md` - non-negotiable visual rules.
+4. `architecture.md` - technical boundaries.
+5. `quality.md` - validation gate.
+6. `decisions.md` - active decisions.
+7. `data.yaml` / `api.yaml` - contracts.
 
-Regla: `/specs` decide que construir; no documenta historia.
+Rule: `/specs` decides what to build; it does not document history.
