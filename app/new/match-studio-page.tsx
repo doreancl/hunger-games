@@ -984,8 +984,14 @@ export function MatchStudioPage({
       <div className="mx-auto grid max-w-[1180px] gap-5">
         <header className="grid border-b pb-7 transition-colors">
           <h1 className="m-0 text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground sm:text-7xl">
-            {runtime ? 'hunger-games' : 'nueva-partida'}
+            {runtime ? 'Hunger Games Simulator' : 'Juegos del Hambre Simulador'}
           </h1>
+          {!runtime ? (
+            <p className="mt-3 max-w-[720px] text-[1rem] leading-6 text-muted-foreground">
+              Simulador de Los Juegos del Hambre online para crear partidas de supervivencia con
+              personajes por pelicula, eventos de arena y narracion automatica turno a turno.
+            </p>
+          ) : null}
         </header>
 
         {runtime ? (

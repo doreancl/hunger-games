@@ -9,10 +9,46 @@ import { DEFAULT_LOBBY_THEME } from '@/lib/lobby-theme';
 import './theme.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hunger-games.sebecode.com';
 
 export const metadata: Metadata = {
-  title: 'Hunger Games Simulator',
-  description: 'Web-based simulation MVP'
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'Juegos del Hambre Simulador online',
+    template: '%s | Simulador Juegos del Hambre'
+  },
+  description:
+    'Juegos del Hambre Simulador online: crea partidas de supervivencia, selecciona personajes, ajusta eventos y mira la arena turno a turno.',
+  keywords: [
+    'simulador juegos del hambre',
+    'los juegos del hambre simulador',
+    'simulador de los juegos del hambre',
+    'hunger games simulator',
+    'simulador hunger games',
+    'juegos del hambre online'
+  ],
+  alternates: {
+    canonical: '/'
+  },
+  openGraph: {
+    title: 'Juegos del Hambre Simulador online',
+    description:
+      'Crea partidas de Los Juegos del Hambre con personajes, eventos y narracion turno a turno.',
+    url: '/',
+    siteName: 'Simulador Juegos del Hambre',
+    locale: 'es_CL',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Juegos del Hambre Simulador online',
+    description:
+      'Simula partidas de Los Juegos del Hambre con personajes, eventos y narracion turno a turno.'
+  },
+  robots: {
+    index: true,
+    follow: true
+  }
 };
 
 type RootLayoutProps = {
