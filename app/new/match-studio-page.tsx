@@ -86,6 +86,32 @@ const speedButtonClassName =
   'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
 const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
 const tagClassName = 'rounded-full bg-secondary px-2 py-[3px] text-[0.78rem] text-foreground';
+const eventTypeStyle: Record<EventType, { item: string; label: string }> = {
+  combat: {
+    item: 'border-[#ef4444]/30 bg-[#ef4444]/[0.07]',
+    label: 'border-[#ef4444]/25 bg-[#2b171a] text-[#fca5a5]'
+  },
+  alliance: {
+    item: 'border-[#22c55e]/30 bg-[#22c55e]/[0.07]',
+    label: 'border-[#22c55e]/25 bg-[#10261a] text-[#86efac]'
+  },
+  betrayal: {
+    item: 'border-[#f97316]/30 bg-[#f97316]/[0.08]',
+    label: 'border-[#f97316]/25 bg-[#2d1d10] text-[#fdba74]'
+  },
+  resource: {
+    item: 'border-[#38bdf8]/30 bg-[#38bdf8]/[0.07]',
+    label: 'border-[#38bdf8]/25 bg-[#102431] text-[#7dd3fc]'
+  },
+  hazard: {
+    item: 'border-[#facc15]/35 bg-[#facc15]/[0.08]',
+    label: 'border-[#facc15]/25 bg-[#302812] text-[#fde047]'
+  },
+  surprise: {
+    item: 'border-[#a78bfa]/30 bg-[#a78bfa]/[0.08]',
+    label: 'border-[#a78bfa]/25 bg-[#211a35] text-[#c4b5fd]'
+  }
+};
 
 type MatchStudioPageProps = {
   sessionMatchId?: string | null;
@@ -183,6 +209,25 @@ export function MatchStudioPage({
   const currentPhase = runtime?.cycle_phase ?? 'setup';
   const currentTurn = runtime?.turn_number ?? 0;
   const tensionValue = runtime?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
+  const matchRunState = runtime?.phase === 'finished'
+    ? 'finished'
+    : playbackSpeed === 'pause'
+      ? 'paused'
+      : 'active';
+  const matchRunLabel = matchRunState === 'finished'
+    ? 'Simulacion finalizada'
+    : matchRunState === 'paused'
+      ? 'Simulacion pausada'
+      : 'Simulacion activa';
+  const matchRunSpeedLabel = matchRunState === 'finished'
+    ? 'Final'
+    : matchRunState === 'paused'
+      ? 'Pausa'
+      : playbackSpeed;
+  const currentPhaseLabel = matchRunState === 'finished' ? 'Finalizada' : phaseLabel(currentPhase);
+  const currentPhaseDetail = matchRunState === 'finished'
+    ? 'La simulacion termino. No quedan acciones disponibles.'
+    : 'La arena avanza turno a turno.';
 
   const feed = runtime?.feed ?? EMPTY_FEED;
   const currentSessionSizeBytes = runtime ? estimateLocalRuntimeSnapshotBytes(runtime) : 0;
@@ -948,9 +993,11 @@ export function MatchStudioPage({
             <div
               className={cn(
                 'grid gap-4 rounded-xl border px-6 py-[22px] md:grid-cols-[minmax(0,1fr)_auto] md:items-center',
-                playbackSpeed === 'pause'
-                  ? 'border-[#5f4a18] bg-[#211b0f]'
-                  : 'border-[#164e3f] bg-[#10231d]'
+                matchRunState === 'finished'
+                  ? 'border-[#262b3b] bg-[#14171f]'
+                  : matchRunState === 'paused'
+                    ? 'border-[#5f4a18] bg-[#211b0f]'
+                    : 'border-[#164e3f] bg-[#10231d]'
               )}
             >
               <div className="grid gap-4">
@@ -959,12 +1006,14 @@ export function MatchStudioPage({
                     variant="secondary"
                     className={cn(
                       'w-fit',
-                      playbackSpeed === 'pause'
-                        ? 'bg-[rgba(251,191,36,0.15)] text-[#fbbf24]'
-                        : 'bg-[rgba(110,231,183,0.15)] text-[#6ee7b7]'
+                      matchRunState === 'finished'
+                        ? 'bg-[rgba(139,148,173,0.18)] text-[#eaecf3]'
+                        : matchRunState === 'paused'
+                          ? 'bg-[rgba(251,191,36,0.15)] text-[#fbbf24]'
+                          : 'bg-[rgba(110,231,183,0.15)] text-[#6ee7b7]'
                     )}
                   >
-                    {playbackSpeed === 'pause' ? 'Simulacion pausada' : 'Simulacion activa'}
+                    {matchRunLabel}
                   </Badge>
                   <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     <span data-testid="kpi-turn">
@@ -981,9 +1030,7 @@ export function MatchStudioPage({
                     |{' '}
                     <span data-testid="kpi-speed">
                       Ritmo{' '}
-                      <strong className="text-foreground">
-                        {playbackSpeed === 'pause' ? 'Pausa' : playbackSpeed}
-                      </strong>
+                      <strong className="text-foreground">{matchRunSpeedLabel}</strong>
                     </span>
                   </span>
                 </div>
@@ -995,10 +1042,10 @@ export function MatchStudioPage({
                     </span>
                     <span className="grid gap-0.5">
                       <strong className="text-sm text-foreground">
-                        Fase actual: <span className="text-primary">{phaseLabel(currentPhase)}</span>
+                        Fase actual: <span className="text-primary">{currentPhaseLabel}</span>
                       </strong>
                       <span className="text-sm text-muted-foreground">
-                        La arena avanza turno a turno.
+                        {currentPhaseDetail}
                       </span>
                     </span>
                   </li>
@@ -1293,75 +1340,73 @@ export function MatchStudioPage({
                   Cada evento resume quien, que y su impacto directo en 1-2 lineas.
                 </p>
 
-              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap" aria-label="Controles de reproduccion">
-                <button
-                  type="button"
-                  aria-label="Pausar simulacion"
-                  title="Pausar simulacion"
-                  className={cn(
-                    speedButtonClassName,
-                    playbackSpeed === 'pause' && activeSpeedButtonClassName
-                  )}
-                  onClick={() => setPlaybackSpeed('pause')}
-                  disabled={!runtime || runtime.phase !== 'running'}
-                >
-                  <Pause aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Reproducir a 1x"
-                  title="Reproducir a 1x"
-                  className={cn(
-                    speedButtonClassName,
-                    playbackSpeed === '1x' && activeSpeedButtonClassName
-                  )}
-                  onClick={() => {
-                    setSimulationSpeed('1x');
-                    setPlaybackSpeed('1x');
-                  }}
-                  disabled={!runtime || runtime.phase !== 'running'}
-                >
-                  <Play aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Reproducir a 2x"
-                  title="Reproducir a 2x"
-                  className={cn(
-                    speedButtonClassName,
-                    playbackSpeed === '2x' && activeSpeedButtonClassName
-                  )}
-                  onClick={() => {
-                    setSimulationSpeed('2x');
-                    setPlaybackSpeed('2x');
-                  }}
-                  disabled={!runtime || runtime.phase !== 'running'}
-                >
-                  <span aria-hidden="true" className="font-extrabold leading-none">
-                    &gt;&gt;
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Reproducir a 4x"
-                  title="Reproducir a 4x"
-                  className={cn(
-                    speedButtonClassName,
-                    playbackSpeed === '4x' && activeSpeedButtonClassName
-                  )}
-                  onClick={() => {
-                    setSimulationSpeed('4x');
-                    setPlaybackSpeed('4x');
-                  }}
-                  disabled={!runtime || runtime.phase !== 'running'}
-                >
-                  <span aria-hidden="true" className="font-extrabold leading-none">
-                    &gt;&gt;&gt;
-                  </span>
-                </button>
-              </div>
+              {runtime.phase === 'running' ? (
+                <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap" aria-label="Controles de reproduccion">
+                  <button
+                    type="button"
+                    aria-label="Pausar simulacion"
+                    title="Pausar simulacion"
+                    className={cn(
+                      speedButtonClassName,
+                      playbackSpeed === 'pause' && activeSpeedButtonClassName
+                    )}
+                    onClick={() => setPlaybackSpeed('pause')}
+                  >
+                    <Pause aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Reproducir a 1x"
+                    title="Reproducir a 1x"
+                    className={cn(
+                      speedButtonClassName,
+                      playbackSpeed === '1x' && activeSpeedButtonClassName
+                    )}
+                    onClick={() => {
+                      setSimulationSpeed('1x');
+                      setPlaybackSpeed('1x');
+                    }}
+                  >
+                    <Play aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Reproducir a 2x"
+                    title="Reproducir a 2x"
+                    className={cn(
+                      speedButtonClassName,
+                      playbackSpeed === '2x' && activeSpeedButtonClassName
+                    )}
+                    onClick={() => {
+                      setSimulationSpeed('2x');
+                      setPlaybackSpeed('2x');
+                    }}
+                  >
+                    <span aria-hidden="true" className="font-extrabold leading-none">
+                      &gt;&gt;
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Reproducir a 4x"
+                    title="Reproducir a 4x"
+                    className={cn(
+                      speedButtonClassName,
+                      playbackSpeed === '4x' && activeSpeedButtonClassName
+                    )}
+                    onClick={() => {
+                      setSimulationSpeed('4x');
+                      setPlaybackSpeed('4x');
+                    }}
+                  >
+                    <span aria-hidden="true" className="font-extrabold leading-none">
+                      &gt;&gt;&gt;
+                    </span>
+                  </button>
+                </div>
+              ) : null}
 
-              <div className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+              <div className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] mb-5">
                 <label className={controlLabelClassName}>
                   Filtro por personaje
                   <select
@@ -1405,61 +1450,77 @@ export function MatchStudioPage({
                 </p>
               ) : (
                 <ul className="m-0 grid list-none gap-2.5 p-0" data-testid="feed-list">
-                  {filteredFeed.map((event) => (
-                    <li
-                      key={event.id}
-                      data-testid="feed-item"
-                      className={cn(
-                        'border-t py-3 first:border-t-0',
-                        latestFeedEventId === event.id && 'animate-in fade-in slide-in-from-top-2 duration-500'
-                      )}
-                    >
-                      <p className="m-0 flex justify-between text-[0.82rem] text-muted-foreground">
-                        <span>
-                          Turno {event.turn_number} · {phaseLabel(event.phase)}
-                        </span>
-                        <span>{EVENT_TYPE_LABEL[event.type]}</span>
-                      </p>
-                      <p className="mb-1 mt-1 font-bold">{event.headline}</p>
-                      <p className="m-0 text-muted-foreground">{event.impact}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {event.character_ids.length === 0 ? (
-                          <span className={tagClassName}>Sin participantes trazables</span>
-                        ) : (
-                          event.character_ids.map((characterId) => (
-                            <span key={`${event.id}-${characterId}`} className={tagClassName}>
-                              {characterName(characterId)}
-                            </span>
-                          ))
+                  {filteredFeed.map((event) => {
+                    const typeStyle = eventTypeStyle[event.type];
+
+                    return (
+                      <li
+                        key={event.id}
+                        data-testid="feed-item"
+                        className={cn(
+                          'rounded-lg border px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
+                          typeStyle.item,
+                          latestFeedEventId === event.id && 'animate-in fade-in slide-in-from-top-2 duration-500'
                         )}
-                      </div>
-                    </li>
-                  ))}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="m-0 text-[0.82rem] text-muted-foreground">
+                            Turno {event.turn_number} · {phaseLabel(event.phase)}
+                          </p>
+                          <span
+                            className={cn(
+                              'shrink-0 rounded-md border px-2.5 py-1 font-mono text-[0.72rem] font-extrabold uppercase leading-none tracking-normal',
+                              typeStyle.label
+                            )}
+                          >
+                            {EVENT_TYPE_LABEL[event.type]}
+                          </span>
+                        </div>
+                        <p className="mb-1 mt-2 font-bold">{event.headline}</p>
+                        <p className="m-0 text-muted-foreground">{event.impact}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {event.character_ids.length === 0 ? (
+                            <span className={tagClassName}>Sin participantes trazables</span>
+                          ) : (
+                            event.character_ids.map((characterId) => (
+                              <span key={`${event.id}-${characterId}`} className={tagClassName}>
+                                {characterName(characterId)}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               </article>
 
               <aside className="grid content-start gap-[14px]">
                 <section className={cardClassName}>
-                  <h3 className={cardTitleClassName}>Participantes</h3>
-                  <ul className="m-0 grid list-none overflow-hidden rounded-xl border p-0">
+                  <h3 className="mb-3 mt-0 font-mono text-[0.78rem] font-semibold uppercase leading-none tracking-[0.12em] text-muted-foreground">
+                    Participantes
+                  </h3>
+                  <ul className="m-0 grid list-none gap-2 p-0">
                     {participantStatusList.map((participant) => {
                         const statusClassName =
                           participant.status === 'alive'
-                            ? 'text-[#247454]'
+                            ? 'text-[#6ee7b7]'
                             : participant.status === 'injured'
-                              ? 'text-[#9f5e00]'
-                              : 'text-destructive';
+                              ? 'text-[#fbbf24]'
+                              : 'text-[#f87171]';
 
                         return (
-                          <li key={participant.id} className="rounded-[10px] border bg-card px-2.5 py-2">
-                            <strong>{characterName(participant.character_id)}</strong>
-                            <div>
-                              <span className={cn('text-xs font-bold uppercase', statusClassName)}>
-                                {statusLabel(participant.status)}
-                              </span>{' '}
-                              · Salud {participant.current_health}
-                            </div>
+                          <li
+                            key={participant.id}
+                            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-secondary px-3 py-2.5 font-mono text-[0.86rem]"
+                          >
+                            <span className="truncate font-semibold text-foreground">
+                              {characterName(participant.character_id)}
+                            </span>
+                            <span className={cn('text-right font-semibold', statusClassName)}>
+                              {statusLabel(participant.status)} · {participant.current_health}
+                            </span>
                           </li>
                         );
                       })}

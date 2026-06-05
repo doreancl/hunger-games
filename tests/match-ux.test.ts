@@ -165,7 +165,7 @@ describe('match ux helpers', () => {
     expect(phaseLabel('day')).toBe('Dia');
     expect(phaseLabel('night')).toBe('Noche');
     expect(phaseLabel('finale')).toBe('Finale');
-    expect(phaseLabel('god_mode')).toBe('Modo Dios');
+    expect(phaseLabel('god_mode')).toBe('Intervencion');
   });
 
   it('formats valid ISO date and preserves invalid values', () => {
