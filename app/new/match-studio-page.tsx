@@ -79,9 +79,9 @@ const cardClassName = 'rounded-xl border bg-card px-6 py-[22px]';
 const cardTitleClassName =
   'm-0 font-sans text-[22px] font-bold leading-tight tracking-[-0.005em] text-foreground';
 const cardHintClassName = 'mb-3 mt-1 text-muted-foreground';
-const controlLabelClassName = 'grid gap-1 text-[0.94rem]';
+const controlLabelClassName = 'grid min-w-0 gap-1 text-[0.94rem]';
 const selectClassName =
-  'rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  'w-full min-w-0 rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const speedButtonClassName =
   'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
 const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
@@ -1412,7 +1412,7 @@ export function MatchStudioPage({
                 </div>
               ) : null}
 
-              <div className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] mb-5">
+              <div className="mb-5 grid gap-2 md:grid-cols-[repeat(2,minmax(0,1fr))]">
                 <label className={controlLabelClassName}>
                   Filtro por personaje
                   <select

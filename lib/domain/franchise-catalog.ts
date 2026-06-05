@@ -12,6 +12,10 @@ export const DEFAULT_FRANCHISE_CATALOG_SOURCE: FranchiseCatalog = {
   version: 1,
   franchises: [
     {
+      franchise_id: 'thg',
+      franchise_name: 'The Hunger Games'
+    },
+    {
       franchise_id: 'sw',
       franchise_name: 'Star Wars'
     },
@@ -60,7 +64,37 @@ export const DEFAULT_FRANCHISE_CATALOG_SOURCE: FranchiseCatalog = {
     { character_key: 'hp-minerva', display_name: 'Minerva McGonagall', franchise_id: 'hp', movie_id: 'hp-dh2', movie_title: 'Harry Potter and the Deathly Hallows: Part 2' },
     { character_key: 'hp-molly', display_name: 'Molly Weasley', franchise_id: 'hp', movie_id: 'hp-dh2', movie_title: 'Harry Potter and the Deathly Hallows: Part 2' },
     { character_key: 'hp-voldemort', display_name: 'Lord Voldemort', franchise_id: 'hp', movie_id: 'hp-dh2', movie_title: 'Harry Potter and the Deathly Hallows: Part 2' },
-    { character_key: 'hp-bellatrix', display_name: 'Bellatrix Lestrange', franchise_id: 'hp', movie_id: 'hp-dh2', movie_title: 'Harry Potter and the Deathly Hallows: Part 2' }
+    { character_key: 'hp-bellatrix', display_name: 'Bellatrix Lestrange', franchise_id: 'hp', movie_id: 'hp-dh2', movie_title: 'Harry Potter and the Deathly Hallows: Part 2' },
+    { character_key: 'thg-katniss', display_name: 'Katniss Everdeen', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-peeta', display_name: 'Peeta Mellark', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-gale', display_name: 'Gale Hawthorne', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-rue', display_name: 'Rue', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-cato', display_name: 'Cato', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-clove', display_name: 'Clove', franchise_id: 'thg', movie_id: 'thg-hg', movie_title: 'The Hunger Games' },
+    { character_key: 'thg-haymitch-cf', display_name: 'Haymitch Abernathy', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-effie-cf', display_name: 'Effie Trinket', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-finnick', display_name: 'Finnick Odair', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-johanna', display_name: 'Johanna Mason', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-beetee', display_name: 'Beetee Latier', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-wiress', display_name: 'Wiress', franchise_id: 'thg', movie_id: 'thg-catching-fire', movie_title: 'The Hunger Games: Catching Fire' },
+    { character_key: 'thg-plutarch-mj1', display_name: 'Plutarch Heavensbee', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-coin-mj1', display_name: 'Alma Coin', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-cressida', display_name: 'Cressida', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-boggs', display_name: 'Boggs', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-messalla', display_name: 'Messalla', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-castor', display_name: 'Castor', franchise_id: 'thg', movie_id: 'thg-mockingjay-1', movie_title: 'The Hunger Games: Mockingjay - Part 1' },
+    { character_key: 'thg-prim-mj2', display_name: 'Primrose Everdeen', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-snow-mj2', display_name: 'Coriolanus Snow', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-annie', display_name: 'Annie Cresta', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-tigris-mj2', display_name: 'Tigris', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-pollux', display_name: 'Pollux', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-paylor', display_name: 'Paylor', franchise_id: 'thg', movie_id: 'thg-mockingjay-2', movie_title: 'The Hunger Games: Mockingjay - Part 2' },
+    { character_key: 'thg-lucy-gray', display_name: 'Lucy Gray Baird', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'thg-snow-ballad', display_name: 'Coriolanus Snow', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'thg-sejanus', display_name: 'Sejanus Plinth', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'thg-dr-gaul', display_name: 'Dr. Volumnia Gaul', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'thg-tigris-ballad', display_name: 'Tigris Snow', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'thg-lucky', display_name: 'Lucky Flickerman', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' }
   ]
 };
 

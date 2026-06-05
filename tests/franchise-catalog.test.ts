@@ -293,11 +293,15 @@ describe('default catalog and selection helpers', () => {
   it('loads hardcoded catalog with popular franchises and movies', () => {
     const normalized = normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE);
 
-    expect(normalized.catalog.franchises.length).toBeGreaterThanOrEqual(3);
+    expect(normalized.catalog.franchises.length).toBeGreaterThanOrEqual(4);
     expect(normalized.catalog.characters.length).toBeGreaterThanOrEqual(20);
     expect(normalized.catalog.franchises.some((entry) => entry.franchise_name === 'Star Wars')).toBe(
       true
     );
+    expect(
+      normalized.catalog.franchises.some((entry) => entry.franchise_name === 'The Hunger Games')
+    ).toBe(true);
+    expect(listFranchiseMovies(normalized.catalog, 'thg')).toHaveLength(5);
   });
 
   it('lists only movies for selected franchise', () => {
