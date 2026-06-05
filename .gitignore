@@ -9,3 +9,4 @@ package-lock.json
 output/playwright/
 .playwright-cli/
 test-results/
+.env*
