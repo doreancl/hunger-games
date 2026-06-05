@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { HelpFeedbackDialog } from '@/app/components/help-feedback-dialog';
+import { OPEN_HELP_FEEDBACK_EVENT } from '@/lib/help-feedback-events';
 import { cn } from '@/lib/utils';
 import {
   DEFAULT_LOBBY_THEME,
@@ -47,6 +48,17 @@ function useLobbyTheme(): {
 export function ThemeHeader() {
   const pathname = usePathname();
   const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    function onOpenHelpFeedback(): void {
+      setHelpOpen(true);
+    }
+
+    window.addEventListener(OPEN_HELP_FEEDBACK_EVENT, onOpenHelpFeedback);
+    return () => {
+      window.removeEventListener(OPEN_HELP_FEEDBACK_EVENT, onOpenHelpFeedback);
+    };
+  }, []);
 
   return (
     <header className="static bg-background transition-colors">

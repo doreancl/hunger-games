@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { requestHelpFeedbackDialog } from '@/lib/help-feedback-events';
 import type { FranchiseEntry } from '@/lib/domain/types';
 
 type MovieOption = {
@@ -46,6 +47,14 @@ export function CatalogSelection(props: CatalogSelectionProps) {
               {franchise.franchise_name}
             </Button>
           ))}
+          <Button
+            type="button"
+            variant="outline"
+            className="justify-start"
+            onClick={requestHelpFeedbackDialog}
+          >
+            Solicitar una nueva
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 px-6 pb-[22px]">
