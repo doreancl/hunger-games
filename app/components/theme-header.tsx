@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { HelpCircle } from 'lucide-react';
+import { HelpFeedbackDialog } from '@/app/components/help-feedback-dialog';
 import { cn } from '@/lib/utils';
 import {
   DEFAULT_LOBBY_THEME,
@@ -44,6 +46,7 @@ function useLobbyTheme(): {
 
 export function ThemeHeader() {
   const pathname = usePathname();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <header className="static bg-background transition-colors">
@@ -75,8 +78,17 @@ export function ThemeHeader() {
           >
             Historial
           </Link>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            onClick={() => setHelpOpen(true)}
+          >
+            <HelpCircle className="size-3.5" aria-hidden="true" />
+            Help
+          </button>
         </nav>
       </div>
+      <HelpFeedbackDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </header>
   );
 }
