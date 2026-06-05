@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,6 @@ type CatalogSelectionProps = {
   moviesForSelectedFranchise: MovieOption[];
   selectedMovieIds: string[];
   toggleMovie: (movieId: string) => void;
-  onGenerateRoster: () => void;
 };
 
 export function CatalogSelection(props: CatalogSelectionProps) {
@@ -27,8 +25,7 @@ export function CatalogSelection(props: CatalogSelectionProps) {
     onSelectFranchise,
     moviesForSelectedFranchise,
     selectedMovieIds,
-    toggleMovie,
-    onGenerateRoster
+    toggleMovie
   } = props;
 
   return (
@@ -87,18 +84,6 @@ export function CatalogSelection(props: CatalogSelectionProps) {
           )}
         </div>
 
-        <div className="grid gap-2">
-          <Button
-            type="button"
-            onClick={onGenerateRoster}
-            disabled={!selectedFranchiseId || selectedMovieIds.length === 0}
-          >
-            Generar roster
-          </Button>
-          <Badge variant="secondary" className="w-fit">
-            Peliculas activas: {selectedMovieIds.length}
-          </Badge>
-        </div>
       </CardContent>
     </Card>
   );

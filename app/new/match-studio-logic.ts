@@ -72,6 +72,7 @@ export type FeedEvent = {
   headline: string;
   impact: string;
   character_ids: string[];
+  eliminated_character_ids?: string[];
   created_at: string;
 };
 
@@ -299,10 +300,10 @@ export function feedFromAdvance(
     .map((participantId) => participantsById.get(participantId)?.character_id)
     .filter((characterId): characterId is string => Boolean(characterId));
   const actorNames = characterIds.map((characterId) => getCharacterName(characterId));
-  const eliminatedNames = advance.eliminated_ids
+  const eliminatedCharacterIds = advance.eliminated_ids
     .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId))
-    .map((characterId) => getCharacterName(characterId));
+    .filter((characterId): characterId is string => Boolean(characterId));
+  const eliminatedNames = eliminatedCharacterIds.map((characterId) => getCharacterName(characterId));
 
   const impact =
     eliminatedNames.length > 0
@@ -317,6 +318,7 @@ export function feedFromAdvance(
     headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
     impact,
     character_ids: characterIds,
+    eliminated_character_ids: eliminatedCharacterIds,
     created_at: new Date().toISOString()
   };
 }

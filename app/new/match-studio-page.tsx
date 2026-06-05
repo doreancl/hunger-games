@@ -86,6 +86,12 @@ const speedButtonClassName =
   'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
 const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
 const tagClassName = 'rounded-full bg-secondary px-2 py-[3px] text-[0.78rem] text-foreground';
+const participantEventTagClassName: Record<'eliminated' | 'harmful' | 'beneficial' | 'neutral', string> = {
+  eliminated: 'border border-[#ef4444]/35 bg-[#ef4444]/15 text-[#fca5a5]',
+  harmful: 'border border-[#f97316]/35 bg-[#f97316]/15 text-[#fdba74]',
+  beneficial: 'border border-[#22c55e]/35 bg-[#22c55e]/15 text-[#86efac]',
+  neutral: 'border border-[#38bdf8]/35 bg-[#38bdf8]/15 text-[#7dd3fc]'
+};
 const eventTypeStyle: Record<EventType, { item: string; label: string }> = {
   combat: {
     item: 'border-[#ef4444]/30 bg-[#ef4444]/[0.07]',
@@ -112,6 +118,25 @@ const eventTypeStyle: Record<EventType, { item: string; label: string }> = {
     label: 'border-[#a78bfa]/25 bg-[#211a35] text-[#c4b5fd]'
   }
 };
+
+function participantEventTone(
+  event: { type: EventType; eliminated_character_ids?: string[] },
+  characterId: string
+): keyof typeof participantEventTagClassName {
+  if (event.eliminated_character_ids?.includes(characterId)) {
+    return 'eliminated';
+  }
+
+  if (event.type === 'combat' || event.type === 'betrayal' || event.type === 'hazard') {
+    return 'harmful';
+  }
+
+  if (event.type === 'alliance' || event.type === 'resource') {
+    return 'beneficial';
+  }
+
+  return 'neutral';
+}
 
 type MatchStudioPageProps = {
   sessionMatchId?: string | null;
@@ -166,7 +191,6 @@ export function MatchStudioPage({
     hasDuplicateDisplayNames,
     onSelectFranchise,
     toggleMovie,
-    generateRosterFromSelection,
     toggleCharacter,
     toggleAllCharacters,
     setSelectionFromRoster,
@@ -496,15 +520,6 @@ export function MatchStudioPage({
 
     setAutosaveEnabled(nextValue);
     saveLocalPrefsToStorage(window.localStorage, { autosave_enabled: nextValue });
-  }
-
-  function onGenerateRoster() {
-    const roster = generateRosterFromSelection();
-    if (roster.length === 0) {
-      setInfoMessage('Selecciona franquicia y al menos una pelicula para generar roster.');
-      return;
-    }
-    setInfoMessage(`Roster generado con ${roster.length} personajes.`);
   }
 
   function generateSeed() {
@@ -961,7 +976,7 @@ export function MatchStudioPage({
       label: 'Activa peliculas',
       detail:
         selectedMovieIds.length > 0
-          ? `${selectedMovieIds.length} peliculas activas.`
+          ? 'Peliculas listas.'
           : 'Marca al menos una pelicula para cargar personajes.',
       isComplete: selectedMovieIds.length > 0
     },
@@ -1250,7 +1265,6 @@ export function MatchStudioPage({
                         moviesForSelectedFranchise={moviesForSelectedFranchise}
                         selectedMovieIds={selectedMovieIds}
                         toggleMovie={toggleMovie}
-                        onGenerateRoster={onGenerateRoster}
                       />
                       <RosterPreview
                         hasEmptySelectionState={hasEmptySelectionState}
@@ -1488,11 +1502,18 @@ export function MatchStudioPage({
                           {event.character_ids.length === 0 ? (
                             <span className={tagClassName}>Sin participantes trazables</span>
                           ) : (
-                            event.character_ids.map((characterId) => (
-                              <span key={`${event.id}-${characterId}`} className={tagClassName}>
-                                {characterName(characterId)}
-                              </span>
-                            ))
+                            event.character_ids.map((characterId) => {
+                              const tone = participantEventTone(event, characterId);
+
+                              return (
+                                <span
+                                  key={`${event.id}-${characterId}`}
+                                  className={cn(tagClassName, participantEventTagClassName[tone])}
+                                >
+                                  {characterName(characterId)}
+                                </span>
+                              );
+                            })
                           )}
                         </div>
                       </li>

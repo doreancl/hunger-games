@@ -13,7 +13,6 @@ async function configureStarWarsRoster(page: Page, seed: string) {
   await page.getByLabel('A New Hope').check();
   await page.getByLabel('The Empire Strikes Back').check();
   await expect(page.getByText('Seleccionados: 12')).toBeVisible();
-  await page.getByRole('button', { name: 'Generar roster' }).click();
 
   await expect(page.getByText('Roster: 12', { exact: false })).toBeVisible();
   await page.getByPlaceholder('manual o aleatoria').fill(seed);
