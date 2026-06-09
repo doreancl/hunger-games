@@ -24,7 +24,8 @@ describe('POST /api/feedback', () => {
       },
       body: JSON.stringify({
         message: 'La partida se entiende bien.',
-        rating: 'happy'
+        rating: 'happy',
+        email: 'player@example.test'
       })
     });
 
@@ -40,6 +41,7 @@ describe('POST /api/feedback', () => {
         body: JSON.stringify({
           message: 'La partida se entiende bien.',
           rating: 'happy',
+          email: 'player@example.test',
           userAgent: 'vitest',
           referer: 'http://localhost/new'
         })
@@ -59,7 +61,8 @@ describe('POST /api/feedback', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         message: 'Necesita mas claridad.',
-        rating: null
+        rating: null,
+        email: 'player@example.test'
       })
     });
 
@@ -75,6 +78,9 @@ describe('POST /api/feedback', () => {
           'Content-Type': 'application/json'
         })
       })
+    );
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string).text).toContain(
+      'Contact email: player@example.test'
     );
   });
 
@@ -109,7 +115,7 @@ describe('POST /api/feedback', () => {
     expect(body).toEqual({ error: 'invalid_request' });
   });
 
-  it('requires a message', async () => {
+  it('requires a message with at least 10 characters', async () => {
     const request = new Request('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -120,6 +126,37 @@ describe('POST /api/feedback', () => {
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body).toEqual({ error: 'Message is required' });
+    expect(body).toEqual({ error: 'Message must have at least 10 characters' });
+  });
+
+  it('rejects an invalid optional email', async () => {
+    const request = new Request('http://localhost/api/feedback', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        message: 'La partida se entiende bien.',
+        email: 'correo-invalido'
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ error: 'Invalid email' });
+  });
+
+  it('rejects feedback longer than 1000 characters', async () => {
+    const request = new Request('http://localhost/api/feedback', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'a'.repeat(1001) })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ error: 'Message must have at most 1000 characters' });
   });
 });

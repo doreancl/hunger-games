@@ -26,6 +26,10 @@ export const DEFAULT_FRANCHISE_CATALOG_SOURCE: FranchiseCatalog = {
     {
       franchise_id: 'hp',
       franchise_name: 'Harry Potter'
+    },
+    {
+      franchise_id: 'pj',
+      franchise_name: 'Percy Jackson'
     }
   ],
   characters: [
@@ -94,7 +98,37 @@ export const DEFAULT_FRANCHISE_CATALOG_SOURCE: FranchiseCatalog = {
     { character_key: 'thg-sejanus', display_name: 'Sejanus Plinth', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
     { character_key: 'thg-dr-gaul', display_name: 'Dr. Volumnia Gaul', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
     { character_key: 'thg-tigris-ballad', display_name: 'Tigris Snow', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
-    { character_key: 'thg-lucky', display_name: 'Lucky Flickerman', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' }
+    { character_key: 'thg-lucky', display_name: 'Lucky Flickerman', franchise_id: 'thg', movie_id: 'thg-ballad', movie_title: 'The Hunger Games: The Ballad of Songbirds & Snakes' },
+    { character_key: 'pj-percy-lt', display_name: 'Percy Jackson', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-annabeth-lt', display_name: 'Annabeth Chase', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-grover-lt', display_name: 'Grover Underwood', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-luke-lt', display_name: 'Luke Castellan', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-clarisse-lt', display_name: 'Clarisse La Rue', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-chiron-lt', display_name: 'Chiron', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-sally-lt', display_name: 'Sally Jackson', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-gabe-lt', display_name: 'Gabe Ugliano', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-hades-lt', display_name: 'Hades', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-persephone-lt', display_name: 'Persephone', franchise_id: 'pj', movie_id: 'pj-lightning-thief', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief' },
+    { character_key: 'pj-percy-som', display_name: 'Percy Jackson', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-annabeth-som', display_name: 'Annabeth Chase', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-grover-som', display_name: 'Grover Underwood', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-tyson-som', display_name: 'Tyson', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-clarisse-som', display_name: 'Clarisse La Rue', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-luke-som', display_name: 'Luke Castellan', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-chiron-som', display_name: 'Chiron', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-dionysus-som', display_name: 'Dionysus', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-thalia-som', display_name: 'Thalia Grace', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-polyphemus-som', display_name: 'Polyphemus', franchise_id: 'pj', movie_id: 'pj-sea-of-monsters', movie_title: 'Percy Jackson: Sea of Monsters' },
+    { character_key: 'pj-percy-ctf', display_name: 'Percy Jackson', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-annabeth-ctf', display_name: 'Annabeth Chase', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-grover-ctf', display_name: 'Grover Underwood', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-luke-ctf', display_name: 'Luke Castellan', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-clarisse-ctf', display_name: 'Clarisse La Rue', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-camper-ctf', display_name: 'Ares Camper', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-chiron-ctf', display_name: 'Chiron', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-athena-camper-ctf', display_name: 'Athena Camper', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-apollo-camper-ctf', display_name: 'Apollo Camper', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' },
+    { character_key: 'pj-hermes-camper-ctf', display_name: 'Hermes Camper', franchise_id: 'pj', movie_id: 'pj-capture-the-flag', movie_title: 'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag' }
   ]
 };
 
@@ -260,14 +294,9 @@ export function normalizeFranchiseCatalog(input: unknown): NormalizeFranchiseCat
 }
 
 export function buildCharacterLabel(
-  character: Pick<FranchiseCharacter, 'display_name' | 'movie_title'>,
-  hasNameCollision: boolean
+  character: Pick<FranchiseCharacter, 'display_name'>
 ): string {
-  if (!hasNameCollision) {
-    return character.display_name;
-  }
-
-  return `${character.display_name} · ${character.movie_title}`;
+  return character.display_name;
 }
 
 export function listFranchiseMovies(
@@ -308,6 +337,7 @@ export function buildRosterFromMovieSelection(
 
   const selectedMovieIds = new Set(movieIds);
   const seenCharacterIds = new Set<string>();
+  const seenCharacterNames = new Set<string>();
   const roster: string[] = [];
 
   for (const character of catalog.characters) {
@@ -317,11 +347,13 @@ export function buildRosterFromMovieSelection(
     if (!selectedMovieIds.has(character.movie_id)) {
       continue;
     }
-    if (seenCharacterIds.has(character.character_key)) {
+    const normalizedName = character.display_name.trim().toLocaleLowerCase();
+    if (seenCharacterIds.has(character.character_key) || seenCharacterNames.has(normalizedName)) {
       continue;
     }
 
     seenCharacterIds.add(character.character_key);
+    seenCharacterNames.add(normalizedName);
     roster.push(character.character_key);
   }
 

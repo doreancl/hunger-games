@@ -26,7 +26,6 @@ export type UseRosterSelectionResult = {
   hasEmptySelectionState: boolean;
   isCatalogEmpty: boolean;
   selectableCharacterIdSet: Set<string>;
-  hasDuplicateDisplayNames: Map<string, number>;
   onSelectFranchise: (franchiseId: string) => void;
   toggleMovie: (movieId: string) => void;
   generateRosterFromSelection: () => string[];
@@ -58,14 +57,29 @@ export function useRosterSelection({
   const selectedMovieIdSet = useMemo(() => new Set(selectedMovieIds), [selectedMovieIds]);
 
   const selectableCharacters = useMemo(
-    () =>
-      selectedFranchiseId
-        ? catalogCharacters.filter(
-            (character) =>
-              character.franchise_id === selectedFranchiseId &&
-              selectedMovieIdSet.has(character.movie_id)
-          )
-        : [],
+    () => {
+      if (!selectedFranchiseId) {
+        return [];
+      }
+
+      const seenNames = new Set<string>();
+      return catalogCharacters.filter((character) => {
+        if (
+          character.franchise_id !== selectedFranchiseId ||
+          !selectedMovieIdSet.has(character.movie_id)
+        ) {
+          return false;
+        }
+
+        const normalizedName = character.display_name.trim().toLocaleLowerCase();
+        if (seenNames.has(normalizedName)) {
+          return false;
+        }
+
+        seenNames.add(normalizedName);
+        return true;
+      });
+    },
     [catalogCharacters, selectedFranchiseId, selectedMovieIdSet]
   );
 
@@ -87,14 +101,6 @@ export function useRosterSelection({
       }),
     [hasCatalogSelection, selectableCharacters, selectedCharacters]
   );
-
-  const hasDuplicateDisplayNames = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const character of catalogCharacters) {
-      counts.set(character.display_name, (counts.get(character.display_name) ?? 0) + 1);
-    }
-    return counts;
-  }, [catalogCharacters]);
 
   useEffect(() => {
     if (!selectedFranchiseId) {
@@ -211,7 +217,6 @@ export function useRosterSelection({
     hasEmptySelectionState,
     isCatalogEmpty,
     selectableCharacterIdSet,
-    hasDuplicateDisplayNames,
     onSelectFranchise,
     toggleMovie,
     generateRosterFromSelection,

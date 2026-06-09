@@ -188,7 +188,6 @@ export function MatchStudioPage({
     setupRosterPreview,
     hasEmptySelectionState,
     isCatalogEmpty,
-    hasDuplicateDisplayNames,
     onSelectFranchise,
     toggleMovie,
     toggleCharacter,
@@ -213,9 +212,9 @@ export function MatchStudioPage({
       if (!character) {
         return characterId;
       }
-      return buildCharacterLabel(character, (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1);
+      return buildCharacterLabel(character);
     },
-    [characterById, hasDuplicateDisplayNames]
+    [characterById]
   );
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
@@ -968,7 +967,7 @@ export function MatchStudioPage({
     {
       id: 'franchise',
       label: 'Selecciona una franquicia',
-      detail: selectedFranchiseId ? 'Franquicia lista.' : 'Elige el universo base de la simulacion.',
+      detail: selectedFranchiseId ? 'Franquicia lista' : 'Elige el universo base de la simulacion',
       isComplete: Boolean(selectedFranchiseId)
     },
     {
@@ -976,8 +975,8 @@ export function MatchStudioPage({
       label: 'Activa peliculas',
       detail:
         selectedMovieIds.length > 0
-          ? 'Peliculas listas.'
-          : 'Marca al menos una pelicula para cargar personajes.',
+          ? 'Peliculas listas'
+          : 'Marca al menos una pelicula',
       isComplete: selectedMovieIds.length > 0
     },
     {
@@ -985,8 +984,8 @@ export function MatchStudioPage({
       label: 'Completa el roster',
       detail:
         selectedCharacters.length >= 10
-          ? `${selectedCharacters.length} personajes seleccionados.`
-          : `${selectedCharacters.length}/10 personajes seleccionados.`,
+          ? `${selectedCharacters.length} personajes seleccionados`
+          : `${selectedCharacters.length}/10 personajes seleccionados`,
       isComplete: selectedCharacters.length >= 10
     }
   ];
@@ -1271,7 +1270,6 @@ export function MatchStudioPage({
                         setupRosterPreview={setupRosterPreview}
                         selectableCharacters={selectableCharacters}
                         selectedCharacters={selectedCharacters}
-                        hasDuplicateDisplayNames={hasDuplicateDisplayNames}
                         toggleCharacter={toggleCharacter}
                         toggleAllCharacters={toggleAllCharacters}
                         characterName={characterName}

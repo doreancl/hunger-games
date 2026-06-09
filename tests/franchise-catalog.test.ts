@@ -268,24 +268,20 @@ describe('buildCharacterLabel', () => {
     expect(
       buildCharacterLabel(
         {
-          display_name: 'Alex',
-          movie_title: 'Movie 1'
-        },
-        false
+          display_name: 'Alex'
+        }
       )
     ).toBe('Alex');
   });
 
-  it('appends movie title when display name collides', () => {
+  it('returns plain display name when the name collides', () => {
     expect(
       buildCharacterLabel(
         {
-          display_name: 'Alex',
-          movie_title: 'Movie 1'
-        },
-        true
+          display_name: 'Alex'
+        }
       )
-    ).toBe('Alex · Movie 1');
+    ).toBe('Alex');
   });
 });
 
@@ -302,6 +298,16 @@ describe('default catalog and selection helpers', () => {
       normalized.catalog.franchises.some((entry) => entry.franchise_name === 'The Hunger Games')
     ).toBe(true);
     expect(listFranchiseMovies(normalized.catalog, 'thg')).toHaveLength(5);
+    expect(listFranchiseMovies(normalized.catalog, 'pj').map((movie) => movie.movie_title)).toEqual([
+      'Percy Jackson & the Olympians: The Lightning Thief',
+      'Percy Jackson & the Olympians: The Lightning Thief / Capture the Flag',
+      'Percy Jackson: Sea of Monsters'
+    ]);
+    for (const movie of listFranchiseMovies(normalized.catalog, 'pj')) {
+      expect(
+        normalized.catalog.characters.filter((character) => character.movie_id === movie.movie_id)
+      ).toHaveLength(10);
+    }
   });
 
   it('lists only movies for selected franchise', () => {
@@ -367,6 +373,41 @@ describe('default catalog and selection helpers', () => {
 
     expect(buildRosterFromMovieSelection(normalized, null, ['sw-anh'])).toEqual([]);
     expect(buildRosterFromMovieSelection(normalized, 'sw', [])).toEqual([]);
+  });
+
+  it('deduplicates characters with the same display name across selected movies', () => {
+    const normalized = normalizeFranchiseCatalog(DEFAULT_FRANCHISE_CATALOG_SOURCE).catalog;
+    const roster = buildRosterFromMovieSelection(normalized, 'pj', [
+      'pj-lightning-thief',
+      'pj-sea-of-monsters',
+      'pj-capture-the-flag'
+    ]);
+    const names = roster.map(
+      (characterKey) =>
+        normalized.characters.find((character) => character.character_key === characterKey)
+          ?.display_name
+    );
+
+    expect(names).toEqual([
+      'Percy Jackson',
+      'Annabeth Chase',
+      'Grover Underwood',
+      'Luke Castellan',
+      'Clarisse La Rue',
+      'Chiron',
+      'Sally Jackson',
+      'Gabe Ugliano',
+      'Hades',
+      'Persephone',
+      'Tyson',
+      'Dionysus',
+      'Thalia Grace',
+      'Polyphemus',
+      'Ares Camper',
+      'Athena Camper',
+      'Apollo Camper',
+      'Hermes Camper'
+    ]);
   });
 
   it('skips characters from other franchises and repeated keys while building roster', () => {

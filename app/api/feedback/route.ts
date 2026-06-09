@@ -1,17 +1,35 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
-    const message = String(body.message || '').slice(0, 4000);
+    const rawMessage = String(body.message || '');
+    const message = rawMessage.slice(0, 1000);
     const rating = ['sad', 'neutral', 'happy'].includes(String(body.rating))
       ? String(body.rating)
       : '';
+    const email = String(body.email || '').slice(0, 254).trim();
     const userAgent = req.headers.get('user-agent') || '';
     const referer = req.headers.get('referer') || '';
 
-    if (!message.trim()) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    if (message.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'Message must have at least 10 characters' },
+        { status: 400 }
+      );
+    }
+
+    if (rawMessage.length > 1000) {
+      return NextResponse.json(
+        { error: 'Message must have at most 1000 characters' },
+        { status: 400 }
+      );
+    }
+
+    if (email && !emailPattern.test(email)) {
+      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
     }
 
     // 1) Send via Resend if configured
@@ -21,7 +39,7 @@ export async function POST(req: NextRequest) {
       const subject = 'Hunger Games feedback';
       const content = `Feedback:\n\n${message}\n\nRating: ${
         rating || '(not provided)'
-      }\nUA: ${userAgent}\nRef: ${referer}`;
+      }\nContact email: ${email || '(not provided)'}\nUA: ${userAgent}\nRef: ${referer}`;
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -48,7 +66,7 @@ export async function POST(req: NextRequest) {
       const response = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, rating, userAgent, referer })
+        body: JSON.stringify({ message, rating, email, userAgent, referer })
       });
       if (!response.ok) {
         const detail = await response.text().catch(() => '');

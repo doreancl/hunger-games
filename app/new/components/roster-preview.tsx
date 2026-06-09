@@ -13,7 +13,6 @@ type RosterPreviewProps = {
   setupRosterPreview: SetupRosterPreview;
   selectableCharacters: FranchiseCharacter[];
   selectedCharacters: string[];
-  hasDuplicateDisplayNames: Map<string, number>;
   toggleCharacter: (characterId: string) => void;
   toggleAllCharacters: () => void;
   characterName: (characterId: string) => string;
@@ -25,7 +24,6 @@ export function RosterPreview(props: RosterPreviewProps) {
     setupRosterPreview,
     selectableCharacters,
     selectedCharacters,
-    hasDuplicateDisplayNames,
     toggleCharacter,
     toggleAllCharacters,
     characterName
@@ -77,9 +75,7 @@ export function RosterPreview(props: RosterPreviewProps) {
           <div className="grid gap-2 md:grid-cols-2">
             {selectableCharacters.map((character) => {
               const checkboxId = `roster-${character.character_key}`;
-              const hasNameCollision =
-                (hasDuplicateDisplayNames.get(character.display_name) ?? 0) > 1;
-              const label = buildCharacterLabel(character, hasNameCollision);
+              const label = buildCharacterLabel(character);
               return (
                 <Label
                   key={character.character_key}

@@ -3,10 +3,13 @@
 import { Frown, HelpCircle, Meh, Smile, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 type FeedbackRating = 'sad' | 'neutral' | 'happy';
 type SubmissionStatus = 'idle' | 'sending' | 'sent' | 'error';
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type HelpFeedbackDialogProps = {
   open: boolean;
@@ -27,9 +30,12 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
   const titleId = useId();
   const descriptionId = useId();
   const [message, setMessage] = useState('');
+  const [email, setEmail] = useState('');
   const [rating, setRating] = useState<FeedbackRating | null>(null);
   const [status, setStatus] = useState<SubmissionStatus>('idle');
   const [error, setError] = useState('');
+  const trimmedMessageLength = message.trim().length;
+  const hasInvalidEmail = Boolean(email.trim() && !emailPattern.test(email.trim()));
 
   useEffect(() => {
     if (!open) {
@@ -51,6 +57,7 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
       setStatus('idle');
       setError('');
       setMessage('');
+      setEmail('');
       setRating(null);
     }, 250);
   }
@@ -62,7 +69,12 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
 
   async function submit(): Promise<void> {
     const trimmedMessage = message.trim();
-    if (!trimmedMessage || status === 'sending') {
+    const trimmedEmail = email.trim();
+    if (
+      trimmedMessage.length < 10 ||
+      (trimmedEmail && !emailPattern.test(trimmedEmail)) ||
+      status === 'sending'
+    ) {
       return;
     }
 
@@ -73,7 +85,7 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmedMessage, rating })
+        body: JSON.stringify({ message: trimmedMessage, rating, email: trimmedEmail })
       });
 
       if (!response.ok) {
@@ -84,6 +96,7 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
 
       setStatus('sent');
       setMessage('');
+      setEmail('');
       setRating(null);
       window.setTimeout(() => {
         onOpenChange(false);
@@ -163,9 +176,45 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder="Escribe tu feedback..."
-            className="min-h-32 w-full resize-none rounded-md border bg-background p-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            maxLength={2000}
+            className={cn(
+              'min-h-32 w-full resize-none rounded-md border bg-background p-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring',
+              trimmedMessageLength > 0 &&
+                trimmedMessageLength < 10 &&
+                'border-red-500/80 bg-red-950/20 focus-visible:border-red-500 focus-visible:ring-red-500/40'
+            )}
+            maxLength={1000}
+            minLength={10}
           />
+          <p
+            className={cn(
+              'text-xs text-muted-foreground',
+              trimmedMessageLength > 0 && trimmedMessageLength < 10 && 'font-medium text-red-400'
+            )}
+          >
+            Mínimo 10 caracteres · {trimmedMessageLength}/1000
+          </p>
+
+          <label className="grid gap-1.5 text-sm font-medium">
+            Correo (opcional)
+            <span className="text-xs font-normal text-muted-foreground">
+              Por si quieres ser contactado
+            </span>
+            <Input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="tu@correo.com"
+              maxLength={254}
+              aria-invalid={hasInvalidEmail}
+              className={cn(
+                hasInvalidEmail &&
+                  'border-red-500/80 bg-red-950/20 focus-visible:border-red-500 focus-visible:ring-red-500/40'
+              )}
+            />
+          </label>
+          {hasInvalidEmail ? (
+            <p className="text-xs font-medium text-red-400">Ingresa un correo válido.</p>
+          ) : null}
 
           {status === 'error' ? (
             <p className="text-center text-sm font-medium text-destructive">{error}</p>
@@ -179,7 +228,15 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
           <Button type="button" variant="outline" onClick={close}>
             Cancelar
           </Button>
-          <Button type="button" onClick={submit} disabled={status === 'sending' || !message.trim()}>
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={
+              status === 'sending' ||
+              trimmedMessageLength < 10 ||
+              hasInvalidEmail
+            }
+          >
             {status === 'sending' ? 'Enviando...' : 'Enviar'}
           </Button>
         </div>
