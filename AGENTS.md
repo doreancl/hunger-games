@@ -47,6 +47,8 @@
 
 - Follow Conventional Commits with action-oriented subjects.
 - Group related changes; avoid bundling unrelated refactors.
+- Never commit, push, create a PR, or update an existing PR without explicit user approval immediately before publishing.
+- After making changes, leave them local so the user can review them before approving publication.
 - PR should include:
   - Scope and user-visible behavior changes.
   - Commands executed (`pnpm run lint`, `pnpm run test:unit`, `pnpm run test:coverage`, `pnpm run test:e2e`).

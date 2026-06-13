@@ -9,5 +9,6 @@ Read only what is needed:
 5. `quality.md` - validation gate.
 6. `decisions.md` - active decisions.
 7. `data.yaml` / `api.yaml` - contracts.
+8. `analytics.md` - product analytics event contracts.
 
 Rule: `/specs` decides what to build; it does not document history.

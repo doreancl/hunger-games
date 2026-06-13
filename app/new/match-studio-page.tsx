@@ -64,6 +64,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { captureProductEvent } from '@/lib/product-analytics';
 import type {
   AdvanceTurnResponse,
   CreateMatchResponse,
@@ -623,6 +624,39 @@ export function MatchStudioPage({
         const nextMatches = [newSummary, ...localMatches.filter((match) => match.id !== newSummary.id)];
         persistLocalMatches(nextMatches);
       }
+      captureProductEvent('match_started', {
+        match_id: createResponse.match_id,
+        franchise:
+          franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
+            ?.franchise_name ?? null,
+        movie_count: selectedMovieIds.length,
+        roster_size: selectedCharacters.length,
+        event_profile: eventProfile,
+        surprise_level: surpriseLevel,
+        autosave_enabled: autosaveEnabled
+      });
+      moviesForSelectedFranchise
+        .filter((movie) => selectedMovieIds.includes(movie.movie_id))
+        .forEach((movie) => {
+          captureProductEvent('match_movie_used', {
+            match_id: createResponse.match_id,
+            movie: movie.movie_title,
+            franchise:
+              franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
+                ?.franchise_name ?? null
+          });
+        });
+      selectedCharacters.forEach((characterId) => {
+        const character = characterById.get(characterId);
+        captureProductEvent('match_character_used', {
+          match_id: createResponse.match_id,
+          character: characterName(characterId),
+          movie: character?.movie_title ?? null,
+          franchise:
+            franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
+              ?.franchise_name ?? null
+        });
+      });
       router.replace(`/sessions/${createResponse.match_id}`, { scroll: false });
       setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
     } catch (error) {
@@ -837,12 +871,25 @@ export function MatchStudioPage({
 
       if (advance.finished) {
         setPlaybackSpeed('pause');
-        const winnerName =
+        const winnerCharacterId =
           state.participants.find((participant) => participant.id === advance.winner_id)?.character_id ??
           null;
+        captureProductEvent('match_finished', {
+          match_id: runtime.match_id,
+          winner: winnerCharacterId ? characterName(winnerCharacterId) : null,
+          winner_movie: winnerCharacterId
+            ? characterById.get(winnerCharacterId)?.movie_title ?? null
+            : null,
+          franchise:
+            franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
+              ?.franchise_name ?? null,
+          roster_size: state.participants.length,
+          turn_count: state.turn_number,
+          simulation_speed: runtime.settings.simulation_speed
+        });
         setInfoMessage(
-          winnerName
-            ? `Partida finalizada. Ganador: ${characterName(winnerName)}.`
+          winnerCharacterId
+            ? `Partida finalizada. Ganador: ${characterName(winnerCharacterId)}.`
             : 'Partida finalizada.'
         );
       }
@@ -862,7 +909,18 @@ export function MatchStudioPage({
     } finally {
       setIsBusy(false);
     }
-  }, [applySetupFromMatch, autosaveEnabled, characterName, isBusy, localMatches, persistLocalMatches, runtime]);
+  }, [
+    applySetupFromMatch,
+    autosaveEnabled,
+    characterById,
+    characterName,
+    franchiseOptions,
+    isBusy,
+    localMatches,
+    persistLocalMatches,
+    runtime,
+    selectedFranchiseId
+  ]);
 
   useEffect(() => {
     if (
@@ -1101,7 +1159,11 @@ export function MatchStudioPage({
                     </span>
                     <span className="grid gap-1">
                       <label className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                        <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
+                        <Switch
+                          data-analytics-control="autosave"
+                          checked={autosaveEnabled}
+                          onCheckedChange={onToggleAutosave}
+                        />
                         Guardar local
                       </label>
                       <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -1283,6 +1345,7 @@ export function MatchStudioPage({
                       Seed (opcional)
                       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <Input
+                        data-analytics-control="match_seed"
                         value={seed}
                         onChange={(event) => setSeed(event.target.value)}
                         placeholder="manual o aleatoria"
@@ -1298,6 +1361,7 @@ export function MatchStudioPage({
                         <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                           Perfil de eventos
                           <Select
+                            data-analytics-control="event_profile"
                             value={eventProfile}
                             onChange={(event) =>
                               setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
@@ -1312,6 +1376,7 @@ export function MatchStudioPage({
                         <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                           Nivel de sorpresa
                           <Select
+                            data-analytics-control="surprise_level"
                             value={surpriseLevel}
                             onChange={(event) =>
                               setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')

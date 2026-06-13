@@ -18,3 +18,14 @@
 - No fixed local match limit in V1.
 - V1 does not require user accounts.
 - Do not use CSS modules in new screens.
+
+## Analytics Responsibilities
+
+- PostHog is the product analytics source of truth. Use it for named funnel events, feature usage, retention, and debugging user flows.
+- Google Analytics 4 measures acquisition and marketing outcomes. Use it for traffic sources, campaigns, referrals, and search-related reporting.
+- Vercel Analytics measures frontend delivery and page-level performance on Vercel. Use it for Web Vitals and deployment-related regressions.
+- Cloudflare Web Analytics provides privacy-oriented, edge-observed traffic totals. Use it as an independent check for visits and page views reaching the domain.
+- Do not compare raw totals across tools as if they were equivalent; consent, blockers, bot filtering, and collection points differ.
+- A product event is added to PostHog first. Add it to GA4 only when it represents a marketing conversion.
+- Do not send roster names, seeds, snapshot contents, or other user-generated match data to analytics tools.
+- Update `ruleset_version` whenever simulation behavior changes in a way that can affect match outcomes or metrics.

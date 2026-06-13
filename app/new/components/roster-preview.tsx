@@ -51,6 +51,7 @@ export function RosterPreview(props: RosterPreviewProps) {
             className="flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm"
           >
             <Checkbox
+              data-analytics-control="roster_select_all"
               id="roster-select-all"
               aria-label="Seleccionar todo el roster"
               checked={allSelectableCharactersSelected}
@@ -83,6 +84,7 @@ export function RosterPreview(props: RosterPreviewProps) {
                   className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-[12.5px]"
                 >
                   <Checkbox
+                    data-analytics-control="roster_character_selection"
                     id={checkboxId}
                     aria-label={`Seleccionar ${label}`}
                     checked={selectedCharacterSet.has(character.character_key)}
@@ -105,6 +107,7 @@ export function RosterPreview(props: RosterPreviewProps) {
                   className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-[12.5px] opacity-75"
                 >
                   <Checkbox
+                    data-analytics-control="roster_selected_character"
                     id={checkboxId}
                     aria-label={`Roster seleccionado ${label}`}
                     checked
