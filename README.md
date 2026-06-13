@@ -48,10 +48,24 @@ Local app: [http://localhost:3000](http://localhost:3000)
 
 ## Observability
 
-- Vercel Analytics enabled in `app/layout.tsx` with `@vercel/analytics`.
-- Google Analytics 4 enabled in `app/layout.tsx` with `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
-- PostHog enabled in `app/layout.tsx` with `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST`.
-- Cloudflare Web Analytics enabled in `app/layout.tsx` using the official beacon.
+Each tool answers a different question:
+
+| Tool | Purpose | Use it to answer |
+| --- | --- | --- |
+| PostHog | Product analytics source of truth | Do users start and finish matches? Which features and flows work? |
+| Google Analytics 4 | Acquisition and marketing analytics | Where does traffic come from? Which campaigns produce conversions? |
+| Vercel Analytics | Vercel-hosted page and frontend performance analytics | Are pages fast and did a deployment regress Web Vitals? |
+| Cloudflare Web Analytics | Privacy-oriented edge traffic baseline | How many visits and page views reach the domain? |
+
+Implementation:
+
+- Vercel Analytics is enabled in `app/layout.tsx` with `@vercel/analytics`.
+- Google Analytics 4 is enabled in `app/layout.tsx` with `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+- PostHog is enabled in `app/layout.tsx` with `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST`.
+- Cloudflare Web Analytics is enabled in `app/layout.tsx` using the official beacon.
+- Product events belong in PostHog. Send an event to GA4 only when it is also a marketing conversion.
+- Do not send roster names, seeds, snapshot contents, or other user-generated match data.
+- Totals between tools are not expected to match because collection points, consent, blockers, and bot filtering differ.
 - Required configuration:
   - `NEXT_PUBLIC_GA_MEASUREMENT_ID`
   - `NEXT_PUBLIC_POSTHOG_KEY`

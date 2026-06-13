@@ -17,7 +17,13 @@ export function ButtonLink({
   ...props
 }: ButtonLinkProps) {
   return (
-    <Link className={buttonVariants({ variant, size, className })} {...props}>
+    <Link
+      data-slot="button-link"
+      data-button-size={size}
+      data-button-variant={variant}
+      className={buttonVariants({ variant, size, className })}
+      {...props}
+    >
       {children}
     </Link>
   );
