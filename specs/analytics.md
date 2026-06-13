@@ -26,6 +26,8 @@ Every named product event includes:
 
 Browser, operating system, device, URL, referrer, UTM, locale, and approximate location remain PostHog-managed properties.
 
+Interactive controls include a stable `data-analytics-control` attribute so PostHog autocapture identifies the control instead of reporting only a generic clicked or changed input.
+
 ## Match Journey
 
 ### `match_started`

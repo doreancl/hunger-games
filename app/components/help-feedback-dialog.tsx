@@ -200,6 +200,7 @@ export function HelpFeedbackDialog({ open, onOpenChange }: HelpFeedbackDialogPro
               Por si quieres ser contactado
             </span>
             <Input
+              data-analytics-control="feedback_email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}

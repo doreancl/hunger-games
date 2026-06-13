@@ -1159,7 +1159,11 @@ export function MatchStudioPage({
                     </span>
                     <span className="grid gap-1">
                       <label className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                        <Switch checked={autosaveEnabled} onCheckedChange={onToggleAutosave} />
+                        <Switch
+                          data-analytics-control="autosave"
+                          checked={autosaveEnabled}
+                          onCheckedChange={onToggleAutosave}
+                        />
                         Guardar local
                       </label>
                       <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -1341,6 +1345,7 @@ export function MatchStudioPage({
                       Seed (opcional)
                       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <Input
+                        data-analytics-control="match_seed"
                         value={seed}
                         onChange={(event) => setSeed(event.target.value)}
                         placeholder="manual o aleatoria"
@@ -1356,6 +1361,7 @@ export function MatchStudioPage({
                         <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                           Perfil de eventos
                           <Select
+                            data-analytics-control="event_profile"
                             value={eventProfile}
                             onChange={(event) =>
                               setEventProfile(event.target.value as 'balanced' | 'aggressive' | 'chaotic')
@@ -1370,6 +1376,7 @@ export function MatchStudioPage({
                         <Label className="grid gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                           Nivel de sorpresa
                           <Select
+                            data-analytics-control="surprise_level"
                             value={surpriseLevel}
                             onChange={(event) =>
                               setSurpriseLevel(event.target.value as 'low' | 'normal' | 'high')

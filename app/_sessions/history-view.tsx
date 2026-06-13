@@ -85,6 +85,7 @@ export function MatchArchiveTable({
           <Label className="grid gap-2 text-sm font-semibold text-foreground">
             Buscar
             <Input
+              data-analytics-control="history_search"
               placeholder="id corta o seed"
               value={searchTerm}
               onChange={(event) => onSearchTermChange(event.target.value)}
@@ -94,6 +95,7 @@ export function MatchArchiveTable({
           <Label className="grid gap-2 text-sm font-semibold text-foreground">
             Estado
             <Select
+              data-analytics-control="history_status_filter"
               value={statusFilter}
               onChange={(event) => onStatusFilterChange(event.target.value as HistoryFilter)}
             >
