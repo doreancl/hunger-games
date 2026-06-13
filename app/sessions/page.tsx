@@ -7,6 +7,10 @@ export const metadata: Metadata = {
     'Revisa el historial local de partidas del simulador Juegos del Hambre y continua sesiones guardadas.',
   alternates: {
     canonical: '/sessions'
+  },
+  robots: {
+    index: false,
+    follow: true
   }
 };
 
