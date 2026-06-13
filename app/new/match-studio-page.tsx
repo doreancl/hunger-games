@@ -87,6 +87,38 @@ const speedButtonClassName =
   'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
 const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
 const tagClassName = 'rounded-full bg-secondary px-2 py-[3px] text-[0.78rem] text-foreground';
+const HOME_FAQ = [
+  {
+    question: '¿Qué es este simulador de Los Juegos del Hambre?',
+    answer:
+      'Es un simulador online en español donde eliges personajes, creas una partida y sigues una historia de supervivencia generada turno a turno hasta conocer al ganador.'
+  },
+  {
+    question: '¿Cómo crear una simulación de Los Juegos del Hambre?',
+    answer:
+      'Selecciona una o más películas, elige al menos 10 personajes para el roster, ajusta la configuración de la arena e inicia la partida. El simulador se encarga de generar los eventos.'
+  },
+  {
+    question: '¿Puedo elegir los personajes de la partida?',
+    answer:
+      'Sí. Puedes combinar personajes de distintas películas de Los Juegos del Hambre y decidir quiénes participan antes de comenzar la simulación.'
+  },
+  {
+    question: '¿Qué ocurre durante una partida?',
+    answer:
+      'La arena avanza mediante eventos narrativos que pueden crear alianzas, rivalidades, heridas y eliminaciones. Puedes pausar la reproducción y seguir el estado de cada participante.'
+  },
+  {
+    question: '¿El simulador guarda mis partidas?',
+    answer:
+      'Sí. Las partidas se guardan localmente en tu navegador para que puedas revisarlas desde el historial o continuar una simulación guardada.'
+  },
+  {
+    question: '¿Es gratis y está disponible en español?',
+    answer:
+      'Sí. Este simulador de Los Juegos del Hambre es gratuito, funciona online y su interfaz está disponible en español.'
+  }
+] as const;
 const participantEventTagClassName: Record<'eliminated' | 'harmful' | 'beneficial' | 'neutral', string> = {
   eliminated: 'border border-[#ef4444]/35 bg-[#ef4444]/15 text-[#fca5a5]',
   harmful: 'border border-[#f97316]/35 bg-[#f97316]/15 text-[#fdba74]',
@@ -1649,6 +1681,33 @@ export function MatchStudioPage({
           <p className="mt-2.5 font-semibold text-muted-foreground" data-testid="info-message">
             {infoMessage}
           </p>
+        ) : null}
+
+        {!runtime ? (
+          <section className="mt-5 border-t pt-8" aria-labelledby="faq-title">
+            <div>
+              <p className="mb-2 font-mono text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Guía del simulador
+              </p>
+              <h2 id="faq-title" className="m-0 text-3xl font-bold tracking-[-0.025em]">
+                Preguntas frecuentes
+              </h2>
+              <p className="mb-6 mt-2 leading-6 text-muted-foreground">
+                Todo lo necesario para crear y jugar una simulación de Los Juegos del Hambre
+                online en español.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {HOME_FAQ.map(({ question, answer }) => (
+                <details key={question} className="group rounded-xl border bg-card px-5 py-4">
+                  <summary className="cursor-pointer list-none pr-6 font-semibold marker:hidden">
+                    {question}
+                  </summary>
+                  <p className="mb-0 mt-3 leading-6 text-muted-foreground">{answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
         ) : null}
       </div>
       {transitionOverlay ? (
