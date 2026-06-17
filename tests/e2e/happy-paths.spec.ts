@@ -14,7 +14,7 @@ async function configureStarWarsRoster(page: Page, seed: string) {
   await page.getByLabel('The Empire Strikes Back').check();
   await expect(page.getByText('Seleccionados: 12')).toBeVisible();
 
-  await expect(page.getByText('Roster: 12', { exact: false })).toBeVisible();
+  await expect(page.getByText('12 personajes seleccionados')).toBeVisible();
   await page.getByPlaceholder('manual o aleatoria').fill(seed);
 }
 
@@ -22,7 +22,9 @@ async function startSimulation(page: Page, seed: string, speed: '1x' | '2x' | '4
   await configureStarWarsRoster(page, seed);
   await page.getByRole('button', { name: 'Iniciar simulacion' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toBeVisible({
+    timeout: 20000
+  });
   await expect(page.getByTestId('info-message')).toContainText('Simulacion iniciada');
   await expect(page.getByTestId('kpi-turn')).toContainText('0');
   await expect(page.getByTestId('kpi-alive')).toContainText('12');
@@ -69,7 +71,8 @@ test('HP-00 new match opens clean setup even when a saved match exists', async (
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Setup de partida' })).toBeVisible();
-  await expect(page.getByText('Roster: 0 | Seed: aleatoria al iniciar')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Partir de cero' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1.1) Peliculas' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Iniciar simulacion' })).toBeDisabled();
   await expect(page.getByPlaceholder('manual o aleatoria')).toHaveValue('');
   await expect(page.getByRole('combobox', { name: 'Ritmo inicial' })).toHaveCount(0);

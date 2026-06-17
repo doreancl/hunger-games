@@ -292,18 +292,17 @@ function impactByType(type: EventType): string {
 
 export function feedFromAdvance(
   advance: AdvanceTurnResponse,
-  participants: ParticipantState[],
-  getCharacterName: (characterId: string) => string
+  participants: ParticipantState[]
 ): FeedEvent {
   const participantsById = new Map(participants.map((participant) => [participant.id, participant]));
-  const characterIds = advance.event.participant_ids
-    .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId));
-  const actorNames = characterIds.map((characterId) => getCharacterName(characterId));
-  const eliminatedCharacterIds = advance.eliminated_ids
-    .map((participantId) => participantsById.get(participantId)?.character_id)
-    .filter((characterId): characterId is string => Boolean(characterId));
-  const eliminatedNames = eliminatedCharacterIds.map((characterId) => getCharacterName(characterId));
+  const eventParticipants = advance.event.participant_ids
+    .map((participantId) => participantsById.get(participantId))
+    .filter((participant): participant is ParticipantState => Boolean(participant));
+  const actorNames = eventParticipants.map((participant) => participant.display_name);
+  const eliminatedParticipants = advance.eliminated_ids
+    .map((participantId) => participantsById.get(participantId))
+    .filter((participant): participant is ParticipantState => Boolean(participant));
+  const eliminatedNames = eliminatedParticipants.map((participant) => participant.display_name);
 
   const impact =
     eliminatedNames.length > 0
@@ -317,8 +316,8 @@ export function feedFromAdvance(
     type: advance.event.type,
     headline: `${summarizeActors(actorNames)} ${EVENT_ACTION[advance.event.type]}.`,
     impact,
-    character_ids: characterIds,
-    eliminated_character_ids: eliminatedCharacterIds,
+    character_ids: eventParticipants.map((participant) => participant.character_id),
+    eliminated_character_ids: eliminatedParticipants.map((participant) => participant.character_id),
     created_at: new Date().toISOString()
   };
 }

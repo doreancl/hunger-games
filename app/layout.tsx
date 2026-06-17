@@ -14,26 +14,31 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hunger-games.sebeco
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Juegos del Hambre Simulador online',
+    default: 'Simulador de Los Juegos del Hambre online en español',
     template: '%s | Simulador Juegos del Hambre'
   },
   description:
-    'Juegos del Hambre Simulador online: crea partidas de supervivencia, selecciona personajes, ajusta eventos y mira la arena turno a turno.',
+    'Simulador de Los Juegos del Hambre online en español: crea un juego de supervivencia, edita personajes, usa roster aleatorio y mira la arena turno a turno.',
   keywords: [
-    'simulador juegos del hambre',
-    'los juegos del hambre simulador',
     'simulador de los juegos del hambre',
-    'hunger games simulator',
+    'juegos del hambre simulador',
+    'los juegos del hambre simulador',
+    'simulador juegos del hambre',
+    'simulador los juegos del hambre',
+    'juegos del hambre online simulador',
+    'juegos del hambre juego simulador',
+    'juego del hambre simulador',
+    'hunger games simulator español',
     'simulador hunger games',
-    'juegos del hambre online'
+    'hunger games simulator'
   ],
   alternates: {
     canonical: '/'
   },
   openGraph: {
-    title: 'Juegos del Hambre Simulador online',
+    title: 'Simulador de Los Juegos del Hambre online en español',
     description:
-      'Crea partidas de Los Juegos del Hambre con personajes, eventos y narracion turno a turno.',
+      'Crea partidas de Los Juegos del Hambre con roster editable, nombres personalizados y narracion turno a turno.',
     url: '/',
     siteName: 'Simulador Juegos del Hambre',
     locale: 'es_CL',
@@ -41,9 +46,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Juegos del Hambre Simulador online',
+    title: 'Simulador de Los Juegos del Hambre online en español',
     description:
-      'Simula partidas de Los Juegos del Hambre con personajes, eventos y narracion turno a turno.'
+      'Simula partidas de Los Juegos del Hambre con roster editable, nombres personalizados y narracion turno a turno.'
   },
   robots: {
     index: true,

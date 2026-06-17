@@ -8,6 +8,7 @@ import {
   createLocalMatchFromSetup,
   getSetupValidation,
   loadLocalMatchesFromStorage,
+  MAX_ROSTER_SIZE,
   saveLocalMatchesToStorage,
   type LocalMatchSummary
 } from '@/lib/local-matches';
@@ -65,8 +66,10 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { captureProductEvent } from '@/lib/product-analytics';
+import { HOME_FAQ } from '@/lib/home-faq';
 import type {
   AdvanceTurnResponse,
+  CreateMatchRequest,
   CreateMatchResponse,
   EventType,
   GetMatchStateResponse,
@@ -78,7 +81,7 @@ import type {
 const setupGridClassName = 'grid gap-[14px]';
 const cardClassName = 'rounded-xl border bg-card px-6 py-[22px]';
 const cardTitleClassName =
-  'm-0 font-sans text-[22px] font-bold leading-tight tracking-[-0.005em] text-foreground';
+  'm-0 font-sans text-xl font-bold leading-tight tracking-[-0.005em] text-foreground';
 const cardHintClassName = 'mb-3 mt-1 text-muted-foreground';
 const controlLabelClassName = 'grid min-w-0 gap-1 text-[0.94rem]';
 const selectClassName =
@@ -87,38 +90,28 @@ const speedButtonClassName =
   'grid min-h-11 w-full min-w-0 cursor-pointer place-items-center rounded-full border bg-card px-2.5 py-1.5 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
 const activeSpeedButtonClassName = 'border-primary/70 bg-primary text-primary-foreground';
 const tagClassName = 'rounded-full bg-secondary px-2 py-[3px] text-[0.78rem] text-foreground';
-const HOME_FAQ = [
-  {
-    question: '¿Qué es este simulador de Los Juegos del Hambre?',
-    answer:
-      'Es un simulador online en español donde eliges personajes, creas una partida y sigues una historia de supervivencia generada turno a turno hasta conocer al ganador.'
-  },
-  {
-    question: '¿Cómo crear una simulación de Los Juegos del Hambre?',
-    answer:
-      'Selecciona una o más películas, elige al menos 10 personajes para el roster, ajusta la configuración de la arena e inicia la partida. El simulador se encarga de generar los eventos.'
-  },
-  {
-    question: '¿Puedo elegir los personajes de la partida?',
-    answer:
-      'Sí. Puedes combinar personajes de distintas películas de Los Juegos del Hambre y decidir quiénes participan antes de comenzar la simulación.'
-  },
-  {
-    question: '¿Qué ocurre durante una partida?',
-    answer:
-      'La arena avanza mediante eventos narrativos que pueden crear alianzas, rivalidades, heridas y eliminaciones. Puedes pausar la reproducción y seguir el estado de cada participante.'
-  },
-  {
-    question: '¿El simulador guarda mis partidas?',
-    answer:
-      'Sí. Las partidas se guardan localmente en tu navegador para que puedas revisarlas desde el historial o continuar una simulación guardada.'
-  },
-  {
-    question: '¿Es gratis y está disponible en español?',
-    answer:
-      'Sí. Este simulador de Los Juegos del Hambre es gratuito, funciona online y su interfaz está disponible en español.'
-  }
-] as const;
+const RANDOM_ROSTER_NAMES = [
+  'Alma',
+  'Bruno',
+  'Camila',
+  'Dante',
+  'Elena',
+  'Facundo',
+  'Greta',
+  'Hugo',
+  'Iris',
+  'Julian',
+  'Lara',
+  'Mateo',
+  'Nora',
+  'Oscar',
+  'Paz',
+  'Rafa',
+  'Sofia',
+  'Tomas',
+  'Vera',
+  'Zoe'
+];
 const participantEventTagClassName: Record<'eliminated' | 'harmful' | 'beneficial' | 'neutral', string> = {
   eliminated: 'border border-[#ef4444]/35 bg-[#ef4444]/15 text-[#fca5a5]',
   harmful: 'border border-[#f97316]/35 bg-[#f97316]/15 text-[#fdba74]',
@@ -209,6 +202,9 @@ export function MatchStudioPage({
   const [hasAutoPrefilled, setHasAutoPrefilled] = useState(false);
   const [transitionOverlay, setTransitionOverlay] = useState<TransitionOverlayState | null>(null);
   const [autoplayReadyAt, setAutoplayReadyAt] = useState<number | null>(null);
+  const [rosterNameOverrides, setRosterNameOverrides] = useState<Record<string, string>>({});
+  const [newRosterCharacterId, setNewRosterCharacterId] = useState<string | null>(null);
+  const [isScratchMode, setIsScratchMode] = useState(true);
   const isSessionView = sessionMatchId !== null;
 
   const catalogCharacters = catalogResult.catalog.characters;
@@ -239,6 +235,13 @@ export function MatchStudioPage({
       ),
     [catalogCharacters]
   );
+  const runtimeParticipantByCharacterId = useMemo(() => {
+    const entries = runtime?.participants.map((participant) => [
+      participant.character_id,
+      participant
+    ] as const) ?? [];
+    return new Map(entries);
+  }, [runtime]);
   const characterName = useCallback(
     (characterId: string): string => {
       const character = characterById.get(characterId);
@@ -249,6 +252,49 @@ export function MatchStudioPage({
     },
     [characterById]
   );
+  const displayCharacterName = useCallback(
+    (characterId: string): string =>
+      runtimeParticipantByCharacterId.get(characterId)?.display_name ?? characterName(characterId),
+    [characterName, runtimeParticipantByCharacterId]
+  );
+  const displayEventText = useCallback(
+    (text: string, characterIds: string[]): string =>
+      characterIds.reduce(
+        (nextText, characterId) => nextText.replaceAll(characterId, displayCharacterName(characterId)),
+        text
+      ),
+    [displayCharacterName]
+  );
+  const rosterCharacterName = useCallback(
+    (characterId: string): string => rosterNameOverrides[characterId] ?? characterName(characterId),
+    [characterName, rosterNameOverrides]
+  );
+  const startParticipantNames = useMemo(
+    () =>
+      selectedCharacters.map((characterId) => {
+        const displayName = rosterCharacterName(characterId).trim();
+        return (displayName === '' ? characterName(characterId) : displayName).slice(0, 40);
+      }),
+    [characterName, rosterCharacterName, selectedCharacters]
+  );
+  const hasRosterNameOverrides = Object.keys(rosterNameOverrides).length > 0;
+  const originalRosterCharacterIds = useMemo(
+    () =>
+      setupRosterPreview.mode === 'catalog'
+        ? setupRosterPreview.characterIds
+        : [],
+    [setupRosterPreview]
+  );
+  const hasRosterSelectionChanges = useMemo(() => {
+    if (selectedCharacters.length !== originalRosterCharacterIds.length) {
+      return true;
+    }
+
+    return selectedCharacters.some(
+      (characterId, index) => characterId !== originalRosterCharacterIds[index]
+    );
+  }, [originalRosterCharacterIds, selectedCharacters]);
+  const hasRosterChanges = hasRosterNameOverrides || hasRosterSelectionChanges;
   const setupValidation = useMemo(
     () => getSetupValidation(selectedCharacters),
     [selectedCharacters]
@@ -349,10 +395,12 @@ export function MatchStudioPage({
   const characterFilterOptions = useMemo(() => {
     const source = runtime?.participants.map((participant) => participant.character_id) ?? selectedCharacters;
     const unique = [...new Set(source)];
-    return unique.map((characterId) => ({ id: characterId, name: characterName(characterId) }));
-  }, [characterName, runtime, selectedCharacters]);
+    return unique.map((characterId) => ({ id: characterId, name: displayCharacterName(characterId) }));
+  }, [displayCharacterName, runtime, selectedCharacters]);
 
   const applySetupFromMatch = useCallback((match: LocalMatchSummary) => {
+    setRosterNameOverrides({});
+    setNewRosterCharacterId(null);
     setSelectedCharacters(match.roster_character_ids);
     setSelectionFromRoster(match.roster_character_ids);
     setSeed(match.settings.seed ?? '');
@@ -362,6 +410,9 @@ export function MatchStudioPage({
   }, [setSelectionFromRoster]);
 
   const resetSetupToDefaults = useCallback(() => {
+    setRosterNameOverrides({});
+    setNewRosterCharacterId(null);
+    setIsScratchMode(true);
     resetSelection();
     setSeed('');
     setSimulationSpeed(DEFAULT_SIMULATION_SPEED);
@@ -564,6 +615,85 @@ export function MatchStudioPage({
     setSeed(generatedSeed.slice(0, 8));
   }
 
+  function selectFranchise(franchiseId: string) {
+    setIsScratchMode(false);
+    onSelectFranchise(franchiseId);
+  }
+
+  function updateRosterCharacterName(characterId: string, name: string) {
+    setRosterNameOverrides((previous) => {
+      const next = { ...previous };
+      if (name === characterName(characterId)) {
+        delete next[characterId];
+        return next;
+      }
+
+      next[characterId] = name;
+      return next;
+    });
+  }
+
+  function addRosterCharacter() {
+    if (selectedCharacters.length >= MAX_ROSTER_SIZE) {
+      return;
+    }
+
+    const generatedId = createBrowserUuid() ?? `${Date.now()}`;
+    const characterId = `custom-${generatedId.slice(0, 8)}`;
+    setRosterNameOverrides((current) => ({
+      ...current,
+      [characterId]: ''
+    }));
+    setNewRosterCharacterId(characterId);
+    setSelectedCharacters((previous) =>
+      previous.length >= MAX_ROSTER_SIZE ? previous : [...previous, characterId]
+    );
+  }
+
+  function removeRosterCharacter(characterId: string) {
+    setSelectedCharacters((previous) => previous.filter((id) => id !== characterId));
+    setRosterNameOverrides((previous) => {
+      const next = { ...previous };
+      delete next[characterId];
+      return next;
+    });
+    setNewRosterCharacterId((current) => (current === characterId ? null : current));
+  }
+
+  function clearNewRosterCharacter() {
+    setNewRosterCharacterId(null);
+  }
+
+  function startRosterFromScratch() {
+    setRosterNameOverrides({});
+    setNewRosterCharacterId(null);
+    setIsScratchMode(true);
+    resetSelection();
+  }
+
+  function generateRandomRoster() {
+    const names = [...RANDOM_ROSTER_NAMES].sort(() => Math.random() - 0.5).slice(0, 10);
+    const timestamp = Date.now();
+    const characterIds = names.map((_, index) => {
+      const generatedId = createBrowserUuid() ?? `${timestamp}-${index}`;
+      return `custom-${generatedId.slice(0, 8)}-${index}`;
+    });
+
+    setRosterNameOverrides(
+      Object.fromEntries(characterIds.map((characterId, index) => [characterId, names[index]]))
+    );
+    setNewRosterCharacterId(null);
+    setIsScratchMode(true);
+    setSelectionFromRoster(characterIds);
+    setSelectedCharacters(characterIds);
+  }
+
+  function resetRosterEdits() {
+    setRosterNameOverrides({});
+    setNewRosterCharacterId(null);
+    setSelectedCharacters(originalRosterCharacterIds);
+  }
+
   async function onStartMatch() {
     if (!setupCanStart) {
       if (isCatalogEmpty) {
@@ -582,20 +712,22 @@ export function MatchStudioPage({
     setInfoMessage(null);
 
     try {
+      const createMatchPayload: CreateMatchRequest = {
+        roster_character_ids: selectedCharacters,
+        ...(hasRosterNameOverrides ? { participant_names: startParticipantNames } : {}),
+        settings: {
+          surprise_level: surpriseLevel,
+          event_profile: eventProfile,
+          simulation_speed: simulationSpeed,
+          seed: seed.trim() === '' ? null : seed.trim()
+        }
+      };
       const createResponse = await requestJson<CreateMatchResponse>('/api/matches', {
         method: 'POST',
         headers: {
           'content-type': 'application/json'
         },
-        body: JSON.stringify({
-          roster_character_ids: selectedCharacters,
-          settings: {
-            surprise_level: surpriseLevel,
-            event_profile: eventProfile,
-            simulation_speed: simulationSpeed,
-            seed: seed.trim() === '' ? null : seed.trim()
-          }
-        })
+        body: JSON.stringify(createMatchPayload)
       });
 
       await requestJson<StartMatchResponse>(`/api/matches/${createResponse.match_id}/start`, {
@@ -678,11 +810,11 @@ export function MatchStudioPage({
                 ?.franchise_name ?? null
           });
         });
-      selectedCharacters.forEach((characterId) => {
+      selectedCharacters.forEach((characterId, index) => {
         const character = characterById.get(characterId);
         captureProductEvent('match_character_used', {
           match_id: createResponse.match_id,
-          character: characterName(characterId),
+          character: startParticipantNames[index],
           movie: character?.movie_title ?? null,
           franchise:
             franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
@@ -860,7 +992,7 @@ export function MatchStudioPage({
         }
       );
       const state = await requestJson<GetMatchStateResponse>(`/api/matches/${runtime.match_id}`);
-      const event = feedFromAdvance(advance, state.participants, characterName);
+      const event = feedFromAdvance(advance, state.participants);
       const nextFeed = [event, ...runtime.feed].slice(0, 100);
 
       const nextRuntime: SimulationRuntime = {
@@ -908,7 +1040,7 @@ export function MatchStudioPage({
           null;
         captureProductEvent('match_finished', {
           match_id: runtime.match_id,
-          winner: winnerCharacterId ? characterName(winnerCharacterId) : null,
+          winner: winnerCharacterId ? displayCharacterName(winnerCharacterId) : null,
           winner_movie: winnerCharacterId
             ? characterById.get(winnerCharacterId)?.movie_title ?? null
             : null,
@@ -921,7 +1053,7 @@ export function MatchStudioPage({
         });
         setInfoMessage(
           winnerCharacterId
-            ? `Partida finalizada. Ganador: ${characterName(winnerCharacterId)}.`
+            ? `Partida finalizada. Ganador: ${displayCharacterName(winnerCharacterId)}.`
             : 'Partida finalizada.'
         );
       }
@@ -945,7 +1077,7 @@ export function MatchStudioPage({
     applySetupFromMatch,
     autosaveEnabled,
     characterById,
-    characterName,
+    displayCharacterName,
     franchiseOptions,
     isBusy,
     localMatches,
@@ -1056,22 +1188,27 @@ export function MatchStudioPage({
   const setupSteps = [
     {
       id: 'franchise',
-      label: 'Selecciona una franquicia',
-      detail: selectedFranchiseId ? 'Franquicia lista' : 'Elige el universo base de la simulacion',
-      isComplete: Boolean(selectedFranchiseId)
+      label: isScratchMode ? 'Partir de cero' : 'Selecciona una franquicia',
+      detail: isScratchMode
+        ? 'Roster manual habilitado'
+        : selectedFranchiseId
+          ? 'Franquicia lista'
+          : 'Elige el universo base de la simulacion',
+      isComplete: isScratchMode || Boolean(selectedFranchiseId)
     },
     {
       id: 'movies',
-      label: 'Activa peliculas',
-      detail:
-        selectedMovieIds.length > 0
+      label: '1.1 Peliculas',
+      detail: isScratchMode
+        ? 'No aplica en roster manual'
+        : selectedMovieIds.length > 0
           ? 'Peliculas listas'
           : 'Marca al menos una pelicula',
-      isComplete: selectedMovieIds.length > 0
+      isComplete: isScratchMode || selectedMovieIds.length > 0
     },
     {
       id: 'roster',
-      label: 'Completa el roster',
+      label: '2 Roster',
       detail:
         selectedCharacters.length >= 10
           ? `${selectedCharacters.length} personajes seleccionados`
@@ -1087,14 +1224,13 @@ export function MatchStudioPage({
     >
       <div className="mx-auto grid max-w-[1180px] gap-5">
         <header className="grid border-b pb-7 transition-colors">
-          <h1 className="m-0 text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground sm:text-7xl">
+          <h1 className="m-0 text-xl font-extrabold leading-[0.95] tracking-[-0.04em] text-foreground">
             {runtime ? 'Hunger Games Simulator' : 'Juegos del Hambre Simulador'}
           </h1>
           {!runtime ? (
-            <p className="mt-3 max-w-[720px] text-[1rem] leading-6 text-muted-foreground">
-              Simulador de Los Juegos del Hambre online para crear partidas de supervivencia con
-              personajes por pelicula, eventos de arena y narracion automatica turno a turno.
-            </p>
+            <span className="mt-3 text-base leading-6 text-muted-foreground">
+              Simulador de Los Juegos del Hambre online en español para crear un juego de supervivencia con roster editable, nombres personalizados, personajes por pelicula y narracion automatica turno a turno.
+            </span>
           ) : null}
         </header>
 
@@ -1267,24 +1403,6 @@ export function MatchStudioPage({
                 )}
               >
                 <div className="grid gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        'w-fit',
-                        setupCanStart
-                          ? 'bg-[rgba(110,231,183,0.15)] text-[#6ee7b7]'
-                          : 'bg-[rgba(251,191,36,0.15)] text-[#fbbf24]'
-                      )}
-                    >
-                      {setupCanStart ? 'Listo para iniciar' : 'Setup pendiente'}
-                    </Badge>
-                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                      Roster: {selectedCharacters.length} | Seed:{' '}
-                      {seed.trim() === '' ? 'aleatoria al iniciar' : seed.trim()}
-                    </span>
-                  </div>
-
                   <ol className="m-0 grid list-none gap-2 p-0 md:grid-cols-3">
                     {setupSteps.map((step, index) => (
                       <li key={step.id} className="flex gap-3">
@@ -1354,10 +1472,13 @@ export function MatchStudioPage({
                       <CatalogSelection
                         franchiseOptions={franchiseOptions}
                         selectedFranchiseId={selectedFranchiseId}
-                        onSelectFranchise={onSelectFranchise}
+                        isScratchMode={isScratchMode}
+                        onSelectFranchise={selectFranchise}
                         moviesForSelectedFranchise={moviesForSelectedFranchise}
                         selectedMovieIds={selectedMovieIds}
                         toggleMovie={toggleMovie}
+                        startFromScratch={startRosterFromScratch}
+                        generateRandomRoster={generateRandomRoster}
                       />
                       <RosterPreview
                         hasEmptySelectionState={hasEmptySelectionState}
@@ -1367,6 +1488,14 @@ export function MatchStudioPage({
                         toggleCharacter={toggleCharacter}
                         toggleAllCharacters={toggleAllCharacters}
                         characterName={characterName}
+                        rosterCharacterName={rosterCharacterName}
+                        updateRosterCharacterName={updateRosterCharacterName}
+                        addRosterCharacter={addRosterCharacter}
+                        removeRosterCharacter={removeRosterCharacter}
+                        newRosterCharacterId={newRosterCharacterId}
+                        clearNewRosterCharacter={clearNewRosterCharacter}
+                        hasRosterChanges={hasRosterChanges}
+                        resetRosterEdits={resetRosterEdits}
                       />
                     </div>
                   )}
@@ -1591,8 +1720,15 @@ export function MatchStudioPage({
                             {EVENT_TYPE_LABEL[event.type]}
                           </span>
                         </div>
-                        <p className="mb-1 mt-2 font-bold">{event.headline}</p>
-                        <p className="m-0 text-muted-foreground">{event.impact}</p>
+                        <p className="mb-1 mt-2 font-bold">
+                          {displayEventText(event.headline, event.character_ids)}
+                        </p>
+                        <p className="m-0 text-muted-foreground">
+                          {displayEventText(
+                            event.impact,
+                            event.eliminated_character_ids ?? event.character_ids
+                          )}
+                        </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {event.character_ids.length === 0 ? (
                             <span className={tagClassName}>Sin participantes trazables</span>
@@ -1605,7 +1741,7 @@ export function MatchStudioPage({
                                   key={`${event.id}-${characterId}`}
                                   className={cn(tagClassName, participantEventTagClassName[tone])}
                                 >
-                                  {characterName(characterId)}
+                                  {displayCharacterName(characterId)}
                                 </span>
                               );
                             })
@@ -1638,7 +1774,7 @@ export function MatchStudioPage({
                             className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-secondary px-3 py-2.5 font-mono text-[0.86rem]"
                           >
                             <span className="truncate font-semibold text-foreground">
-                              {characterName(participant.character_id)}
+                              {participant.display_name}
                             </span>
                             <span className={cn('text-right font-semibold', statusClassName)}>
                               {statusLabel(participant.status)} · {participant.current_health}
@@ -1658,7 +1794,7 @@ export function MatchStudioPage({
                       relationHighlights.map((relation) => (
                         <li key={`${relation.pair[0]}-${relation.pair[1]}`} className="rounded-[10px] border bg-card px-2.5 py-2">
                           <strong>
-                            {characterName(relation.pair[0])} · {characterName(relation.pair[1])}
+                            {displayCharacterName(relation.pair[0])} · {displayCharacterName(relation.pair[1])}
                           </strong>
                           <div
                             className={relation.score >= 0 ? 'text-[#1a6f57]' : 'text-[#9d2e20]'}

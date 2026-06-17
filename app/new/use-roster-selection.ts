@@ -6,8 +6,7 @@ import {
 } from '@/lib/domain/franchise-catalog';
 import {
   deriveCatalogSelectionFromRoster,
-  getSetupRosterPreview,
-  pruneSelectedCharacters
+  getSetupRosterPreview
 } from '@/lib/match-ux';
 
 type UseRosterSelectionArgs = {
@@ -108,7 +107,10 @@ export function useRosterSelection({
     }
 
     setSelectedCharacters((previous) => {
-      const next = pruneSelectedCharacters(previous, selectableCharacterIdSet);
+      const next = previous.filter(
+        (characterId) =>
+          characterId.startsWith('custom-') || selectableCharacterIdSet.has(characterId)
+      );
       return next.length === previous.length ? previous : next;
     });
   }, [selectableCharacterIdSet, selectedFranchiseId, setSelectedCharacters]);
@@ -163,13 +165,13 @@ export function useRosterSelection({
   }, [catalogResult.catalog, selectedFranchiseId, selectedMovieIds, setSelectedCharacters]);
 
   const toggleCharacter = useCallback((characterId: string) => {
-    if (!selectableCharacterIdSet.has(characterId)) {
-      return;
-    }
-
     setSelectedCharacters((previous) => {
       if (previous.includes(characterId)) {
         return previous.filter((id) => id !== characterId);
+      }
+
+      if (!selectableCharacterIdSet.has(characterId)) {
+        return previous;
       }
 
       return [...previous, characterId];
