@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 3000;
+const PORT = 3100;
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
@@ -22,9 +22,9 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'NEXT_PUBLIC_DISABLE_AGENTATION=1 pnpm run dev',
+    command: 'NEXT_PUBLIC_DISABLE_AGENTATION=1 pnpm exec next dev -H 127.0.0.1 -p 3100',
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     stdout: 'ignore',
     stderr: 'pipe'
   }

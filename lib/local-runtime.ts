@@ -1,7 +1,7 @@
 import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import { snapshotEnvelopeSchema } from '@/lib/domain/schemas';
 import { type MatchSnapshot, type SnapshotEnvelope } from '@/lib/domain/types';
-import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
+import { SNAPSHOT_VERSION } from '@/lib/domain/types';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { z } from 'zod';
 import { emitStructuredLog } from '@/lib/observability';

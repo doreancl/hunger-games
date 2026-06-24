@@ -252,8 +252,10 @@ export function MatchStudioPage({
   );
   const runtimeSnapshot = useMemo(() => runtime?.snapshot_envelope.snapshot ?? null, [runtime]);
   const runtimeMatch = runtimeSnapshot?.match;
-  const runtimeSettings = runtimeSnapshot?.settings;
-  const runtimeParticipants = runtimeSnapshot?.participants ?? [];
+  const runtimeParticipants = useMemo(
+    () => runtimeSnapshot?.participants ?? [],
+    [runtimeSnapshot]
+  );
   const runtimeMatchId = runtimeMatch?.id;
   const runtimePhase = runtimeMatch?.phase;
   const runtimeParticipantByCharacterId = useMemo(() => {
@@ -848,7 +850,7 @@ export function MatchStudioPage({
       });
       router.replace(`/sessions/${matchId}`, { scroll: false });
       setInfoMessage(`Simulacion iniciada (${shortId(matchId)}).`);
-    } catch (error) {
+    } catch {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
       setInfoMessage(errorMessage);
       setPlaybackSpeed('pause');
@@ -904,7 +906,7 @@ export function MatchStudioPage({
       }
       router.replace(`/sessions/${match.id}`, { scroll: false });
       setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
-    } catch (error) {
+    } catch {
       const runtimeLoadMatchId = runtimeLoad.runtime
         ? getRuntimeMatch(runtimeLoad.runtime.snapshot_envelope.snapshot).id
         : null;
@@ -1119,6 +1121,7 @@ export function MatchStudioPage({
     localMatches,
     persistLocalMatches,
     runtime,
+    runtimePhase,
     selectedFranchiseId
   ]);
 
@@ -1141,7 +1144,7 @@ export function MatchStudioPage({
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [autoplayReadyAt, isBusy, onAdvanceStep, playbackSpeed, runtime]);
+  }, [autoplayReadyAt, isBusy, onAdvanceStep, playbackSpeed, runtime, runtimePhase]);
 
   async function onShareSnapshot() {
     if (!runtime) {

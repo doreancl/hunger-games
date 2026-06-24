@@ -242,6 +242,53 @@ describe('local runtime storage', () => {
     expect(lastLog.snapshot_version).toBe(LOCAL_RUNTIME_SNAPSHOT_VERSION);
   });
 
+  it('rejects runtime when envelope shape is invalid for the current version', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const storage = {
+      getItem() {
+        return JSON.stringify({
+          snapshot_version: LOCAL_RUNTIME_SNAPSHOT_VERSION,
+          checksum: '00000000',
+          runtime: {}
+        });
+      }
+    };
+
+    expect(loadLocalRuntimeFromStorage(storage)).toEqual({
+      runtime: null,
+      error: 'partida no recuperable. Inicia una nueva partida.'
+    });
+    const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
+    expect(lastLog.reason).toBe('INVALID_ENVELOPE');
+  });
+
+  it('rejects runtime when canonical snapshot checksum is tampered', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const runtime = buildRuntime();
+    const storage = {
+      getItem() {
+        return JSON.stringify({
+          snapshot_version: LOCAL_RUNTIME_SNAPSHOT_VERSION,
+          checksum: 'deadbeef',
+          runtime: {
+            ...runtime,
+            snapshot_envelope: {
+              ...runtime.snapshot_envelope,
+              checksum: '00000000'
+            }
+          }
+        });
+      }
+    };
+
+    expect(loadLocalRuntimeFromStorage(storage)).toEqual({
+      runtime: null,
+      error: 'partida no recuperable. Inicia una nueva partida.'
+    });
+    const lastLog = JSON.parse(infoSpy.mock.calls.at(-1)?.[0] as string) as Record<string, unknown>;
+    expect(lastLog.reason).toBe('INVALID_CHECKSUM');
+  });
+
   it('loads runtime with replay elimination trace metadata', () => {
     const baseRuntime = buildRuntime();
     const runtime: LocalRuntimeSnapshot = {

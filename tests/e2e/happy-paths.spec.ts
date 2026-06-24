@@ -41,8 +41,18 @@ async function getRuntimeTurn(page: Page) {
       return null;
     }
 
-    const parsed = JSON.parse(raw) as { runtime?: { turn_number?: number } };
-    return parsed.runtime?.turn_number ?? null;
+    const parsed = JSON.parse(raw) as {
+      runtime?: {
+        snapshot_envelope?: {
+          snapshot?: {
+            match?: {
+              turn_number?: number;
+            };
+          };
+        };
+      };
+    };
+    return parsed.runtime?.snapshot_envelope?.snapshot?.match?.turn_number ?? null;
   }, LOCAL_RUNTIME_STORAGE_KEY);
 
   expect(runtime).not.toBeNull();
@@ -57,8 +67,18 @@ async function getRuntimeMatchId(page: Page) {
     }
 
     try {
-      const parsed = JSON.parse(raw) as { runtime?: { match_id?: string } };
-      return parsed.runtime?.match_id ?? null;
+      const parsed = JSON.parse(raw) as {
+        runtime?: {
+          snapshot_envelope?: {
+            snapshot?: {
+              match?: {
+                id?: string;
+              };
+            };
+          };
+        };
+      };
+      return parsed.runtime?.snapshot_envelope?.snapshot?.match?.id ?? null;
     } catch {
       return null;
     }
@@ -73,8 +93,10 @@ async function getLocalMatchIds(page: Page) {
     }
 
     try {
-      const parsed = JSON.parse(raw) as Array<{ id: string }>;
-      return Array.isArray(parsed) ? parsed.map((item) => item.id) : [];
+      const parsed = JSON.parse(raw) as {
+        matches?: Array<{ id: string }>;
+      };
+      return Array.isArray(parsed.matches) ? parsed.matches.map((item) => item.id) : [];
     } catch {
       return [];
     }
@@ -205,7 +227,8 @@ test('HP-07 ignores corrupt runtime envelopes and reports unrecoverable state', 
 
   await page.reload();
 
-  await expect(page.getByText('partida no recuperable. Inicia una nueva partida.')).toBeVisible();
+  await expect(page.getByText(/Setup cargado .* Simulacion en vivo no disponible para ese id\./)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Juegos del Hambre Simulador' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toHaveCount(0);
   await expect(page.getByTestId('kpi-turn')).toHaveCount(0);
 });

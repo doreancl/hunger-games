@@ -761,7 +761,6 @@ export function queueGodModeActionsFromSnapshot(
   const stored = snapshotToStoredMatch(cloneMatchSnapshot(snapshot));
 
   if (stored.match.phase !== 'running') {
-    const matchId = stored.match.id;
     return {
       ok: false,
       error: {

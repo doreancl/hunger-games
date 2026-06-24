@@ -7,6 +7,7 @@ import {
   type ParticipantState
 } from '@/lib/domain/types';
 import {
+  createBrowserUuid,
   countAlive,
   feedFromAdvance,
   feedFromSnapshot,
@@ -16,7 +17,8 @@ import {
   relationTone,
   requestJson,
   sessionSizeTone,
-  sessionToneBadgeVariant
+  sessionToneBadgeVariant,
+  waitMs
 } from '@/app/new/match-studio-logic';
 
 beforeEach(() => {
@@ -266,6 +268,150 @@ describe('match-studio logic helpers', () => {
     vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
     await expect(requestJson('/api/network')).rejects.toThrow('network down');
+  });
+
+  it('creates browser uuid only when browser crypto.randomUUID exists', () => {
+    const originalWindow = globalThis.window;
+    const originalCrypto = globalThis.crypto;
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: undefined });
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: undefined });
+    expect(createBrowserUuid()).toBeNull();
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: {} });
+    expect(createBrowserUuid()).toBeNull();
+
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: { randomUUID: () => 'uuid-123' }
+    });
+    expect(createBrowserUuid()).toBe('uuid-123');
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: originalCrypto });
+  });
+
+  it('waits through setTimeout', async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { setTimeout: globalThis.setTimeout }
+    });
+    const promise = waitMs(25);
+    await vi.advanceTimersByTimeAsync(25);
+    await expect(promise).resolves.toBeUndefined();
+    vi.useRealTimers();
+  });
+
+  it('builds non-lethal advance impacts across event types and actor counts', () => {
+    const participants: ParticipantState[] = [
+      {
+        id: 'p-1',
+        match_id: 'match-1',
+        character_id: 'char-1',
+        display_name: 'Atlas',
+        current_health: 88,
+        status: 'alive',
+        streak_score: 3
+      },
+      {
+        id: 'p-2',
+        match_id: 'match-1',
+        character_id: 'char-2',
+        display_name: 'Nexus',
+        current_health: 44,
+        status: 'injured',
+        streak_score: 0
+      },
+      {
+        id: 'p-3',
+        match_id: 'match-1',
+        character_id: 'char-3',
+        display_name: 'Luna',
+        current_health: 76,
+        status: 'alive',
+        streak_score: 1
+      }
+    ];
+
+    const cases = [
+      ['alliance', ['p-1'], 'Impacto: cohesion tactica en aumento.', 'Atlas'],
+      ['betrayal', ['p-1', 'p-2'], 'Impacto: confianza rota y riesgo social alto.', 'Atlas y Nexus'],
+      ['resource', ['p-1', 'p-2', 'p-3'], 'Impacto: ventaja temporal de recursos.', 'Atlas, Nexus +1'],
+      ['hazard', [], 'Impacto: presion ambiental sobre el roster.', 'La arena'],
+      ['surprise', ['p-1'], 'Impacto: la tension global cambia sin previo aviso.', 'Atlas'],
+      ['combat', ['p-1', 'p-2'], 'Impacto: intercambio agresivo entre participantes.', 'Atlas y Nexus']
+    ] as const;
+
+    for (const [type, participantIds, impact, headlineStart] of cases) {
+      const event = feedFromAdvance(
+        {
+          turn_number: 9,
+          cycle_phase: 'day',
+          tension_level: 40,
+          event: {
+            id: `event-${type}`,
+            type,
+            location: 'river',
+            phase: 'day',
+            narrative_text: 'evento',
+            participant_ids: participantIds
+          },
+          survivors_count: 3,
+          eliminated_ids: [],
+          finished: false,
+          winner_id: null,
+          snapshot_envelope: {
+            snapshot_version: SNAPSHOT_VERSION,
+            checksum: 'deadbeef',
+            snapshot: {
+              snapshot_version: SNAPSHOT_VERSION,
+              ruleset_version: RULESET_VERSION,
+              match: {
+                id: 'match-1',
+                seed: 'seed',
+                ruleset_version: RULESET_VERSION,
+                phase: 'running',
+                cycle_phase: 'day',
+                turn_number: 9,
+                tension_level: 40,
+                created_at: '2026-06-20T00:00:00.000Z',
+                ended_at: null
+              },
+              settings: {
+                surprise_level: 'normal',
+                event_profile: 'balanced',
+                simulation_speed: '1x',
+                seed: 'seed'
+              },
+              participants,
+              recent_events: [],
+              engine_state: {
+                next_cycle_phase: 'night',
+                queued_god_mode_actions: [],
+                persistent_fires: [],
+                participant_locations: {
+                  'p-1': 'forest',
+                  'p-2': 'forest',
+                  'p-3': 'river'
+                },
+                participant_resources: {
+                  'p-1': [],
+                  'p-2': [],
+                  'p-3': []
+                },
+                hostility: {}
+              }
+            }
+          }
+        },
+        participants
+      );
+
+      expect(event.impact).toBe(impact);
+      expect(event.headline.startsWith(headlineStart)).toBe(true);
+    }
   });
 
   it('normalizes catalog source and reports invalid version in diagnostics', () => {
