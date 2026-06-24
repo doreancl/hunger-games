@@ -850,7 +850,7 @@ export function MatchStudioPage({
       });
       router.replace(`/sessions/${matchId}`, { scroll: false });
       setInfoMessage(`Simulacion iniciada (${shortId(matchId)}).`);
-    } catch {
+    } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
       setInfoMessage(errorMessage);
       setPlaybackSpeed('pause');
