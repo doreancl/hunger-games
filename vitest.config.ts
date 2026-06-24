@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['lib/**/*.ts'],
+      include: ['lib/**/*.ts', 'app/new/match-studio-logic.ts'],
       thresholds: {
         lines: 90,
         functions: 90,

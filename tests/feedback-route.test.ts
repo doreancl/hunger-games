@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '@/app/api/feedback/route';
+import { NextRequest } from 'next/server';
 
 describe('POST /api/feedback', () => {
   afterEach(() => {
@@ -15,7 +16,7 @@ describe('POST /api/feedback', () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(null, { status: 200 }));
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -56,7 +57,7 @@ describe('POST /api/feedback', () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(null, { status: 200 }));
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -85,7 +86,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('returns delivery error when no delivery channel is configured', async () => {
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -102,7 +103,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('returns invalid request for invalid JSON', async () => {
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{invalid-json'
@@ -116,7 +117,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('requires a message with at least 10 characters', async () => {
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ message: '', rating: 'happy' })
@@ -130,7 +131,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('rejects an invalid optional email', async () => {
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -147,7 +148,7 @@ describe('POST /api/feedback', () => {
   });
 
   it('rejects feedback longer than 1000 characters', async () => {
-    const request = new Request('http://localhost/api/feedback', {
+    const request = new NextRequest('http://localhost/api/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ message: 'a'.repeat(1001) })

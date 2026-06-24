@@ -9,8 +9,7 @@ import type {
   AdvanceTurnResponse,
   CyclePhase,
   EventType,
-  GetMatchStateResponse,
-  MatchPhase,
+  MatchSnapshot,
   ParticipantState,
   SimulationSpeed
 } from '@/lib/domain/types';
@@ -76,17 +75,17 @@ export type FeedEvent = {
   created_at: string;
 };
 
-export type SimulationRuntime = {
-  match_id: string;
-  phase: MatchPhase;
-  cycle_phase: CyclePhase;
-  turn_number: number;
-  tension_level: number;
-  settings: GetMatchStateResponse['settings'];
-  participants: ParticipantState[];
-  feed: FeedEvent[];
-  winner_id: string | null;
-};
+export function getRuntimeMatch(snapshot: MatchSnapshot) {
+  return snapshot.match;
+}
+
+export function getRuntimeSettings(snapshot: MatchSnapshot) {
+  return snapshot.settings;
+}
+
+export function getRuntimeParticipants(snapshot: MatchSnapshot) {
+  return snapshot.participants;
+}
 
 export const EMPTY_FEED: FeedEvent[] = [];
 
@@ -233,8 +232,8 @@ export async function requestJson<T>(input: string, init?: RequestInit): Promise
   return payload as T;
 }
 
-export function feedFromSnapshot(state: GetMatchStateResponse): FeedEvent[] {
-  return [...state.recent_events]
+export function feedFromSnapshot(snapshot: MatchSnapshot): FeedEvent[] {
+  return [...snapshot.recent_events]
     .sort((left, right) => right.turn_number - left.turn_number)
     .map((event) => ({
       id: event.id,

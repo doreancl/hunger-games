@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { SNAPSHOT_VERSION } from '@/lib/domain/types';
 import { resumeMatchResponseSchema } from '@/lib/domain/schemas';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
 import { checkRateLimit } from '@/lib/api/rate-limit';
 import { validateSnapshotEnvelopeFromRawBody } from '@/lib/api/snapshot-request';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 
 export async function POST(request: Request) {
   const rateLimit = checkRateLimit(request, 'resume');
@@ -54,14 +56,11 @@ export async function POST(request: Request) {
 
   const snapshot = validated.snapshot;
   const responsePayload = {
-    match_id: snapshot.match.id,
-    phase: snapshot.match.phase,
-    cycle_phase: snapshot.match.cycle_phase,
-    turn_number: snapshot.match.turn_number,
-    tension_level: snapshot.match.tension_level,
-    settings: snapshot.settings,
-    participants: snapshot.participants,
-    recent_events: snapshot.recent_events
+    snapshot_envelope: {
+      snapshot_version: SNAPSHOT_VERSION,
+      checksum: buildSnapshotChecksum(snapshot),
+      snapshot
+    }
   };
 
   const parsedResponse = resumeMatchResponseSchema.safeParse(responsePayload);

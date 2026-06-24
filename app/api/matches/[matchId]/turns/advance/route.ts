@@ -4,7 +4,7 @@ import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
 import { checkRateLimit } from '@/lib/api/rate-limit';
 import { validateSnapshotEnvelopeFromRawBody } from '@/lib/api/snapshot-request';
-import { advanceTurn } from '@/lib/matches/lifecycle';
+import { advanceTurnFromSnapshot } from '@/lib/matches/lifecycle';
 import { recordLatencyMetric } from '@/lib/observability';
 
 type RouteContext = {
@@ -32,51 +32,50 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const rawBody = await request.text();
-    if (rawBody.trim() !== '') {
-      const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
-      if (!contentType.includes('application/json')) {
-        statusCode = 415;
+    if (rawBody.trim().length === 0) {
+      statusCode = 400;
+      return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
+    }
+
+    const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+    if (!contentType.includes('application/json')) {
+      statusCode = 415;
+      return jsonError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 415);
+    }
+
+    const validated = validateSnapshotEnvelopeFromRawBody(rawBody);
+    if (!validated.ok) {
+      if (validated.reason === 'INVALID_JSON') {
+        statusCode = 400;
+        return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
+      }
+
+      if (validated.reason === 'SNAPSHOT_VERSION_UNSUPPORTED') {
+        statusCode = 409;
         return jsonError(
-          'UNSUPPORTED_MEDIA_TYPE',
-          'Content-Type must be application/json.',
-          415
+          'SNAPSHOT_VERSION_UNSUPPORTED',
+          UNRECOVERABLE_MATCH_MESSAGE,
+          409
         );
       }
 
-      const validated = validateSnapshotEnvelopeFromRawBody(rawBody);
-      if (!validated.ok) {
-        if (validated.reason === 'INVALID_JSON') {
-          statusCode = 400;
-          return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
-        }
-
-        if (validated.reason === 'SNAPSHOT_VERSION_UNSUPPORTED') {
-          statusCode = 409;
-          return jsonError(
-            'SNAPSHOT_VERSION_UNSUPPORTED',
-            UNRECOVERABLE_MATCH_MESSAGE,
-            409
-          );
-        }
-
-        if (validated.reason === 'INVALID_REQUEST_PAYLOAD') {
-          statusCode = 400;
-          return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid advance_turn payload.', 400, {
-            issues: toValidationIssues(validated.issues ?? [])
-          });
-        }
-
+      if (validated.reason === 'INVALID_REQUEST_PAYLOAD') {
         statusCode = 400;
-        return jsonError('SNAPSHOT_INVALID', 'Snapshot checksum or payload is invalid.', 400);
+        return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid advance_turn payload.', 400, {
+          issues: toValidationIssues(validated.issues ?? [])
+        });
       }
 
-      if (validated.snapshot.match.id !== matchId) {
-        statusCode = 400;
-        return jsonError('SNAPSHOT_INVALID', 'Snapshot match id does not match route match id.', 400);
-      }
+      statusCode = 400;
+      return jsonError('SNAPSHOT_INVALID', 'Snapshot checksum or payload is invalid.', 400);
     }
 
-    const result = advanceTurn(matchId);
+    if (validated.snapshot.match.id !== matchId) {
+      statusCode = 400;
+      return jsonError('SNAPSHOT_INVALID', 'Snapshot match id does not match route match id.', 400);
+    }
+
+    const result = advanceTurnFromSnapshot(validated.snapshot);
 
     if (!result.ok) {
       const status = result.error.code === 'MATCH_NOT_FOUND' ? 404 : 409;

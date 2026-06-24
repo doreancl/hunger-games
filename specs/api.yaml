@@ -91,5 +91,8 @@ errors:
 notes:
   - No share code in V1.
   - No cross-device match reads in V1.
-  - Continuity is based on a full snapshot in localStorage.
+  - Continuity is based on `MatchSnapshot` as the canonical contract and is persisted as `snapshot`.
+  - Local persistence stores a `snapshot_envelope` plus presentation-only `feed` and `winner_id`.
   - Rehydration does not depend on previous server state.
+  - Engine continuity fields (`next_cycle_phase`, `queued_god_mode_actions`, `persistent_fires`,
+    `participant_locations`, `participant_resources`, `hostility`) live in `snapshot.engine_state`.

@@ -21,6 +21,7 @@
 - UI contains no business rules.
 - Engine does not know React, Next, or browser APIs.
 - RNG always receives a seed.
-- Versioned snapshot includes settings, RNG, and match state.
+- Versioned snapshot (`MatchSnapshot`) is the single game-state contract and includes engine continuity state via `engine_state`.
 - Server does not recover from DB, memory, or filesystem.
 - Contract changes update `schemas.ts`, `types.ts`, and `domain-contracts.test.ts`.
+- Local runtime persistence stores a canonical snapshot envelope in browser storage and a presentation feed for UX (`winner_id`, replayable `RuntimeFeedEvent[]`).

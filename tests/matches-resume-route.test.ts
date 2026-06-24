@@ -37,7 +37,19 @@ function buildSnapshot(): MatchSnapshot {
         streak_score: 0
       }
     ],
-    recent_events: []
+    recent_events: [],
+    engine_state: {
+      next_cycle_phase: 'day',
+      queued_god_mode_actions: [],
+      persistent_fires: [],
+      participant_locations: {
+        p1: 'forest'
+      },
+      participant_resources: {
+        p1: []
+      },
+      hostility: {}
+    }
   };
 }
 

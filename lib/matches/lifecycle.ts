@@ -1,17 +1,20 @@
 import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import type {
   AdvanceTurnResponse,
   CreateMatchRequest,
   EventLocation,
+  Event,
   CreateMatchResponse,
-  GetMatchStateResponse,
+  MatchSnapshot,
   GodModeAction,
   GodModeQueueResponse,
   Match,
   OperationalCyclePhase,
   ParticipantState,
   RelationshipState,
-  StartMatchResponse
+  StartMatchResponse,
+  SnapshotEnvelope
 } from '@/lib/domain/types';
 import { EVENT_LOCATION_CATALOG } from '@/lib/domain/event-locations';
 import { SPECIAL_EVENT_RULES } from '@/lib/domain/rules';
@@ -28,9 +31,9 @@ import { emitStructuredLog, recordLatencyMetric } from '@/lib/observability';
 
 type StoredMatch = {
   match: Match;
-  settings: GetMatchStateResponse['settings'];
+  settings: MatchSnapshot['settings'];
   participants: ParticipantState[];
-  recent_events: GetMatchStateResponse['recent_events'];
+  recent_events: MatchSnapshot['recent_events'];
   next_cycle_phase: OperationalCyclePhase;
   queued_god_mode_actions: GodModeAction[];
   persistent_fires: Array<{
@@ -42,25 +45,6 @@ type StoredMatch = {
   participant_resources: Record<string, string[]>;
   hostility: Record<string, Record<string, RelationshipState>>;
 };
-
-type MatchesStore = Map<string, StoredMatch>;
-
-type GlobalMatchesStore = typeof globalThis & {
-  __hungerGamesMatchesStore?: MatchesStore;
-};
-
-const matches: MatchesStore =
-  process.env.NODE_ENV === 'test'
-    ? new Map<string, StoredMatch>()
-    : (() => {
-        const globalMatchesStore = globalThis as GlobalMatchesStore;
-        const sharedStore =
-          globalMatchesStore.__hungerGamesMatchesStore ?? new Map<string, StoredMatch>();
-        if (!globalMatchesStore.__hungerGamesMatchesStore) {
-          globalMatchesStore.__hungerGamesMatchesStore = sharedStore;
-        }
-        return sharedStore;
-      })();
 
 const MAX_RECENT_EVENTS = 12;
 const ARENA_LOCATIONS = ['cornucopia', 'forest_north', 'forest_south', 'river', 'ridge', 'ruins'];
@@ -242,6 +226,95 @@ type QueueGodModeResult =
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function cloneStringMap(values: Record<string, string>): Record<string, string> {
+  return { ...values };
+}
+
+function cloneNestedStringArrayMap(values: Record<string, string[]>): Record<string, string[]> {
+  const clone: Record<string, string[]> = {};
+  for (const [key, resourceIds] of Object.entries(values)) {
+    clone[key] = [...resourceIds];
+  }
+  return clone;
+}
+
+function cloneHostilityMap(
+  values: Record<string, Record<string, RelationshipState>>
+): Record<string, Record<string, RelationshipState>> {
+  const clone: Record<string, Record<string, RelationshipState>> = {};
+  for (const [sourceId, valuesByTarget] of Object.entries(values)) {
+    clone[sourceId] = { ...valuesByTarget };
+  }
+  return clone;
+}
+
+function buildSnapshotEnvelope(snapshot: MatchSnapshot): SnapshotEnvelope {
+  return {
+    snapshot_version: SNAPSHOT_VERSION,
+    checksum: buildSnapshotChecksum(snapshot),
+    snapshot
+  };
+}
+
+function cloneMatchSnapshot(snapshot: MatchSnapshot): MatchSnapshot {
+  return storedMatchToSnapshot(snapshotToStoredMatch(snapshot));
+}
+
+function cloneGodModeActions(actions: GodModeAction[]): GodModeAction[] {
+  return actions.map((action) => {
+    if (action.kind === 'force_encounter' || action.kind === 'separate_tributes') {
+      return {
+        ...action,
+        participant_ids: [...action.participant_ids]
+      };
+    }
+
+    return { ...action };
+  });
+}
+
+export function storedMatchToSnapshot(stored: StoredMatch): MatchSnapshot {
+  return {
+    snapshot_version: SNAPSHOT_VERSION,
+    ruleset_version: stored.match.ruleset_version,
+    match: {
+      ...stored.match
+    },
+    settings: {
+      ...stored.settings
+    },
+    participants: stored.participants.map((participant) => ({ ...participant })),
+    recent_events: stored.recent_events.map((event) => ({ ...event })),
+    engine_state: {
+      next_cycle_phase: stored.next_cycle_phase,
+      queued_god_mode_actions: cloneGodModeActions(stored.queued_god_mode_actions),
+      persistent_fires: stored.persistent_fires.map((fire) => ({ ...fire })),
+      participant_locations: cloneStringMap(stored.participant_locations),
+      participant_resources: cloneNestedStringArrayMap(stored.participant_resources),
+      hostility: cloneHostilityMap(stored.hostility)
+    }
+  };
+}
+
+export function snapshotToStoredMatch(snapshot: MatchSnapshot): StoredMatch {
+  return {
+    match: {
+      ...snapshot.match
+    },
+    settings: {
+      ...snapshot.settings
+    },
+    participants: snapshot.participants.map((participant) => ({ ...participant })),
+    recent_events: snapshot.recent_events.map((event) => ({ ...event })),
+    next_cycle_phase: snapshot.engine_state.next_cycle_phase,
+    queued_god_mode_actions: cloneGodModeActions(snapshot.engine_state.queued_god_mode_actions),
+    persistent_fires: snapshot.engine_state.persistent_fires.map((fire) => ({ ...fire })),
+    participant_locations: cloneStringMap(snapshot.engine_state.participant_locations),
+    participant_resources: cloneNestedStringArrayMap(snapshot.engine_state.participant_resources),
+    hostility: cloneHostilityMap(snapshot.engine_state.hostility)
+  };
 }
 
 function aliveParticipants(participants: ParticipantState[]): ParticipantState[] {
@@ -596,7 +669,9 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     participantResources[participants[index].id] = [];
   }
 
-  matches.set(matchId, {
+  const snapshot: MatchSnapshot = {
+    snapshot_version: SNAPSHOT_VERSION,
+    ruleset_version: RULESET_VERSION,
     match: {
       id: matchId,
       seed: settings.seed,
@@ -611,13 +686,15 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
     settings,
     participants,
     recent_events: [],
-    next_cycle_phase: 'bloodbath',
-    queued_god_mode_actions: [],
-    persistent_fires: [],
-    participant_locations: participantLocations,
-    participant_resources: participantResources,
-    hostility: {}
-  });
+    engine_state: {
+      next_cycle_phase: 'bloodbath',
+      queued_god_mode_actions: [],
+      persistent_fires: [],
+      participant_locations: participantLocations,
+      participant_resources: participantResources,
+      hostility: {}
+    }
+  };
 
   emitStructuredLog('match.created', {
     match_id: matchId,
@@ -629,28 +706,15 @@ export function createMatch(input: CreateMatchRequest): CreateMatchResponse {
   });
 
   return {
-    match_id: matchId,
-    phase: 'setup'
+    snapshot_envelope: buildSnapshotEnvelope(snapshot)
   };
 }
 
-export function startMatch(matchId: string): StartMatchResult {
-  const stored = matches.get(matchId);
-  if (!stored) {
-    emitStructuredLog('match.start.rejected', {
-      match_id: matchId,
-      reason: 'MATCH_NOT_FOUND'
-    });
-    return {
-      ok: false,
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    };
-  }
+export function startMatchFromSnapshot(snapshot: MatchSnapshot): StartMatchResult {
+  const stored = snapshotToStoredMatch(cloneMatchSnapshot(snapshot));
 
   if (stored.match.phase !== 'setup') {
+    const matchId = stored.match.id;
     emitStructuredLog('match.start.rejected', {
       match_id: matchId,
       reason: 'MATCH_STATE_CONFLICT',
@@ -685,27 +749,19 @@ export function startMatch(matchId: string): StartMatchResult {
   return {
     ok: true,
     value: {
-      match_id: stored.match.id,
-      phase: 'running',
-      cycle_phase: 'bloodbath',
-      turn_number: 0
+      snapshot_envelope: buildSnapshotEnvelope(storedMatchToSnapshot(stored))
     }
   };
 }
 
-export function queueGodModeActions(matchId: string, actions: GodModeAction[]): QueueGodModeResult {
-  const stored = matches.get(matchId);
-  if (!stored) {
-    return {
-      ok: false,
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    };
-  }
+export function queueGodModeActionsFromSnapshot(
+  snapshot: MatchSnapshot,
+  actions: GodModeAction[]
+): QueueGodModeResult {
+  const stored = snapshotToStoredMatch(cloneMatchSnapshot(snapshot));
 
   if (stored.match.phase !== 'running') {
+    const matchId = stored.match.id;
     return {
       ok: false,
       error: {
@@ -725,34 +781,18 @@ export function queueGodModeActions(matchId: string, actions: GodModeAction[]): 
     };
   }
 
-  stored.queued_god_mode_actions.push(...actions);
+  stored.queued_god_mode_actions.push(...cloneGodModeActions(actions));
+  const nextSnapshot = storedMatchToSnapshot(stored);
 
   return {
     ok: true,
     value: {
-      match_id: stored.match.id,
+      match_id: nextSnapshot.match.id,
       phase: 'running',
       cycle_phase: 'god_mode',
-      queued_actions: stored.queued_god_mode_actions.length
+      queued_actions: nextSnapshot.engine_state.queued_god_mode_actions.length,
+      snapshot_envelope: buildSnapshotEnvelope(nextSnapshot)
     }
-  };
-}
-
-export function getMatchState(matchId: string): GetMatchStateResponse | null {
-  const stored = matches.get(matchId);
-  if (!stored) {
-    return null;
-  }
-
-  return {
-    match_id: stored.match.id,
-    phase: stored.match.phase,
-    cycle_phase: stored.match.cycle_phase,
-    turn_number: stored.match.turn_number,
-    tension_level: stored.match.tension_level,
-    settings: stored.settings,
-    participants: stored.participants,
-    recent_events: stored.recent_events
   };
 }
 
@@ -763,26 +803,13 @@ function effectiveOperationalPhase(stored: StoredMatch): OperationalCyclePhase {
   return stored.match.cycle_phase;
 }
 
-export function advanceTurn(matchId: string): AdvanceTurnResult {
+export function advanceTurnFromSnapshot(snapshot: MatchSnapshot): AdvanceTurnResult {
+  const stored = snapshotToStoredMatch(cloneMatchSnapshot(snapshot));
   const tickStartMs = Date.now();
-  const stored = matches.get(matchId);
-  if (!stored) {
-    emitStructuredLog('match.turn.rejected', {
-      match_id: matchId,
-      reason: 'MATCH_NOT_FOUND'
-    });
-    return {
-      ok: false,
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    };
-  }
 
   if (stored.match.phase !== 'running') {
     emitStructuredLog('match.turn.rejected', {
-      match_id: matchId,
+      match_id: stored.match.id,
       reason: 'MATCH_STATE_CONFLICT',
       phase: stored.match.phase
     });
@@ -804,7 +831,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
 
   if (alive.length <= 1) {
     emitStructuredLog('match.turn.rejected', {
-      match_id: matchId,
+      match_id: stored.match.id,
       reason: 'MATCH_ALREADY_RESOLVED'
     });
     return {
@@ -979,7 +1006,7 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
     origin: godModeEffects.induced_action_ids.length > 0 ? 'god_mode' : 'natural',
     induced_by_action_ids: godModeEffects.induced_action_ids,
     created_at: eventCreatedAt
-  } satisfies GetMatchStateResponse['recent_events'][number];
+  } satisfies Event;
 
   stored.recent_events = [...stored.recent_events, event].slice(-MAX_RECENT_EVENTS);
   stored.match = {
@@ -1040,11 +1067,8 @@ export function advanceTurn(matchId: string): AdvanceTurnResult {
       survivors_count: survivorsCount,
       eliminated_ids: eliminatedIds,
       finished,
-      winner_id: winnerId
+      winner_id: winnerId,
+      snapshot_envelope: buildSnapshotEnvelope(storedMatchToSnapshot(stored))
     }
   };
-}
-
-export function resetMatchesForTests() {
-  matches.clear();
 }

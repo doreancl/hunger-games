@@ -5,13 +5,13 @@ import {
   createMatchRequestSchema,
   godModeQueueRequestSchema,
   godModeQueueResponseSchema,
-  getMatchStateResponseSchema,
   matchSnapshotSchema,
   resumeMatchRequestSchema,
   rulesetVersionSchema,
   snapshotEnvelopeVersionSchema,
   startMatchResponseSchema
 } from '@/lib/domain/schemas';
+import { SNAPSHOT_VERSION } from '@/lib/domain/types';
 
 describe('ruleset and snapshot versioning', () => {
   it('accepts semantic ruleset version', () => {
@@ -25,7 +25,7 @@ describe('ruleset and snapshot versioning', () => {
 
   it('requires known snapshot version shape', () => {
     const snapshot = {
-      snapshot_version: 1,
+      snapshot_version: SNAPSHOT_VERSION,
       ruleset_version: 'v1.0.0',
       match: {
         id: 'match-1',
@@ -45,15 +45,23 @@ describe('ruleset and snapshot versioning', () => {
         seed: 'seed'
       },
       participants: [],
-      recent_events: []
+      recent_events: [],
+      engine_state: {
+        next_cycle_phase: 'bloodbath',
+        queued_god_mode_actions: [],
+        persistent_fires: [],
+        participant_locations: {},
+        participant_resources: {},
+        hostility: {}
+      }
     };
 
-    expect(matchSnapshotSchema.parse(snapshot).snapshot_version).toBe(1);
+    expect(matchSnapshotSchema.parse(snapshot).snapshot_version).toBe(SNAPSHOT_VERSION);
   });
 
   it('accepts snapshot envelope for resume/advance requests', () => {
     const snapshot = {
-      snapshot_version: 1,
+      snapshot_version: SNAPSHOT_VERSION,
       ruleset_version: 'v1.0.0',
       match: {
         id: 'match-1',
@@ -73,11 +81,19 @@ describe('ruleset and snapshot versioning', () => {
         seed: null
       },
       participants: [],
-      recent_events: []
+      recent_events: [],
+      engine_state: {
+        next_cycle_phase: 'bloodbath',
+        queued_god_mode_actions: [],
+        persistent_fires: [],
+        participant_locations: {},
+        participant_resources: {},
+        hostility: {}
+      }
     };
 
     const envelope = {
-      snapshot_version: 1,
+      snapshot_version: SNAPSHOT_VERSION,
       checksum: '0badc0de',
       snapshot
     };
@@ -180,22 +196,61 @@ describe('create_match request contract', () => {
 describe('match lifecycle response contracts', () => {
   it('accepts start_match response contract', () => {
     const payload = {
-      match_id: 'match-1',
-      phase: 'running',
-      cycle_phase: 'bloodbath',
-      turn_number: 0
+      snapshot_envelope: {
+        snapshot_version: SNAPSHOT_VERSION,
+        checksum: '0badc0de',
+        snapshot: {
+          snapshot_version: SNAPSHOT_VERSION,
+          ruleset_version: 'v1.0.0',
+          match: {
+            id: 'match-1',
+            seed: null,
+            ruleset_version: 'v1.0.0',
+            phase: 'running',
+            cycle_phase: 'bloodbath',
+            turn_number: 0,
+            tension_level: 0,
+            created_at: '2026-02-15T10:00:00.000Z',
+            ended_at: null
+          },
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: null
+          },
+          participants: [],
+          recent_events: [],
+          engine_state: {
+            next_cycle_phase: 'bloodbath',
+            queued_god_mode_actions: [],
+            persistent_fires: [],
+            participant_locations: {},
+            participant_resources: {},
+            hostility: {}
+          }
+        }
+      }
     };
 
     expect(startMatchResponseSchema.parse(payload)).toEqual(payload);
   });
 
-  it('accepts get_match_state response contract', () => {
+  it('accepts match snapshot response contract', () => {
     const payload = {
-      match_id: 'match-1',
-      phase: 'setup',
-      cycle_phase: 'bloodbath',
-      turn_number: 0,
-      tension_level: 0,
+      snapshot_version: SNAPSHOT_VERSION,
+      ruleset_version: 'v1.0.0',
+      match: {
+        id: 'match-1',
+        seed: null,
+        ruleset_version: 'v1.0.0',
+        phase: 'setup',
+        cycle_phase: 'bloodbath',
+        turn_number: 0,
+        tension_level: 0,
+        created_at: '2026-02-15T10:00:00.000Z',
+        ended_at: null
+      },
       settings: {
         surprise_level: 'normal',
         event_profile: 'balanced',
@@ -203,10 +258,18 @@ describe('match lifecycle response contracts', () => {
         seed: null
       },
       participants: [],
-      recent_events: []
+      recent_events: [],
+      engine_state: {
+        next_cycle_phase: 'bloodbath',
+        queued_god_mode_actions: [],
+        persistent_fires: [],
+        participant_locations: {},
+        participant_resources: {},
+        hostility: {}
+      }
     };
 
-    expect(getMatchStateResponseSchema.parse(payload)).toEqual(payload);
+    expect(matchSnapshotSchema.parse(payload)).toEqual(payload);
   });
 
   it('accepts advance_turn response contract', () => {
@@ -225,7 +288,42 @@ describe('match lifecycle response contracts', () => {
       survivors_count: 9,
       eliminated_ids: ['participant-2'],
       finished: false,
-      winner_id: null
+      winner_id: null,
+      snapshot_envelope: {
+        snapshot_version: SNAPSHOT_VERSION,
+        checksum: '0badc0de',
+        snapshot: {
+          snapshot_version: SNAPSHOT_VERSION,
+          ruleset_version: 'v1.0.0',
+          match: {
+            id: 'match-1',
+            seed: null,
+            ruleset_version: 'v1.0.0',
+            phase: 'running',
+            cycle_phase: 'god_mode',
+            turn_number: 1,
+            tension_level: 12,
+            created_at: '2026-02-15T10:00:00.000Z',
+            ended_at: null
+          },
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: null
+          },
+          participants: [],
+          recent_events: [],
+          engine_state: {
+            next_cycle_phase: 'night',
+            queued_god_mode_actions: [],
+            persistent_fires: [],
+            participant_locations: {},
+            participant_resources: {},
+            hostility: {}
+          }
+        }
+      }
     };
 
     expect(advanceTurnResponseSchema.parse(payload)).toEqual(payload);
@@ -233,6 +331,41 @@ describe('match lifecycle response contracts', () => {
 
   it('accepts god_mode queue request/response contracts', () => {
     const requestPayload = {
+      snapshot_envelope: {
+        snapshot_version: SNAPSHOT_VERSION,
+        checksum: '0badc0de',
+        snapshot: {
+          snapshot_version: SNAPSHOT_VERSION,
+          ruleset_version: 'v1.0.0',
+          match: {
+            id: 'match-1',
+            seed: null,
+            ruleset_version: 'v1.0.0',
+            phase: 'running',
+            cycle_phase: 'god_mode',
+            turn_number: 1,
+            tension_level: 12,
+            created_at: '2026-02-15T10:00:00.000Z',
+            ended_at: null
+          },
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: null
+          },
+          participants: [],
+          recent_events: [],
+          engine_state: {
+            next_cycle_phase: 'night',
+            queued_god_mode_actions: [],
+            persistent_fires: [],
+            participant_locations: {},
+            participant_resources: {},
+            hostility: {}
+          }
+        }
+      },
       actions: [
         {
           id: 'action-1',
@@ -252,7 +385,42 @@ describe('match lifecycle response contracts', () => {
       match_id: 'match-1',
       phase: 'running',
       cycle_phase: 'god_mode',
-      queued_actions: 2
+      queued_actions: 2,
+      snapshot_envelope: {
+        snapshot_version: SNAPSHOT_VERSION,
+        checksum: '0badc0de',
+        snapshot: {
+          snapshot_version: SNAPSHOT_VERSION,
+          ruleset_version: 'v1.0.0',
+          match: {
+            id: 'match-1',
+            seed: null,
+            ruleset_version: 'v1.0.0',
+            phase: 'running',
+            cycle_phase: 'god_mode',
+            turn_number: 1,
+            tension_level: 12,
+            created_at: '2026-02-15T10:00:00.000Z',
+            ended_at: null
+          },
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: null
+          },
+          participants: [],
+          recent_events: [],
+          engine_state: {
+            next_cycle_phase: 'night',
+            queued_god_mode_actions: [],
+            persistent_fires: [],
+            participant_locations: {},
+            participant_resources: {},
+            hostility: {}
+          }
+        }
+      }
     };
 
     expect(godModeQueueRequestSchema.parse(requestPayload)).toEqual(requestPayload);

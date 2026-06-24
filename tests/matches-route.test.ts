@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { POST } from '@/app/api/matches/route';
 import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
-import { resetMatchesForTests } from '@/lib/matches/lifecycle';
 
 function roster(size: number): string[] {
   return Array.from({ length: size }, (_, index) => `char-${index + 1}`);
@@ -9,7 +8,6 @@ function roster(size: number): string[] {
 
 describe('POST /api/matches', () => {
   beforeEach(() => {
-    resetMatchesForTests();
     resetRateLimitsForTests();
   });
 
@@ -270,11 +268,11 @@ describe('POST /api/matches', () => {
 
     const response = await POST(request);
     const body = await response.json();
+    const snapshotEnvelope = body.snapshot_envelope;
 
     expect(response.status).toBe(201);
-    expect(body.phase).toBe('setup');
-    expect(typeof body.match_id).toBe('string');
-    expect(body.match_id.length).toBeGreaterThan(0);
+    expect(snapshotEnvelope.snapshot.match.phase).toBe('setup');
+    expect(snapshotEnvelope.snapshot.match.id.length).toBeGreaterThan(0);
   });
 
   it('accepts participant_names when creating a match', async () => {
@@ -289,10 +287,11 @@ describe('POST /api/matches', () => {
 
     const response = await POST(request);
     const body = await response.json();
+    const snapshotEnvelope = body.snapshot_envelope;
 
     expect(response.status).toBe(201);
-    expect(body.phase).toBe('setup');
-    expect(typeof body.match_id).toBe('string');
+    expect(snapshotEnvelope.snapshot.match.phase).toBe('setup');
+    expect(snapshotEnvelope.snapshot.match.id.length).toBeGreaterThan(0);
   });
 
   it('applies defaults when settings are omitted', async () => {
@@ -306,10 +305,11 @@ describe('POST /api/matches', () => {
 
     const response = await POST(request);
     const body = await response.json();
+    const snapshotEnvelope = body.snapshot_envelope;
 
     expect(response.status).toBe(201);
-    expect(body.phase).toBe('setup');
-    expect(typeof body.match_id).toBe('string');
+    expect(snapshotEnvelope.snapshot.match.phase).toBe('setup');
+    expect(snapshotEnvelope.snapshot.match.id.length).toBeGreaterThan(0);
   });
 
   it('rate limits create endpoint after threshold', async () => {

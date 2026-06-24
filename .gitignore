@@ -10,3 +10,4 @@ output/playwright/
 .playwright-cli/
 test-results/
 .env*
+/tmp

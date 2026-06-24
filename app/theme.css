@@ -253,7 +253,7 @@ html[data-lobby-theme='eng-runbook'] option {
 
 html[data-lobby-theme='eng-runbook'] body {
   background: #0c0e14;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -265,7 +265,7 @@ html[data-lobby-theme='eng-runbook'] .rounded-xl.border.bg-card {
 }
 
 html[data-lobby-theme='eng-runbook'] .text-xl {
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.005em;
 }
 

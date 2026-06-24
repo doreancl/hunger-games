@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as createMatch } from '@/app/api/matches/route';
-import { GET as getMatchState } from '@/app/api/matches/[matchId]/route';
 import { POST as startMatch } from '@/app/api/matches/[matchId]/start/route';
 import { POST as advanceTurn } from '@/app/api/matches/[matchId]/turns/advance/route';
 import { POST as queueGodMode } from '@/app/api/matches/[matchId]/god-mode/route';
@@ -8,20 +7,55 @@ import { POST as resumeMatch } from '@/app/api/matches/resume/route';
 import { resetRateLimitsForTests } from '@/lib/api/rate-limit';
 import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
-import { resetMatchesForTests } from '@/lib/matches/lifecycle';
-import { resetObservabilityForTests } from '@/lib/observability';
+import {
+  RULESET_VERSION,
+  SNAPSHOT_VERSION,
+  type CreateMatchResponse,
+  type MatchSnapshot,
+  type SnapshotEnvelope
+} from '@/lib/domain/types';
 import { advanceDirector } from '@/lib/simulation-state';
-import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 
 function roster(size: number): string[] {
   return Array.from({ length: size }, (_, index) => `char-${index + 1}`);
 }
 
-describe('match lifecycle routes', () => {
+function toCharacterIds(
+  participantIds: string[],
+  snapshot: MatchSnapshot
+): string[] {
+  const byId = new Map(snapshot.participants.map((participant) => [participant.id, participant.character_id]));
+  return participantIds.map((id) => byId.get(id)).filter((characterId): characterId is string => characterId !== undefined)
+    .sort();
+}
+
+async function startMatchFromCreate(createMatchResponse: CreateMatchResponse, matchId: string) {
+  const response = await startMatch(
+    new Request(`http://localhost/api/matches/${matchId}/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(createMatchResponse.snapshot_envelope)
+    }),
+    { params: Promise.resolve({ matchId }) }
+  );
+  return response;
+}
+
+async function advanceMatch(matchId: string, snapshotEnvelope: SnapshotEnvelope) {
+  const response = await advanceTurn(
+    new Request(`http://localhost/api/matches/${matchId}/turns/advance`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(snapshotEnvelope)
+    }),
+    { params: Promise.resolve({ matchId }) }
+  );
+  return response;
+}
+
+describe('match lifecycle routes (snapshot stateless)', () => {
   beforeEach(() => {
-    resetMatchesForTests();
     resetRateLimitsForTests();
-    resetObservabilityForTests();
   });
 
   afterEach(() => {
@@ -29,27 +63,24 @@ describe('match lifecycle routes', () => {
   });
 
   it('starts a setup match and returns running bloodbath', async () => {
-    const createRequest = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        roster_character_ids: roster(10)
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10)
+        })
       })
-    });
-
-    const createResponse = await createMatch(createRequest);
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
-
-    const startResponse = await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
     );
-    const startBody = await startResponse.json();
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
     expect(startResponse.status).toBe(200);
-    expect(startBody).toEqual({
-      match_id: matchId,
+    expect(startBody.snapshot_envelope.snapshot.match).toMatchObject({
+      id: matchId,
       phase: 'running',
       cycle_phase: 'bloodbath',
       turn_number: 0
@@ -57,25 +88,28 @@ describe('match lifecycle routes', () => {
   });
 
   it('returns conflict when starting a match outside setup phase', async () => {
-    const createRequest = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        roster_character_ids: roster(10)
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10)
+        })
       })
-    });
-
-    const createResponse = await createMatch(createRequest);
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
-
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
     );
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+
+    const firstStartResponse = await startMatchFromCreate(createBody, matchId);
+    expect(firstStartResponse.status).toBe(200);
+    const firstStartBody = (await firstStartResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
     const secondStartResponse = await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
+      new Request(`http://localhost/api/matches/${matchId}/start`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(firstStartBody.snapshot_envelope)
+      }),
       { params: Promise.resolve({ matchId }) }
     );
     const secondStartBody = await secondStartResponse.json();
@@ -84,51 +118,67 @@ describe('match lifecycle routes', () => {
     expect(secondStartBody.error.code).toBe('MATCH_STATE_CONFLICT');
   });
 
-  it('returns not found when starting an unknown match', async () => {
+  it('returns snapshot-id mismatch error when route match id differs', async () => {
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10)
+        })
+      })
+    );
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+
     const response = await startMatch(
-      new Request('http://localhost/api/matches/missing/start', { method: 'POST' }),
+      new Request('http://localhost/api/matches/missing/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(createBody.snapshot_envelope)
+      }),
       { params: Promise.resolve({ matchId: 'missing' }) }
     );
     const body = await response.json();
 
-    expect(response.status).toBe(404);
-    expect(body).toEqual({
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    });
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('SNAPSHOT_INVALID');
+    expect(body.error.message).toBe('Snapshot match id does not match route match id.');
   });
 
   it('advances one turn and updates runtime state consistently', async () => {
-    const createRequest = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        roster_character_ids: roster(10),
-        settings: {
-          surprise_level: 'normal',
-          event_profile: 'balanced',
-          simulation_speed: '1x',
-          seed: 'us-004-seed'
-        }
+    const createResponse = await createMatch(
+      new Request('http://localhost/api/matches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          roster_character_ids: roster(10),
+          settings: {
+            surprise_level: 'normal',
+            event_profile: 'balanced',
+            simulation_speed: '1x',
+            seed: 'us-004-seed'
+          }
+        })
       })
-    });
-
-    const createResponse = await createMatch(createRequest);
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
-
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
     );
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
 
-    const advanceResponse = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const advanceBody = await advanceResponse.json();
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
+
+    const advanceResponse = await advanceMatch(matchId, startBody.snapshot_envelope);
+    const advanceBody = (await advanceResponse.json()) as {
+      turn_number: number;
+      cycle_phase: string;
+      tension_level: number;
+      event: { id: string; type: string; phase: string; narrative_text: string; participant_ids: string[] };
+      survivors_count: number;
+      eliminated_ids: string[];
+      finished: boolean;
+      winner_id: string | null;
+      snapshot_envelope: SnapshotEnvelope;
+    };
 
     expect(advanceResponse.status).toBe(200);
     expect(advanceBody.event).toMatchObject({
@@ -142,6 +192,7 @@ describe('match lifecycle routes', () => {
     expect(advanceBody.survivors_count).toBe(10 - advanceBody.eliminated_ids.length);
     expect(advanceBody.finished).toBe(false);
     expect(advanceBody.winner_id).toBeNull();
+    expect(advanceBody.snapshot_envelope.snapshot.match.turn_number).toBe(advanceBody.turn_number);
 
     const expectedDirector = advanceDirector(
       {
@@ -157,20 +208,9 @@ describe('match lifecycle routes', () => {
     expect(advanceBody.turn_number).toBe(expectedDirector.turn_number);
     expect(advanceBody.cycle_phase).toBe('god_mode');
     expect(advanceBody.tension_level).toBe(expectedDirector.tension_level);
-
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-
-    expect(stateResponse.status).toBe(200);
-    expect(stateBody.turn_number).toBe(advanceBody.turn_number);
-    expect(stateBody.cycle_phase).toBe(advanceBody.cycle_phase);
-    expect(stateBody.tension_level).toBe(advanceBody.tension_level);
-    expect(stateBody.recent_events).toHaveLength(1);
-    expect(stateBody.recent_events[0].origin).toBe('natural');
-    expect(stateBody.recent_events[0].induced_by_action_ids).toEqual([]);
+    expect(advanceBody.snapshot_envelope.snapshot.recent_events).toHaveLength(1);
+    expect(advanceBody.snapshot_envelope.snapshot.recent_events[0].origin).toBe('natural');
+    expect(advanceBody.snapshot_envelope.snapshot.recent_events[0].induced_by_action_ids).toEqual([]);
   });
 
   it('queues and applies god_mode actions between turns', async () => {
@@ -189,34 +229,23 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
+    const firstAdvanceResponse = await advanceMatch(matchId, startBody.snapshot_envelope);
+    const firstAdvanceBody = (await firstAdvanceResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-
-    await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-
-    const stateBefore = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBeforeBody = await stateBefore.json();
-    const aliveParticipants = (stateBeforeBody.participants as Array<{ id: string; status: string }>).filter(
-      (participant) => participant.status !== 'eliminated'
-    );
-    const revivedCandidate = (stateBeforeBody.participants as Array<{ id: string }>)[0].id;
+    const stateSnapshot = firstAdvanceBody.snapshot_envelope.snapshot;
+    const [firstParticipant, secondParticipant] = stateSnapshot.participants;
+    const revivedCandidate = stateSnapshot.participants[0].id;
 
     const queueResponse = await queueGodMode(
       new Request(`http://localhost/api/matches/${matchId}/god-mode`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          snapshot_envelope: firstAdvanceBody.snapshot_envelope,
           actions: [
             {
               id: 'act-fire',
@@ -232,47 +261,43 @@ describe('match lifecycle routes', () => {
             {
               id: 'act-enemy',
               kind: 'set_enmity',
-              source_participant_id: aliveParticipants[0].id,
-              target_participant_id: aliveParticipants[1].id
+              source_participant_id: firstParticipant.id,
+              target_participant_id: secondParticipant.id
             }
           ]
         })
       }),
       { params: Promise.resolve({ matchId }) }
     );
-    const queueBody = await queueResponse.json();
+    const queueBody = (await queueResponse.json()) as {
+      cycle_phase: string;
+      queued_actions: number;
+      snapshot_envelope: SnapshotEnvelope;
+    };
+
     expect(queueResponse.status).toBe(200);
     expect(queueBody.cycle_phase).toBe('god_mode');
     expect(queueBody.queued_actions).toBe(3);
 
-    const advanceResponse = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const advanceBody = await advanceResponse.json();
-    expect(advanceResponse.status).toBe(200);
-    expect(advanceBody.cycle_phase).toBe('god_mode');
-    expect(advanceBody.event.narrative_text).toContain('Incendio en cornucopia');
+    const advanceAfterQueueResponse = await advanceMatch(matchId, queueBody.snapshot_envelope);
+    const advanceAfterQueueBody = (await advanceAfterQueueResponse.json()) as {
+      cycle_phase: string;
+      event: { narrative_text: string };
+      snapshot_envelope: SnapshotEnvelope;
+    };
+    const lastEvent = advanceAfterQueueBody.snapshot_envelope.snapshot.recent_events.at(-1);
+    const inducedByActions = lastEvent?.induced_by_action_ids ?? [];
 
-    const stateAfter = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateAfterBody = await stateAfter.json();
-    const lastEvent = (stateAfterBody.recent_events as Array<{
-      origin: string;
-      induced_by_action_ids: string[];
-      narrative_text: string;
-    }>).at(-1);
-
-    expect(lastEvent?.origin).toBe('god_mode');
-    expect(lastEvent?.induced_by_action_ids).toEqual(
+    expect(advanceAfterQueueResponse.status).toBe(200);
+    expect(advanceAfterQueueBody.cycle_phase).toBe('god_mode');
+    expect(advanceAfterQueueBody.event.narrative_text).toContain('Incendio en cornucopia');
+    expect(inducedByActions).toEqual(
       expect.arrayContaining(['act-fire', 'act-revive', 'act-enemy'])
     );
-    expect(lastEvent?.narrative_text).toContain('Incendio en cornucopia');
+    expect(lastEvent?.origin).toBe('god_mode');
   });
 
-  it('uses participant_names in state and event narrative when provided', async () => {
+  it('uses participant_names in snapshot and event narrative when provided', async () => {
     const customNames = Array.from({ length: 10 }, (_, index) => `Tributo ${index + 1}`);
     const createResponse = await createMatch(
       new Request('http://localhost/api/matches', {
@@ -284,92 +309,58 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
+    const advanceResponse = await advanceMatch(matchId, startBody.snapshot_envelope);
+    const advanceBody = (await advanceResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
+    const names = new Set(advanceBody.snapshot_envelope.snapshot.participants.map((participant) => participant.display_name));
 
-    await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-
-    expect(stateResponse.status).toBe(200);
-    expect(stateBody.participants).toHaveLength(10);
-    expect(
-      (stateBody.participants as Array<{ display_name: string }>).every((participant) =>
-        customNames.includes(participant.display_name)
-      )
-    ).toBe(true);
-    expect(stateBody.recent_events).toHaveLength(1);
-    expect((stateBody.recent_events as Array<{ narrative_text: string }>)[0].narrative_text).toMatch(
-      /Tributo \d+/
-    );
+    expect(advanceResponse.status).toBe(200);
+    expect(advanceBody.snapshot_envelope.snapshot.participants).toHaveLength(10);
+    expect(names.size).toBe(10);
+    expect(names).toEqual(new Set(customNames));
+    expect(advanceBody.snapshot_envelope.snapshot.recent_events[0].narrative_text).toMatch(/Tributo \d+/);
   });
 
   it('emits deterministic replay signature for same seed and ruleset version', async () => {
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
-    const createOne = await createMatch(
-      new Request('http://localhost/api/matches', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          roster_character_ids: roster(10),
-          settings: {
-            surprise_level: 'normal',
-            event_profile: 'balanced',
-            simulation_speed: '1x',
-            seed: 'replay-seed'
-          }
+    const createAndAdvance = async (seed: string) => {
+      const createResponse = await createMatch(
+        new Request('http://localhost/api/matches', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            roster_character_ids: roster(10),
+            settings: {
+              surprise_level: 'normal',
+              event_profile: 'balanced',
+              simulation_speed: '1x',
+              seed
+            }
+          })
         })
-      })
-    );
-    const createBodyOne = await createOne.json();
-    const matchIdOne = createBodyOne.match_id as string;
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchIdOne}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId: matchIdOne }) }
-    );
-    await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchIdOne}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId: matchIdOne }) }
-    );
+      );
+      const createBody = (await createResponse.json()) as CreateMatchResponse;
+      const matchId = createBody.snapshot_envelope.snapshot.match.id;
+      const startResponse = await startMatchFromCreate(createBody, matchId);
+      const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
-    const createTwo = await createMatch(
-      new Request('http://localhost/api/matches', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          roster_character_ids: roster(10),
-          settings: {
-            surprise_level: 'normal',
-            event_profile: 'balanced',
-            simulation_speed: '1x',
-            seed: 'replay-seed'
-          }
-        })
-      })
-    );
-    const createBodyTwo = await createTwo.json();
-    const matchIdTwo = createBodyTwo.match_id as string;
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchIdTwo}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId: matchIdTwo }) }
-    );
-    await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchIdTwo}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId: matchIdTwo }) }
-    );
+      return advanceMatch(matchId, startBody.snapshot_envelope);
+    };
+
+    const advanceOneOne = await createAndAdvance('replay-seed');
+    const advanceBodyOne = (await advanceOneOne.json()) as { snapshot_envelope: SnapshotEnvelope };
+    expect(advanceOneOne.status).toBe(200);
+    expect(advanceBodyOne.snapshot_envelope.snapshot.match.turn_number).toBe(1);
+
+    const advanceOneTwo = await createAndAdvance('replay-seed');
+    const advanceBodyTwo = (await advanceOneTwo.json()) as { snapshot_envelope: SnapshotEnvelope };
+    expect(advanceOneTwo.status).toBe(200);
+    expect(advanceBodyTwo.snapshot_envelope.snapshot.match.turn_number).toBe(1);
 
     const replayLogs = infoSpy.mock.calls
       .map((entry) => JSON.parse(entry[0] as string) as Record<string, unknown>)
@@ -395,33 +386,14 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
 
-    const response = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
+    const response = await advanceMatch(matchId, createBody.snapshot_envelope);
     const body = await response.json();
 
     expect(response.status).toBe(409);
     expect(body.error.code).toBe('MATCH_STATE_CONFLICT');
-  });
-
-  it('returns not found when advancing unknown match', async () => {
-    const response = await advanceTurn(
-      new Request('http://localhost/api/matches/missing/turns/advance', { method: 'POST' }),
-      { params: Promise.resolve({ matchId: 'missing' }) }
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(404);
-    expect(body).toEqual({
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    });
   });
 
   it('finishes match with a unique winner when one survivor remains', async () => {
@@ -440,94 +412,52 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
+    let lastAdvanceBody: {
+      finished: boolean;
+      winner_id: string | null;
+      survivors_count: number;
+      snapshot_envelope: SnapshotEnvelope;
+      event: { narrative_text: string };
+      cycle_phase: string;
+    } | null = null;
+    let snapshot = startBody.snapshot_envelope;
 
-    let lastAdvanceBody: Record<string, unknown> | null = null;
     for (let index = 0; index < 80; index += 1) {
-      const advanceResponse = await advanceTurn(
-        new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-        { params: Promise.resolve({ matchId }) }
-      );
-      lastAdvanceBody = await advanceResponse.json();
-      if (lastAdvanceBody.finished === true) {
+      const advanceResponse = await advanceMatch(matchId, snapshot);
+      expect(advanceResponse.status).toBe(200);
+      lastAdvanceBody = (await advanceResponse.json()) as {
+        finished: boolean;
+        winner_id: string | null;
+        survivors_count: number;
+        snapshot_envelope: SnapshotEnvelope;
+        event: { narrative_text: string };
+        cycle_phase: string;
+      };
+      snapshot = lastAdvanceBody.snapshot_envelope;
+      if (lastAdvanceBody.finished) {
         break;
       }
     }
 
     expect(lastAdvanceBody).not.toBeNull();
-    expect(lastAdvanceBody?.finished).toBe(true);
-    expect(lastAdvanceBody?.survivors_count).toBe(1);
-    expect(typeof lastAdvanceBody?.winner_id).toBe('string');
+    if (lastAdvanceBody === null) {
+      throw new Error('match did not finish in expected turn limit');
+    }
+    expect(lastAdvanceBody.finished).toBe(true);
+    expect(lastAdvanceBody.survivors_count).toBe(1);
+    expect(typeof lastAdvanceBody.winner_id).toBe('string');
+    expect(lastAdvanceBody.snapshot_envelope.snapshot.match.phase).toBe('finished');
 
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-    const aliveParticipants = (stateBody.participants as Array<{ id: string; status: string }>).filter(
+    const aliveParticipants = lastAdvanceBody.snapshot_envelope.snapshot.participants.filter(
       (participant) => participant.status !== 'eliminated'
     );
-
-    expect(stateBody.phase).toBe('finished');
     expect(aliveParticipants).toHaveLength(1);
-    expect(aliveParticipants[0].id).toBe(lastAdvanceBody?.winner_id);
-  });
-
-  it('returns consistent state for existing match', async () => {
-    const createRequest = new Request('http://localhost/api/matches', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        roster_character_ids: roster(10)
-      })
-    });
-
-    const createResponse = await createMatch(createRequest);
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
-
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-
-    expect(stateResponse.status).toBe(200);
-    expect(stateBody.match_id).toBe(matchId);
-    expect(stateBody.phase).toBe('setup');
-    expect(stateBody.cycle_phase).toBe('bloodbath');
-    expect(stateBody.turn_number).toBe(0);
-    expect(stateBody.tension_level).toBe(0);
-    expect(stateBody.settings).toEqual({
-      surprise_level: 'normal',
-      event_profile: 'balanced',
-      simulation_speed: '1x',
-      seed: null
-    });
-    expect(stateBody.participants).toHaveLength(10);
-    expect(stateBody.recent_events).toEqual([]);
-  });
-
-  it('returns not found when reading unknown match state', async () => {
-    const response = await getMatchState(
-      new Request('http://localhost/api/matches/missing', { method: 'GET' }),
-      { params: Promise.resolve({ matchId: 'missing' }) }
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(404);
-    expect(body).toEqual({
-      error: {
-        code: 'MATCH_NOT_FOUND',
-        message: 'Match not found.'
-      }
-    });
+    expect(aliveParticipants[0].id).toBe(lastAdvanceBody.winner_id);
   });
 
   it('rejects advance snapshot with invalid checksum', async () => {
@@ -540,50 +470,15 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
+    const startResponse = await startMatchFromCreate(createBody, matchId);
+    const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
 
-    await startMatch(
-      new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-    const snapshot = {
-      snapshot_version: SNAPSHOT_VERSION,
-      ruleset_version: RULESET_VERSION,
-      match: {
-        id: matchId,
-        seed: stateBody.settings.seed,
-        ruleset_version: RULESET_VERSION,
-        phase: stateBody.phase,
-        cycle_phase: stateBody.cycle_phase,
-        turn_number: stateBody.turn_number,
-        tension_level: stateBody.tension_level,
-        created_at: '2026-02-18T00:00:00.000Z',
-        ended_at: null
-      },
-      settings: stateBody.settings,
-      participants: stateBody.participants,
-      recent_events: stateBody.recent_events
-    };
-
-    const response = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          snapshot_version: SNAPSHOT_VERSION,
-          checksum: '00000000',
-          snapshot
-        })
-      }),
-      { params: Promise.resolve({ matchId }) }
-    );
+    const response = await advanceMatch(matchId, {
+      ...startBody.snapshot_envelope,
+      checksum: '00000000'
+    });
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -592,16 +487,43 @@ describe('match lifecycle routes', () => {
 
   it('rejects advance snapshot with unsupported version', async () => {
     const matchId = 'match-id';
-    const response = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchId}/turns/advance`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          snapshot_version: SNAPSHOT_VERSION + 1
-        })
-      }),
-      { params: Promise.resolve({ matchId }) }
-    );
+    const unsupportedSnapshotEnvelope = {
+      snapshot_version: SNAPSHOT_VERSION + 1 as number,
+      checksum: 'cafebabe',
+      snapshot: {
+        snapshot_version: SNAPSHOT_VERSION,
+        ruleset_version: RULESET_VERSION,
+        match: {
+          id: matchId,
+          seed: null,
+          ruleset_version: RULESET_VERSION,
+          phase: 'setup',
+          cycle_phase: 'bloodbath',
+          turn_number: 0,
+          tension_level: 0,
+          created_at: '2026-02-18T00:00:00.000Z',
+          ended_at: null
+        },
+        settings: {
+          surprise_level: 'normal',
+          event_profile: 'balanced',
+          simulation_speed: '1x',
+          seed: null
+        },
+        participants: [],
+        recent_events: [],
+        engine_state: {
+          next_cycle_phase: 'bloodbath',
+          queued_god_mode_actions: [],
+          persistent_fires: [],
+          participant_locations: {},
+          participant_resources: {},
+          hostility: {}
+        }
+      }
+    } as unknown as SnapshotEnvelope;
+    const response = await advanceMatch(matchId, unsupportedSnapshotEnvelope);
+
     const body = await response.json();
 
     expect(response.status).toBe(409);
@@ -612,12 +534,47 @@ describe('match lifecycle routes', () => {
   it('rate limits advance endpoint after threshold', async () => {
     const matchId = 'missing';
     let lastResponse: Response | null = null;
+    const snapshotTemplate: MatchSnapshot = {
+      snapshot_version: SNAPSHOT_VERSION,
+      ruleset_version: RULESET_VERSION,
+      match: {
+        id: matchId,
+        seed: null,
+        ruleset_version: RULESET_VERSION,
+        phase: 'setup',
+        cycle_phase: 'bloodbath',
+        turn_number: 0,
+        tension_level: 0,
+        created_at: '2026-02-18T00:00:00.000Z',
+        ended_at: null
+      },
+      settings: {
+        surprise_level: 'normal',
+        event_profile: 'balanced',
+        simulation_speed: '1x',
+        seed: null
+      },
+      participants: [],
+      recent_events: [],
+      engine_state: {
+        next_cycle_phase: 'bloodbath',
+        queued_god_mode_actions: [],
+        persistent_fires: [],
+        participant_locations: {},
+        participant_resources: {},
+        hostility: {}
+      }
+    };
+    const snapshotEnvelope: SnapshotEnvelope = {
+      snapshot_version: SNAPSHOT_VERSION,
+      checksum: buildSnapshotChecksum(snapshotTemplate),
+      snapshot: snapshotTemplate
+    };
 
     for (let index = 0; index < 121; index += 1) {
-      lastResponse = await advanceTurn(
-        new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-        { params: Promise.resolve({ matchId }) }
-      );
+      lastResponse = await advanceMatch(matchId, {
+        ...snapshotEnvelope
+      });
     }
 
     expect(lastResponse?.status).toBe(429);
@@ -635,88 +592,28 @@ describe('match lifecycle routes', () => {
         })
       })
     );
-    const createBody = await createResponse.json();
-    const matchId = createBody.match_id as string;
-    const stateResponse = await getMatchState(
-      new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-      { params: Promise.resolve({ matchId }) }
-    );
-    const stateBody = await stateResponse.json();
-
-    const snapshot = {
-      snapshot_version: SNAPSHOT_VERSION,
-      ruleset_version: RULESET_VERSION,
-      match: {
-        id: matchId,
-        seed: stateBody.settings.seed,
-        ruleset_version: RULESET_VERSION,
-        phase: stateBody.phase,
-        cycle_phase: stateBody.cycle_phase,
-        turn_number: stateBody.turn_number,
-        tension_level: stateBody.tension_level,
-        created_at: '2026-02-18T00:00:00.000Z',
-        ended_at: null
-      },
-      settings: stateBody.settings,
-      participants: stateBody.participants,
-      recent_events: stateBody.recent_events
-    };
+    const createBody = (await createResponse.json()) as CreateMatchResponse;
+    const matchId = createBody.snapshot_envelope.snapshot.match.id;
 
     const response = await resumeMatch(
       new Request('http://localhost/api/matches/resume', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          snapshot_version: SNAPSHOT_VERSION,
-          checksum: buildSnapshotChecksum(snapshot),
-          snapshot
-        })
+        body: JSON.stringify(createBody.snapshot_envelope)
       })
-    );
-    const body = await response.json();
+  );
+    const body = (await response.json()) as { snapshot_envelope: SnapshotEnvelope };
 
     expect(response.status).toBe(200);
-    expect(body.match_id).toBe(matchId);
-    expect(body.turn_number).toBe(0);
+    expect(body.snapshot_envelope.snapshot.match.id).toBe(matchId);
+    expect(body.snapshot_envelope.snapshot.match.turn_number).toBe(0);
   });
 
   it('preserves settings and deterministic continuity after resume', async () => {
-    const buildSnapshotEnvelope = async (matchId: string) => {
-      const stateResponse = await getMatchState(
-        new Request(`http://localhost/api/matches/${matchId}`, { method: 'GET' }),
-        { params: Promise.resolve({ matchId }) }
-      );
-      const stateBody = await stateResponse.json();
-      const snapshot = {
-        snapshot_version: SNAPSHOT_VERSION,
-        ruleset_version: RULESET_VERSION,
-        match: {
-          id: matchId,
-          seed: stateBody.settings.seed,
-          ruleset_version: RULESET_VERSION,
-          phase: stateBody.phase,
-          cycle_phase: stateBody.cycle_phase,
-          turn_number: stateBody.turn_number,
-          tension_level: stateBody.tension_level,
-          created_at: '2026-02-18T00:00:00.000Z',
-          ended_at: null
-        },
-        settings: stateBody.settings,
-        participants: stateBody.participants,
-        recent_events: stateBody.recent_events
-      };
-
-      return {
-        stateBody,
-        envelope: {
-          snapshot_version: SNAPSHOT_VERSION,
-          checksum: buildSnapshotChecksum(snapshot),
-          snapshot
-        }
-      };
-    };
-
-    const createAndReachTurn = async (seed: string, targetTurn: number) => {
+    const createAndReachTurn = async (
+      seed: string,
+      targetTurn: number
+    ): Promise<{ snapshot: MatchSnapshot; snapshot_envelope: SnapshotEnvelope }> => {
       const createResponse = await createMatch(
         new Request('http://localhost/api/matches', {
           method: 'POST',
@@ -732,82 +629,78 @@ describe('match lifecycle routes', () => {
           })
         })
       );
-      const createBody = await createResponse.json();
-      const matchId = createBody.match_id as string;
-
-      await startMatch(
-        new Request(`http://localhost/api/matches/${matchId}/start`, { method: 'POST' }),
-        { params: Promise.resolve({ matchId }) }
-      );
+      const createBody = (await createResponse.json()) as CreateMatchResponse;
+      const matchId = createBody.snapshot_envelope.snapshot.match.id;
+      const startResponse = await startMatchFromCreate(createBody, matchId);
+      const startBody = (await startResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
+      let snapshotEnvelope = startBody.snapshot_envelope;
+      let snapshot = startBody.snapshot_envelope.snapshot;
 
       for (let index = 0; index < targetTurn; index += 1) {
-        await advanceTurn(
-          new Request(`http://localhost/api/matches/${matchId}/turns/advance`, { method: 'POST' }),
-          { params: Promise.resolve({ matchId }) }
-        );
+        const nextAdvanceResponse = await advanceMatch(matchId, snapshotEnvelope);
+        expect(nextAdvanceResponse.status).toBe(200);
+        const nextAdvanceBody = (await nextAdvanceResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
+        snapshotEnvelope = nextAdvanceBody.snapshot_envelope;
+        snapshot = nextAdvanceBody.snapshot_envelope.snapshot;
       }
 
-      return matchId;
+      return { snapshot, snapshot_envelope: snapshotEnvelope };
     };
 
-    const matchA = await createAndReachTurn('resume-deterministic-seed', 4);
-    const matchB = await createAndReachTurn('resume-deterministic-seed', 4);
-    const { stateBody: stateA, envelope: envelopeA } = await buildSnapshotEnvelope(matchA);
-    const { stateBody: stateB, envelope: envelopeB } = await buildSnapshotEnvelope(matchB);
+    const { snapshot: snapshotA, snapshot_envelope: snapshotEnvelopeA } = await createAndReachTurn('resume-deterministic-seed', 4);
+    const { snapshot: snapshotB, snapshot_envelope: snapshotEnvelopeB } = await createAndReachTurn('resume-deterministic-seed', 4);
 
     const resumeResponse = await resumeMatch(
       new Request('http://localhost/api/matches/resume', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(envelopeB)
+        body: JSON.stringify({
+          snapshot_version: SNAPSHOT_VERSION,
+          checksum: buildSnapshotChecksum(snapshotB),
+          snapshot: snapshotB
+        })
       })
     );
-    const resumeBody = await resumeResponse.json();
-
+    const resumeBody = (await resumeResponse.json()) as { snapshot_envelope: SnapshotEnvelope };
     expect(resumeResponse.status).toBe(200);
-    expect(resumeBody.settings).toEqual(stateB.settings);
-    expect(resumeBody.turn_number).toBe(stateB.turn_number);
+    expect(resumeBody.snapshot_envelope.snapshot.settings).toEqual(snapshotB.settings);
+    expect(resumeBody.snapshot_envelope.snapshot.match.turn_number).toBe(snapshotB.match.turn_number);
 
-    const advanceAfterResumeResponse = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchB}/turns/advance`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(envelopeB)
-      }),
-      { params: Promise.resolve({ matchId: matchB }) }
+    const advancedAfterResumeResponse = await advanceMatch(
+      resumeBody.snapshot_envelope.snapshot.match.id,
+      resumeBody.snapshot_envelope
     );
-    const advanceControlResponse = await advanceTurn(
-      new Request(`http://localhost/api/matches/${matchA}/turns/advance`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(envelopeA)
-      }),
-      { params: Promise.resolve({ matchId: matchA }) }
-    );
+    const advancedControlResponse = await advanceMatch(snapshotA.match.id, snapshotEnvelopeA);
 
-    const advancedAfterResume = await advanceAfterResumeResponse.json();
-    const advancedControl = await advanceControlResponse.json();
-    expect(advanceAfterResumeResponse.status).toBe(200);
-    expect(advanceControlResponse.status).toBe(200);
-
-    const toCharacterIds = (
-      ids: string[],
-      participants: Array<{ id: string; character_id: string }>
-    ) => {
-      const byId = new Map(participants.map((participant) => [participant.id, participant.character_id]));
-      return ids.map((id) => byId.get(id)).sort();
+    const advancedAfterResume = (await advancedAfterResumeResponse.json()) as {
+      turn_number: number;
+      cycle_phase: string;
+      tension_level: number;
+      event: { type: string; narrative_text: string; participant_ids: string[] };
+      survivors_count: number;
+      eliminated_ids: string[];
+    };
+    const advancedControl = (await advancedControlResponse.json()) as {
+      turn_number: number;
+      cycle_phase: string;
+      tension_level: number;
+      event: { type: string; narrative_text: string; participant_ids: string[] };
+      survivors_count: number;
+      eliminated_ids: string[];
     };
 
+    expect(advancedAfterResumeResponse.status).toBe(200);
+    expect(advancedControlResponse.status).toBe(200);
     expect(advancedAfterResume.turn_number).toBe(advancedControl.turn_number);
     expect(advancedAfterResume.cycle_phase).toBe(advancedControl.cycle_phase);
     expect(advancedAfterResume.tension_level).toBe(advancedControl.tension_level);
     expect(advancedAfterResume.event.type).toBe(advancedControl.event.type);
     expect(advancedAfterResume.event.narrative_text).toBe(advancedControl.event.narrative_text);
-    expect(
-      toCharacterIds(advancedAfterResume.eliminated_ids, stateB.participants)
-    ).toEqual(toCharacterIds(advancedControl.eliminated_ids, stateA.participants));
-    expect(
-      toCharacterIds(advancedAfterResume.event.participant_ids, stateB.participants)
-    ).toEqual(toCharacterIds(advancedControl.event.participant_ids, stateA.participants));
+    expect(toCharacterIds(advancedAfterResume.eliminated_ids, snapshotB)).toEqual(
+      toCharacterIds(advancedControl.eliminated_ids, snapshotA)
+    );
+    expect(toCharacterIds(advancedAfterResume.event.participant_ids, snapshotB)).toEqual(
+      toCharacterIds(advancedControl.event.participant_ids, snapshotA)
+    );
   });
 });

@@ -139,6 +139,8 @@ export const eventSchema = z
   })
   .strict();
 
+const relationshipStateSchema = z.enum(['ally', 'neutral', 'enemy']);
+
 export const matchSchema = z
   .object({
     id: z.string().min(1),
@@ -160,7 +162,82 @@ export const matchSnapshotSchema = z
     match: matchSchema,
     settings: matchSettingsSchema,
     participants: z.array(participantStateSchema).max(48),
-    recent_events: z.array(eventSchema).max(200)
+    recent_events: z.array(eventSchema).max(200),
+    engine_state: z
+      .object({
+        next_cycle_phase: operationalCyclePhaseSchema,
+        queued_god_mode_actions: z.array(
+          z
+            .discriminatedUnion('kind', [
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('global_event'),
+                event_kind: z.enum(['extreme_weather', 'toxic_fog', 'cornucopia_resupply'])
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('localized_fire'),
+                location: z.string().trim().min(1).max(40),
+                persistent_turns: z.number().int().min(1).max(3).default(1)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('force_encounter'),
+                participant_ids: z.array(z.string().min(1)).min(2).max(6)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('separate_tributes'),
+                participant_ids: z.array(z.string().min(1)).min(2).max(6)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('grant_resource'),
+                participant_id: z.string().min(1),
+                resource: z.string().trim().min(1).max(40)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('remove_resource'),
+                participant_id: z.string().min(1),
+                resource: z.string().trim().min(1).max(40)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('alter_hostility'),
+                participant_id: z.string().min(1),
+                delta: z.number().int().min(-20).max(20)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('revive_tribute'),
+                participant_id: z.string().min(1)
+              }),
+              z.object({
+                id: z.string().min(1),
+                kind: z.literal('set_enmity'),
+                source_participant_id: z.string().min(1),
+                target_participant_id: z.string().min(1)
+              })
+            ])
+        ),
+        persistent_fires: z.array(
+          z
+            .object({
+              location: z.string().trim().min(1),
+              remaining_turns: z.number().int().min(1),
+              source_action_id: z.string().min(1)
+            })
+            .strict()
+        ),
+        participant_locations: z.record(z.string().trim().min(1), z.string().trim().min(1)),
+        participant_resources: z.record(
+          z.string().trim().min(1),
+          z.array(z.string().trim().min(1))
+        ),
+        hostility: z.record(z.string().trim().min(1), z.record(z.string().trim().min(1), relationshipStateSchema))
+      })
+      .strict()
   })
   .strict();
 
@@ -233,17 +310,13 @@ export const createMatchRequestSchema = z
 
 export const createMatchResponseSchema = z
   .object({
-    match_id: z.string().min(1),
-    phase: z.literal('setup')
+    snapshot_envelope: snapshotEnvelopeSchema
   })
   .strict();
 
 export const startMatchResponseSchema = z
   .object({
-    match_id: z.string().min(1),
-    phase: z.literal('running'),
-    cycle_phase: z.literal('bloodbath'),
-    turn_number: z.literal(0)
+    snapshot_envelope: snapshotEnvelopeSchema
   })
   .strict();
 
@@ -265,7 +338,8 @@ export const advanceTurnResponseSchema = z
     survivors_count: z.number().int().min(1),
     eliminated_ids: z.array(z.string().min(1)),
     finished: z.boolean(),
-    winner_id: z.string().min(1).nullable()
+    winner_id: z.string().min(1).nullable(),
+    snapshot_envelope: snapshotEnvelopeSchema
   })
   .strict()
   .superRefine((value, context) => {
@@ -347,6 +421,7 @@ export const godModeActionSchema = z.discriminatedUnion('kind', [
 
 export const godModeQueueRequestSchema = z
   .object({
+    snapshot_envelope: snapshotEnvelopeSchema,
     actions: z.array(godModeActionSchema).min(1).max(8)
   })
   .strict();
@@ -356,7 +431,8 @@ export const godModeQueueResponseSchema = z
     match_id: z.string().min(1),
     phase: z.literal('running'),
     cycle_phase: z.literal('god_mode'),
-    queued_actions: z.number().int().min(0)
+    queued_actions: z.number().int().min(0),
+    snapshot_envelope: snapshotEnvelopeSchema
   })
   .strict();
 
@@ -373,7 +449,11 @@ export const getMatchStateResponseSchema = z
   })
   .strict();
 
-export const resumeMatchResponseSchema = getMatchStateResponseSchema;
+export const resumeMatchResponseSchema = z
+  .object({
+    snapshot_envelope: snapshotEnvelopeSchema
+  })
+  .strict();
 
 const validationIssueSchema = z
   .object({

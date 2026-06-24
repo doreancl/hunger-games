@@ -1,22 +1,18 @@
-import type {
-  CyclePhase,
-  EventProfile,
-  MatchPhase,
-  ParticipantState,
-  SimulationSpeed,
-  SurpriseLevel
-} from '@/lib/domain/types';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
+import { snapshotEnvelopeSchema } from '@/lib/domain/schemas';
+import { type MatchSnapshot, type SnapshotEnvelope } from '@/lib/domain/types';
+import { RULESET_VERSION, SNAPSHOT_VERSION } from '@/lib/domain/types';
 import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { z } from 'zod';
 import { emitStructuredLog } from '@/lib/observability';
 
 export const LOCAL_RUNTIME_STORAGE_KEY = 'hunger-games.local-runtime.v1';
-export const LOCAL_RUNTIME_SNAPSHOT_VERSION = 1 as const;
+export const LOCAL_RUNTIME_SNAPSHOT_VERSION = 2 as const;
 
 export type RuntimeFeedEvent = {
   id: string;
   turn_number: number;
-  phase: CyclePhase;
+  phase: 'bloodbath' | 'day' | 'night' | 'finale' | 'god_mode';
   type: 'combat' | 'alliance' | 'betrayal' | 'resource' | 'hazard' | 'surprise';
   headline: string;
   impact: string;
@@ -26,18 +22,7 @@ export type RuntimeFeedEvent = {
 };
 
 export type LocalRuntimeSnapshot = {
-  match_id: string;
-  phase: MatchPhase;
-  cycle_phase: CyclePhase;
-  turn_number: number;
-  tension_level: number;
-  settings: {
-    seed: string | null;
-    simulation_speed: SimulationSpeed;
-    event_profile: EventProfile;
-    surprise_level: SurpriseLevel;
-  };
-  participants: ParticipantState[];
+  snapshot_envelope: SnapshotEnvelope;
   feed: RuntimeFeedEvent[];
   winner_id: string | null;
 };
@@ -54,59 +39,27 @@ export type LocalRuntimeSaveResult = {
 
 const nonEmptyStringSchema = z.string().trim().min(1);
 const nonNegativeIntegerSchema = z.number().int().min(0);
-const matchPhaseSchema = z.enum(['setup', 'running', 'finished']);
-const cyclePhaseSchema = z.enum(['bloodbath', 'day', 'night', 'finale', 'god_mode']);
+const phaseSchema = z.enum(['bloodbath', 'day', 'night', 'finale', 'god_mode']);
 const eventTypeSchema = z.enum(['combat', 'alliance', 'betrayal', 'resource', 'hazard', 'surprise']);
-const simulationSpeedSchema = z.enum(['1x', '2x', '4x']);
-const eventProfileSchema = z.enum(['balanced', 'aggressive', 'chaotic']);
-const surpriseLevelSchema = z.enum(['low', 'normal', 'high']);
-const participantStatusSchema = z.enum(['alive', 'injured', 'eliminated']);
+
+const localRuntimeFeedEventSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    turn_number: nonNegativeIntegerSchema,
+    phase: phaseSchema,
+    type: eventTypeSchema,
+    headline: nonEmptyStringSchema,
+    impact: nonEmptyStringSchema,
+    character_ids: z.array(nonEmptyStringSchema),
+    eliminated_character_ids: z.array(nonEmptyStringSchema).optional(),
+    created_at: z.string().datetime()
+  })
+  .strict();
 
 const localRuntimeSnapshotSchema = z
   .object({
-    match_id: nonEmptyStringSchema,
-    phase: matchPhaseSchema,
-    cycle_phase: cyclePhaseSchema,
-    turn_number: nonNegativeIntegerSchema,
-    tension_level: z.number().min(0).finite(),
-    settings: z
-      .object({
-        seed: z.union([nonEmptyStringSchema, z.null()]),
-        simulation_speed: simulationSpeedSchema,
-        event_profile: eventProfileSchema,
-        surprise_level: surpriseLevelSchema
-      })
-      .strict(),
-    participants: z
-      .array(
-        z
-          .object({
-            id: nonEmptyStringSchema,
-            match_id: nonEmptyStringSchema,
-            character_id: nonEmptyStringSchema,
-            display_name: nonEmptyStringSchema,
-            current_health: z.number().int().min(0).max(100),
-            status: participantStatusSchema,
-            streak_score: z.number().int()
-          })
-          .strict()
-      )
-      .min(1),
-    feed: z.array(
-      z
-        .object({
-          id: nonEmptyStringSchema,
-          turn_number: nonNegativeIntegerSchema,
-          phase: cyclePhaseSchema,
-          type: eventTypeSchema,
-          headline: nonEmptyStringSchema,
-          impact: nonEmptyStringSchema,
-          character_ids: z.array(nonEmptyStringSchema),
-          eliminated_character_ids: z.array(nonEmptyStringSchema).optional(),
-          created_at: z.string().datetime()
-        })
-        .strict()
-    ),
+    snapshot_envelope: snapshotEnvelopeSchema,
+    feed: z.array(localRuntimeFeedEventSchema),
     winner_id: z.union([nonEmptyStringSchema, z.null()])
   })
   .strict();
@@ -114,7 +67,7 @@ const localRuntimeSnapshotSchema = z
 const runtimeEnvelopeSchema = z
   .object({
     snapshot_version: z.literal(LOCAL_RUNTIME_SNAPSHOT_VERSION),
-    checksum: nonEmptyStringSchema,
+    checksum: z.string().regex(/^[a-f0-9]{8}$/i, 'checksum must be 8 hex chars'),
     runtime: localRuntimeSnapshotSchema
   })
   .strict();
@@ -159,6 +112,25 @@ function buildChecksum(runtime: LocalRuntimeSnapshot): string {
       runtime
     })
   );
+}
+
+function canonicalSnapshotEnvelopeIsValid(envelope: SnapshotEnvelope): boolean {
+  return buildSnapshotChecksum(envelope.snapshot) === envelope.checksum.toLowerCase();
+}
+
+export function buildLocalRuntimeEnvelope(
+  snapshot: MatchSnapshot,
+  winnerId: string | null = null
+): LocalRuntimeSnapshot {
+  return {
+    snapshot_envelope: {
+      snapshot_version: SNAPSHOT_VERSION,
+      checksum: buildSnapshotChecksum(snapshot),
+      snapshot
+    },
+    feed: [],
+    winner_id: winnerId
+  };
 }
 
 export function estimateLocalRuntimeSnapshotBytes(runtime: LocalRuntimeSnapshot): number {
@@ -215,8 +187,16 @@ function parseRuntime(raw: string | null): {
     };
   }
 
+  if (!canonicalSnapshotEnvelopeIsValid(parsedEnvelope.data.runtime.snapshot_envelope)) {
+    return {
+      runtime: null,
+      failure: 'INVALID_CHECKSUM',
+      detected_snapshot_version: parsedVersion.data.snapshot_version
+    };
+  }
+
   const expectedChecksum = buildChecksum(parsedEnvelope.data.runtime);
-  if (expectedChecksum !== parsedEnvelope.data.checksum) {
+  if (expectedChecksum !== parsedEnvelope.data.checksum.toLowerCase()) {
     return {
       runtime: null,
       failure: 'INVALID_CHECKSUM',
@@ -249,7 +229,7 @@ export function loadLocalRuntimeFromStorage(
       emitStructuredLog('runtime.resume', {
         result: 'ok',
         snapshot_version: LOCAL_RUNTIME_SNAPSHOT_VERSION,
-        match_id: parsed.runtime.match_id
+        match_id: parsed.runtime.snapshot_envelope.snapshot.match.id
       });
     }
     return { runtime: parsed.runtime, error: null };

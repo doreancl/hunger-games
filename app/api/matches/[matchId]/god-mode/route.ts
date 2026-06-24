@@ -3,9 +3,11 @@ import {
   godModeQueueRequestSchema,
   godModeQueueResponseSchema
 } from '@/lib/domain/schemas';
+import { UNRECOVERABLE_MATCH_MESSAGE } from '@/lib/domain/messages';
 import { jsonError, toValidationIssues } from '@/lib/api/http-errors';
 import { checkRateLimit } from '@/lib/api/rate-limit';
-import { queueGodModeActions } from '@/lib/matches/lifecycle';
+import { validateSnapshotEnvelopeFromRawBody } from '@/lib/api/snapshot-request';
+import { queueGodModeActionsFromSnapshot } from '@/lib/matches/lifecycle';
 import { recordLatencyMetric } from '@/lib/observability';
 
 type RouteContext = {
@@ -38,9 +40,15 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 415);
     }
 
+    const rawBody = await request.text();
+    if (rawBody.trim().length === 0) {
+      statusCode = 400;
+      return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
+    }
+
     let body: unknown;
     try {
-      body = (await request.json()) as unknown;
+      body = JSON.parse(rawBody) as unknown;
     } catch {
       statusCode = 400;
       return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
@@ -48,13 +56,63 @@ export async function POST(request: Request, context: RouteContext) {
 
     const parsedRequest = godModeQueueRequestSchema.safeParse(body);
     if (!parsedRequest.success) {
+      const snapshotEnvelope = (body as { snapshot_envelope?: unknown })?.snapshot_envelope;
+      if (snapshotEnvelope !== undefined) {
+        const snapshotValidation = validateSnapshotEnvelopeFromRawBody(
+          JSON.stringify(snapshotEnvelope)
+        );
+        if (!snapshotValidation.ok) {
+          if (snapshotValidation.reason === 'SNAPSHOT_VERSION_UNSUPPORTED') {
+            statusCode = 409;
+            return jsonError('SNAPSHOT_VERSION_UNSUPPORTED', UNRECOVERABLE_MATCH_MESSAGE, 409);
+          }
+          if (snapshotValidation.reason === 'INVALID_REQUEST_PAYLOAD') {
+            statusCode = 400;
+            return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid god_mode snapshot payload.', 400, {
+              issues: toValidationIssues(snapshotValidation.issues ?? [])
+            });
+          }
+          if (snapshotValidation.reason === 'INVALID_JSON') {
+            statusCode = 400;
+            return jsonError('INVALID_JSON', 'Request body must be valid JSON.', 400);
+          }
+
+          statusCode = 400;
+          return jsonError('SNAPSHOT_INVALID', 'Snapshot checksum or payload is invalid.', 400);
+        }
+      }
+
       statusCode = 400;
       return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid god_mode payload.', 400, {
         issues: toValidationIssues(parsedRequest.error.issues)
       });
     }
 
-    const result = queueGodModeActions(matchId, parsedRequest.data.actions);
+    const snapshotValidation = validateSnapshotEnvelopeFromRawBody(
+      JSON.stringify(parsedRequest.data.snapshot_envelope)
+    );
+    if (!snapshotValidation.ok) {
+      if (snapshotValidation.reason === 'SNAPSHOT_VERSION_UNSUPPORTED') {
+        statusCode = 409;
+        return jsonError('SNAPSHOT_VERSION_UNSUPPORTED', UNRECOVERABLE_MATCH_MESSAGE, 409);
+      }
+      if (snapshotValidation.reason === 'INVALID_REQUEST_PAYLOAD') {
+        statusCode = 400;
+        return jsonError('INVALID_REQUEST_PAYLOAD', 'Invalid god_mode snapshot payload.', 400, {
+          issues: toValidationIssues(snapshotValidation.issues ?? [])
+        });
+      }
+
+      statusCode = 400;
+      return jsonError('SNAPSHOT_INVALID', 'Snapshot checksum or payload is invalid.', 400);
+    }
+
+    if (parsedRequest.data.snapshot_envelope.snapshot.match.id !== matchId) {
+      statusCode = 400;
+      return jsonError('SNAPSHOT_INVALID', 'Snapshot match id does not match route match id.', 400);
+    }
+
+    const result = queueGodModeActionsFromSnapshot(snapshotValidation.snapshot, parsedRequest.data.actions);
     if (!result.ok) {
       const status = result.error.code === 'MATCH_NOT_FOUND' ? 404 : 409;
       statusCode = status;

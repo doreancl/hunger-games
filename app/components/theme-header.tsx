@@ -65,7 +65,7 @@ export function ThemeHeader() {
       <div className="flex  flex-wrap items-end gap-3 px-7 pb-5 pt-6">
         <Link
           href="/"
-          className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="font-mono text-base font-semibold uppercase tracking-[0.06em] text-muted-foreground no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           Hunger Games
         </Link>
@@ -74,7 +74,7 @@ export function ThemeHeader() {
           <Link
             href="/"
             className={cn(
-              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'rounded-full px-3 py-1.5 font-mono text-sm font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               (pathname === '/' || pathname.startsWith('/sessions/')) &&
                 'border border-primary/30 bg-primary/10 text-primary'
             )}
@@ -84,7 +84,7 @@ export function ThemeHeader() {
           <Link
             href="/sessions"
             className={cn(
-              'rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'rounded-full px-3 py-1.5 font-mono text-sm font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               pathname === '/sessions' && 'border border-primary/30 bg-primary/10 text-primary'
             )}
           >
@@ -92,7 +92,7 @@ export function ThemeHeader() {
           </Link>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-sm font-semibold uppercase tracking-[0.04em] text-muted-foreground no-underline outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={() => setHelpOpen(true)}
           >
             <HelpCircle className="size-3.5" aria-hidden="true" />

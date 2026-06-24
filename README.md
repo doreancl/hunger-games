@@ -22,7 +22,7 @@ It lets users create matches, advance turns with dynamic tension, and resume ses
 - Language: strict TypeScript
 - Contract validation: Zod
 - Testing: Vitest + V8 coverage (threshold `90%`) + Playwright E2E
-- Server-side game state: in-process memory (`Map` in `lib/matches/lifecycle.ts`)
+- Server-side game state: stateless transition functions from canonical snapshot envelopes.
 
 ## Quick Start
 
@@ -112,7 +112,6 @@ Implementation:
 | `POST` | `/api/matches` | Create match in `setup` phase |
 | `POST` | `/api/matches/:matchId/start` | Move to `running` phase |
 | `POST` | `/api/matches/:matchId/turns/advance` | Advance one turn |
-| `GET` | `/api/matches/:matchId` | Read current state |
 | `POST` | `/api/matches/resume` | Rehydrate state from snapshot |
 
 ### Quick Example: Create Match
@@ -157,7 +156,7 @@ app/
   sessions/...            # History and match detail routes
 lib/
   domain/                 # Types and schemas (contracts)
-  matches/lifecycle.ts    # Motor lifecycle in-memory
+  matches/lifecycle.ts    # Lifecycle transitions (snapshot-driven)
   simulation-state.ts     # RNG, tension director, event selection
 tests/                    # Suite Vitest
 specs/                    # Layered specs + plans
@@ -168,7 +167,7 @@ specs/                    # Layered specs + plans
 ```mermaid
 flowchart LR
   UI["Next.js UI (App Router)"] --> API["API Routes (/api/matches/*)"]
-  API --> Lifecycle["Lifecycle Engine (in-memory)"]
+  API --> Lifecycle["Lifecycle Engine (snapshot-based transitions)"]
   Lifecycle --> Sim["Simulation State (RNG + director)"]
   UI --> Local["localStorage snapshots"]
   Local --> UI

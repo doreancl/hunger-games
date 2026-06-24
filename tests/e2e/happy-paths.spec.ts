@@ -49,6 +49,38 @@ async function getRuntimeTurn(page: Page) {
   return runtime as number;
 }
 
+async function getRuntimeMatchId(page: Page) {
+  return page.evaluate((storageKey) => {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as { runtime?: { match_id?: string } };
+      return parsed.runtime?.match_id ?? null;
+    } catch {
+      return null;
+    }
+  }, LOCAL_RUNTIME_STORAGE_KEY);
+}
+
+async function getLocalMatchIds(page: Page) {
+  return page.evaluate((matchesKey) => {
+    const raw = window.localStorage.getItem(matchesKey);
+    if (!raw) {
+      return [] as string[];
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Array<{ id: string }>;
+      return Array.isArray(parsed) ? parsed.map((item) => item.id) : [];
+    } catch {
+      return [];
+    }
+  }, LOCAL_MATCHES_STORAGE_KEY);
+}
+
 test('HP-01 starts a valid simulation from setup', async ({ page }) => {
   await startSimulation(page, 'arena-hp01', '2x');
 
@@ -140,4 +172,84 @@ test('HP-03 resumes a saved match from history', async ({ page }) => {
   await expect(page.getByTestId('feed-item').first()).toBeVisible();
   await expect(page.getByTestId('kpi-turn')).toContainText(String(expectedTurn));
   await expect(page.getByRole('button', { name: 'Reproducir a 4x' })).toBeEnabled();
+});
+
+test('HP-06 turns autosave off and removes active runtime + match summary', async ({ page }) => {
+  await startSimulation(page, 'arena-hp06');
+
+  const runtimeMatchId = await getRuntimeMatchId(page);
+  expect(runtimeMatchId).not.toBeNull();
+
+  const matchesBefore = await getLocalMatchIds(page);
+  expect(matchesBefore).toContain(runtimeMatchId);
+
+  await page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('switch', { name: 'Guardar local' }).click();
+
+  await expect(page.getByTestId('info-message')).toContainText(
+    'Guardado local desactivado para la sesion actual.'
+  );
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), LOCAL_RUNTIME_STORAGE_KEY)).toBeNull();
+  const matchesAfter = await getLocalMatchIds(page);
+  expect(matchesAfter).not.toContain(runtimeMatchId);
+});
+
+test('HP-07 ignores corrupt runtime envelopes and reports unrecoverable state', async ({ page }) => {
+  await startSimulation(page, 'arena-hp07');
+  await page.evaluate(
+    ([storageKey, value]) => {
+      window.localStorage.setItem(storageKey, value);
+    },
+    [LOCAL_RUNTIME_STORAGE_KEY, '{bad-json']
+  );
+
+  await page.reload();
+
+  await expect(page.getByText('partida no recuperable. Inicia una nueva partida.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Feed narrativo' })).toHaveCount(0);
+  await expect(page.getByTestId('kpi-turn')).toHaveCount(0);
+});
+
+test('HP-08 advances through POST /api/matches/:id/turns/advance', async ({ page }) => {
+  const analyticsRequests: { event: string | null; properties: Record<string, unknown> | null }[] = [];
+  const forbiddenAnalyticsKeys = new Set(['seed', 'snapshot', 'snapshot_id', 'snapshot_content', 'roster_names']);
+
+  page.on('request', (request) => {
+    if (!request.url().includes('/i/v0/e/')) {
+      return;
+    }
+
+    const payload = request.postDataJSON() as unknown;
+    if (payload && typeof payload === 'object') {
+      const value = payload as { event?: string; properties?: Record<string, unknown> };
+      analyticsRequests.push({
+        event: typeof value.event === 'string' ? value.event : null,
+        properties: value.properties && typeof value.properties === 'object' ? value.properties : null
+      });
+    }
+  });
+
+  const advanceRequest = page.waitForRequest((request) => {
+    return request.method() === 'POST' && /\/api\/matches\/[^/]+\/turns\/advance$/.test(request.url());
+  });
+
+  await startSimulation(page, 'arena-hp08', '1x');
+
+  const request = await advanceRequest;
+  const endpoint = new URL(request.url());
+  expect(endpoint.pathname).toMatch(/^\/api\/matches\/[^/]+\/turns\/advance$/);
+  expect(request.method()).toBe('POST');
+
+  await page.waitForTimeout(1000);
+  if (analyticsRequests.length > 0) {
+    for (const requestData of analyticsRequests) {
+      if (!requestData.properties) {
+        continue;
+      }
+
+      for (const key of Object.keys(requestData.properties)) {
+        expect(forbiddenAnalyticsKeys.has(key)).toBe(false);
+      }
+    }
+  }
 });

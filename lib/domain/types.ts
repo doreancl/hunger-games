@@ -1,4 +1,4 @@
-export const SNAPSHOT_VERSION = 1 as const;
+export const SNAPSHOT_VERSION = 2 as const;
 export const RULESET_VERSION = 'v1.0.0' as const;
 
 export type MatchPhase = 'setup' | 'running' | 'finished';
@@ -96,6 +96,19 @@ export type ParticipantState = {
   streak_score: number;
 };
 
+export type MatchEngineState = {
+  next_cycle_phase: OperationalCyclePhase;
+  queued_god_mode_actions: GodModeAction[];
+  persistent_fires: Array<{
+    location: string;
+    remaining_turns: number;
+    source_action_id: string;
+  }>;
+  participant_locations: Record<string, string>;
+  participant_resources: Record<string, string[]>;
+  hostility: Record<string, Record<string, RelationshipState>>;
+};
+
 export type Event = {
   id: string;
   match_id: string;
@@ -127,6 +140,13 @@ export type MatchSnapshot = {
   settings: MatchSettings;
   participants: ParticipantState[];
   recent_events: Event[];
+  engine_state: MatchEngineState;
+};
+
+export type SnapshotEnvelope = {
+  snapshot_version: typeof SNAPSHOT_VERSION;
+  checksum: string;
+  snapshot: MatchSnapshot;
 };
 
 export type CreateMatchRequest = {
@@ -136,15 +156,11 @@ export type CreateMatchRequest = {
 };
 
 export type CreateMatchResponse = {
-  match_id: string;
-  phase: 'setup';
+  snapshot_envelope: SnapshotEnvelope;
 };
 
 export type StartMatchResponse = {
-  match_id: string;
-  phase: 'running';
-  cycle_phase: 'bloodbath';
-  turn_number: 0;
+  snapshot_envelope: SnapshotEnvelope;
 };
 
 export type AdvanceTurnEventResponse = {
@@ -165,6 +181,7 @@ export type AdvanceTurnResponse = {
   eliminated_ids: string[];
   finished: boolean;
   winner_id: string | null;
+  snapshot_envelope: SnapshotEnvelope;
 };
 
 export type GetMatchStateResponse = {
@@ -247,6 +264,11 @@ export type GodModeQueueResponse = {
   phase: 'running';
   cycle_phase: 'god_mode';
   queued_actions: number;
+  snapshot_envelope: SnapshotEnvelope;
+};
+
+export type ResumeMatchResponse = {
+  snapshot_envelope: SnapshotEnvelope;
 };
 
 export type ApiError = {

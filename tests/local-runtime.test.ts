@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RULESET_VERSION, SNAPSHOT_VERSION, type MatchSnapshot } from '@/lib/domain/types';
+import { buildSnapshotChecksum } from '@/lib/domain/snapshot-checksum';
 import {
   clearLocalRuntimeFromStorage,
   estimateLocalRuntimeSnapshotBytes,
@@ -9,13 +11,21 @@ import {
   type LocalRuntimeSnapshot
 } from '@/lib/local-runtime';
 
-function buildRuntime(): LocalRuntimeSnapshot {
+function buildMatchSnapshot(): MatchSnapshot {
   return {
-    match_id: 'match-1',
-    phase: 'running',
-    cycle_phase: 'day',
-    turn_number: 3,
-    tension_level: 40,
+    snapshot_version: SNAPSHOT_VERSION,
+    ruleset_version: RULESET_VERSION,
+    match: {
+      id: 'match-1',
+      seed: 'seed-1',
+      ruleset_version: RULESET_VERSION,
+      phase: 'running',
+      cycle_phase: 'day',
+      turn_number: 3,
+      tension_level: 40,
+      created_at: '2026-02-18T00:00:00.000Z',
+      ended_at: null
+    },
     settings: {
       seed: 'seed-1',
       simulation_speed: '2x',
@@ -33,6 +43,26 @@ function buildRuntime(): LocalRuntimeSnapshot {
         streak_score: 1
       }
     ],
+    recent_events: [],
+    engine_state: {
+      next_cycle_phase: 'day',
+      queued_god_mode_actions: [],
+      persistent_fires: [],
+      participant_locations: { p1: 'forest' },
+      participant_resources: { p1: [] },
+      hostility: { p1: {} }
+    }
+  };
+}
+
+function buildRuntime(): LocalRuntimeSnapshot {
+  const snapshot = buildMatchSnapshot();
+  return {
+    snapshot_envelope: {
+      snapshot_version: SNAPSHOT_VERSION,
+      checksum: buildSnapshotChecksum(snapshot),
+      snapshot
+    },
     feed: [
       {
         id: 'evt-1',
@@ -115,10 +145,28 @@ describe('local runtime storage', () => {
   });
 
   it('loads snapshot when tension_level is above 100 for compatibility', () => {
+    const baseRuntime = buildRuntime();
     const runtime: LocalRuntimeSnapshot = {
-      ...buildRuntime(),
-      tension_level: 130
+      ...baseRuntime,
+      snapshot_envelope: {
+        ...baseRuntime.snapshot_envelope,
+        snapshot: {
+          ...baseRuntime.snapshot_envelope.snapshot,
+          match: {
+            ...baseRuntime.snapshot_envelope.snapshot.match,
+            tension_level: 130
+          }
+        },
+        checksum: buildSnapshotChecksum({
+          ...baseRuntime.snapshot_envelope.snapshot,
+          match: {
+            ...baseRuntime.snapshot_envelope.snapshot.match,
+            tension_level: 130
+          }
+        })
+      }
     };
+
     let persisted: string | null = null;
     const storage = {
       setItem(_key: string, value: string) {
@@ -137,15 +185,22 @@ describe('local runtime storage', () => {
   });
 
   it('loads runtime saved with non-canonical settings key order', () => {
-    const runtime = {
-      ...buildRuntime(),
-      settings: {
-        surprise_level: 'normal',
-        event_profile: 'balanced',
-        simulation_speed: '2x',
-        seed: 'seed-1'
+    const runtime = buildRuntime();
+    const runtimeReordered = {
+      ...runtime,
+      snapshot_envelope: {
+        ...runtime.snapshot_envelope,
+        snapshot: {
+          ...runtime.snapshot_envelope.snapshot,
+          settings: {
+            surprise_level: runtime.snapshot_envelope.snapshot.settings.surprise_level,
+            event_profile: runtime.snapshot_envelope.snapshot.settings.event_profile,
+            simulation_speed: runtime.snapshot_envelope.snapshot.settings.simulation_speed,
+            seed: runtime.snapshot_envelope.snapshot.settings.seed
+          }
+        }
       }
-    } as LocalRuntimeSnapshot;
+    };
     let persisted: string | null = null;
     const storage = {
       setItem(_key: string, value: string) {
@@ -156,9 +211,9 @@ describe('local runtime storage', () => {
       }
     };
 
-    saveLocalRuntimeToStorage(storage, runtime);
+    saveLocalRuntimeToStorage(storage, runtimeReordered);
     expect(loadLocalRuntimeFromStorage(storage)).toEqual({
-      runtime,
+      runtime: runtimeReordered,
       error: null
     });
   });
@@ -188,13 +243,11 @@ describe('local runtime storage', () => {
   });
 
   it('loads runtime with replay elimination trace metadata', () => {
+    const baseRuntime = buildRuntime();
     const runtime: LocalRuntimeSnapshot = {
-      ...buildRuntime(),
+      ...baseRuntime,
       feed: [
-        {
-          ...buildRuntime().feed[0],
-          eliminated_character_ids: ['char-02']
-        }
+        { ...baseRuntime.feed[0], eliminated_character_ids: ['char-02'] }
       ]
     };
     let persisted: string | null = null;

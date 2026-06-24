@@ -80,7 +80,7 @@ export function useMatchesHistory() {
     }
 
     const runtimeLoad = loadLocalRuntimeFromStorage(window.localStorage);
-    if (runtimeLoad.runtime?.match_id === match.id) {
+    if (runtimeLoad.runtime?.snapshot_envelope.snapshot.match.id === match.id) {
       clearLocalRuntimeFromStorage(window.localStorage);
     }
 

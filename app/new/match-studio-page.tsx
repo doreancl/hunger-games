@@ -16,6 +16,8 @@ import {
   clearLocalRuntimeFromStorage,
   estimateLocalRuntimeSnapshotBytes,
   loadLocalRuntimeFromStorage,
+  buildLocalRuntimeEnvelope,
+  type LocalRuntimeSnapshot,
   saveLocalRuntimeToStorage
 } from '@/lib/local-runtime';
 import { loadLocalPrefsFromStorage, saveLocalPrefsToStorage } from '@/lib/local-prefs';
@@ -43,6 +45,8 @@ import {
   formatBytes,
   normalizeCatalogWithObservability,
   phaseLabel,
+  getRuntimeMatch,
+  getRuntimeSettings,
   relationDelta,
   relationTone,
   requestJson,
@@ -51,7 +55,6 @@ import {
   statusLabel,
   waitMs,
   type PlaybackSpeed,
-  type SimulationRuntime,
   type TransitionOverlayState
 } from './match-studio-logic';
 import { useRosterSelection } from './use-roster-selection';
@@ -69,10 +72,10 @@ import { captureProductEvent } from '@/lib/product-analytics';
 import { HOME_FAQ } from '@/lib/home-faq';
 import type {
   AdvanceTurnResponse,
+  MatchSnapshot,
   CreateMatchRequest,
   CreateMatchResponse,
   EventType,
-  GetMatchStateResponse,
   ParticipantState,
   SimulationSpeed,
   StartMatchResponse
@@ -169,6 +172,18 @@ type MatchStudioPageProps = {
   prefillMatchId?: string | null;
 };
 
+function buildRuntimeFromSnapshot(
+  state: MatchSnapshot,
+  winnerId: string | null = null
+): LocalRuntimeSnapshot {
+  const runtime = buildLocalRuntimeEnvelope(state, winnerId);
+
+  return {
+    ...runtime,
+    feed: feedFromSnapshot(state)
+  };
+}
+
 export function MatchStudioPage({
   sessionMatchId = null,
   prefillMatchId = null
@@ -188,7 +203,7 @@ export function MatchStudioPage({
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localMatches, setLocalMatches] = useState<LocalMatchSummary[]>([]);
-  const [runtime, setRuntime] = useState<SimulationRuntime | null>(null);
+  const [runtime, setRuntime] = useState<LocalRuntimeSnapshot | null>(null);
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>('pause');
   const [filterCharacterId, setFilterCharacterId] = useState<'all' | string>('all');
@@ -235,13 +250,19 @@ export function MatchStudioPage({
       ),
     [catalogCharacters]
   );
+  const runtimeSnapshot = useMemo(() => runtime?.snapshot_envelope.snapshot ?? null, [runtime]);
+  const runtimeMatch = runtimeSnapshot?.match;
+  const runtimeSettings = runtimeSnapshot?.settings;
+  const runtimeParticipants = runtimeSnapshot?.participants ?? [];
+  const runtimeMatchId = runtimeMatch?.id;
+  const runtimePhase = runtimeMatch?.phase;
   const runtimeParticipantByCharacterId = useMemo(() => {
-    const entries = runtime?.participants.map((participant) => [
+    const entries = runtimeParticipants.map((participant) => [
       participant.character_id,
       participant
     ] as const) ?? [];
     return new Map(entries);
-  }, [runtime]);
+  }, [runtimeParticipants]);
   const characterName = useCallback(
     (characterId: string): string => {
       const character = characterById.get(characterId);
@@ -302,16 +323,16 @@ export function MatchStudioPage({
   const setupCanStart = setupValidation.is_valid && !isCatalogEmpty && !hasEmptySelectionState;
 
   const aliveCount = runtime
-    ? countAlive(runtime.participants)
+    ? countAlive(runtimeParticipants)
     : selectedCharacters.length;
   const totalParticipants = runtime
-    ? runtime.participants.length
+    ? runtimeParticipants.length
     : selectedCharacters.length;
   const eliminatedCount = Math.max(0, totalParticipants - aliveCount);
-  const currentPhase = runtime?.cycle_phase ?? 'setup';
-  const currentTurn = runtime?.turn_number ?? 0;
-  const tensionValue = runtime?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
-  const matchRunState = runtime?.phase === 'finished'
+  const currentPhase = runtimeMatch?.cycle_phase ?? 'setup';
+  const currentTurn = runtimeMatch?.turn_number ?? 0;
+  const tensionValue = runtimeMatch?.tension_level ?? Math.min(100, 10 + selectedCharacters.length * 4);
+  const matchRunState = runtimeMatch?.phase === 'finished'
     ? 'finished'
     : playbackSpeed === 'pause'
       ? 'paused'
@@ -378,7 +399,7 @@ export function MatchStudioPage({
       return [];
     }
 
-    return [...runtime.participants].sort((left, right) => {
+    return [...runtimeParticipants].sort((left, right) => {
       if (left.status === right.status) {
         return right.current_health - left.current_health;
       }
@@ -390,13 +411,15 @@ export function MatchStudioPage({
       };
       return order[left.status] - order[right.status];
     });
-  }, [runtime]);
+  }, [runtime, runtimeParticipants]);
 
   const characterFilterOptions = useMemo(() => {
-    const source = runtime?.participants.map((participant) => participant.character_id) ?? selectedCharacters;
+    const source = runtimeParticipants.length > 0
+      ? runtimeParticipants.map((participant) => participant.character_id)
+      : selectedCharacters;
     const unique = [...new Set(source)];
     return unique.map((characterId) => ({ id: characterId, name: displayCharacterName(characterId) }));
-  }, [displayCharacterName, runtime, selectedCharacters]);
+  }, [displayCharacterName, runtimeParticipants, selectedCharacters]);
 
   const applySetupFromMatch = useCallback((match: LocalMatchSummary) => {
     setRosterNameOverrides({});
@@ -510,17 +533,27 @@ export function MatchStudioPage({
       : { runtime: null, error: null };
     setLocalMatches(matches);
 
-    if (sessionMatchId && runtimeLoad.runtime?.match_id === sessionMatchId) {
-      setRuntime(runtimeLoad.runtime);
-      setPlaybackSpeed(
-        runtimeLoad.runtime.phase === 'running'
-          ? runtimeLoad.runtime.settings.simulation_speed
+      const loadedRuntimeMatch = runtimeLoad.runtime
+        ? getRuntimeMatch(runtimeLoad.runtime.snapshot_envelope.snapshot)
+        : null;
+      const loadedRuntimeMatchId = loadedRuntimeMatch ? loadedRuntimeMatch.id : null;
+      const loadedRuntimeSettings = runtimeLoad.runtime
+        ? getRuntimeSettings(runtimeLoad.runtime.snapshot_envelope.snapshot)
+        : null;
+      const loadedRuntimePhase = loadedRuntimeMatch?.phase;
+      if (sessionMatchId && loadedRuntimeMatchId === sessionMatchId) {
+        setRuntime(runtimeLoad.runtime);
+        setPlaybackSpeed(
+        loadedRuntimePhase === 'running'
+          ? loadedRuntimeSettings?.simulation_speed ?? DEFAULT_SIMULATION_SPEED
           : 'pause'
       );
       setAutoplayReadyAt(
-        runtimeLoad.runtime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
+        loadedRuntimePhase === 'running'
+          ? Date.now() + FIRST_AUTOPLAY_DELAY_MS
+          : null
       );
-      const runtimeMatch = matches.find((candidate) => candidate.id === runtimeLoad.runtime?.match_id);
+      const runtimeMatch = matches.find((candidate) => candidate.id === loadedRuntimeMatchId);
       if (runtimeMatch) {
         applySetupFromMatch(runtimeMatch);
       }
@@ -587,7 +620,7 @@ export function MatchStudioPage({
       }
       clearLocalRuntimeFromStorage(window.localStorage);
       if (runtime) {
-        const nextMatches = localMatches.filter((match) => match.id !== runtime.match_id);
+        const nextMatches = localMatches.filter((match) => match.id !== runtimeMatchId);
         persistLocalMatches(nextMatches);
       }
       setInfoMessage('Guardado local desactivado para la sesion actual.');
@@ -729,26 +762,18 @@ export function MatchStudioPage({
         },
         body: JSON.stringify(createMatchPayload)
       });
+      const matchId = createResponse.snapshot_envelope.snapshot.match.id;
 
-      await requestJson<StartMatchResponse>(`/api/matches/${createResponse.match_id}/start`, {
-        method: 'POST'
+      const startResponse = await requestJson<StartMatchResponse>(`/api/matches/${matchId}/start`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify(createResponse.snapshot_envelope)
       });
 
-      const state = await requestJson<GetMatchStateResponse>(
-        `/api/matches/${createResponse.match_id}`
-      );
-
-      const runtimeState: SimulationRuntime = {
-        match_id: createResponse.match_id,
-        phase: state.phase,
-        cycle_phase: state.cycle_phase,
-        turn_number: state.turn_number,
-        tension_level: state.tension_level,
-        settings: state.settings,
-        participants: state.participants,
-        feed: feedFromSnapshot(state),
-        winner_id: null
-      };
+      const runtimeSnapshot = startResponse.snapshot_envelope.snapshot;
+      const runtimeState = buildRuntimeFromSnapshot(runtimeSnapshot);
 
       setAutoplayReadyAt(Date.now() + FIRST_AUTOPLAY_DELAY_MS);
       setRuntime(runtimeState);
@@ -773,14 +798,14 @@ export function MatchStudioPage({
           surprise_level: surpriseLevel
         },
         nowIso,
-        createResponse.match_id
+        matchId
       );
 
       const newSummary: LocalMatchSummary = {
         ...newSummaryBase,
-        cycle_phase: state.cycle_phase,
-        turn_number: state.turn_number,
-        alive_count: countAlive(state.participants),
+        cycle_phase: runtimeSnapshot.match.cycle_phase,
+        turn_number: runtimeSnapshot.match.turn_number,
+        alive_count: countAlive(runtimeSnapshot.participants),
         updated_at: nowIso
       };
 
@@ -789,7 +814,7 @@ export function MatchStudioPage({
         persistLocalMatches(nextMatches);
       }
       captureProductEvent('match_started', {
-        match_id: createResponse.match_id,
+        match_id: matchId,
         franchise:
           franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
             ?.franchise_name ?? null,
@@ -803,7 +828,7 @@ export function MatchStudioPage({
         .filter((movie) => selectedMovieIds.includes(movie.movie_id))
         .forEach((movie) => {
           captureProductEvent('match_movie_used', {
-            match_id: createResponse.match_id,
+            match_id: matchId,
             movie: movie.movie_title,
             franchise:
               franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
@@ -813,7 +838,7 @@ export function MatchStudioPage({
       selectedCharacters.forEach((characterId, index) => {
         const character = characterById.get(characterId);
         captureProductEvent('match_character_used', {
-          match_id: createResponse.match_id,
+          match_id: matchId,
           character: startParticipantNames[index],
           movie: character?.movie_title ?? null,
           franchise:
@@ -821,8 +846,8 @@ export function MatchStudioPage({
               ?.franchise_name ?? null
         });
       });
-      router.replace(`/sessions/${createResponse.match_id}`, { scroll: false });
-      setInfoMessage(`Simulacion iniciada (${shortId(createResponse.match_id)}).`);
+      router.replace(`/sessions/${matchId}`, { scroll: false });
+      setInfoMessage(`Simulacion iniciada (${shortId(matchId)}).`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No fue posible iniciar la simulacion.';
       setInfoMessage(errorMessage);
@@ -849,27 +874,27 @@ export function MatchStudioPage({
       : { runtime: null, error: null };
 
     try {
-      const state = await requestJson<GetMatchStateResponse>(`/api/matches/${match.id}`);
-      const nextRuntime: SimulationRuntime = {
-        match_id: match.id,
-        phase: state.phase,
-        cycle_phase: state.cycle_phase,
-        turn_number: state.turn_number,
-        tension_level: state.tension_level,
-        settings: state.settings,
-        participants: state.participants,
-        feed: feedFromSnapshot(state),
-        winner_id:
-          state.phase === 'finished'
-            ? state.participants.find((p) => p.status !== 'eliminated')?.id ?? null
-            : null
-      };
+      if (!autosaveEnabled || !runtimeLoad.runtime) {
+        throw new Error('no-runtime');
+      }
+
+      const loadedMatch = getRuntimeMatch(runtimeLoad.runtime.snapshot_envelope.snapshot);
+      if (loadedMatch.id !== match.id) {
+        throw new Error('id-mismatch');
+      }
+
+      const nextRuntime = buildRuntimeFromSnapshot(runtimeLoad.runtime.snapshot_envelope.snapshot);
+
       setRuntime(nextRuntime);
       setPlaybackSpeed(
-        nextRuntime.phase === 'running' ? nextRuntime.settings.simulation_speed : 'pause'
+        nextRuntime.snapshot_envelope.snapshot.match.phase === 'running'
+          ? nextRuntime.snapshot_envelope.snapshot.settings.simulation_speed
+          : 'pause'
       );
       setAutoplayReadyAt(
-        nextRuntime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
+        nextRuntime.snapshot_envelope.snapshot.match.phase === 'running'
+          ? Date.now() + FIRST_AUTOPLAY_DELAY_MS
+          : null
       );
       if (autosaveEnabled) {
         const saveRuntimeResult = saveLocalRuntimeToStorage(window.localStorage, nextRuntime);
@@ -878,17 +903,26 @@ export function MatchStudioPage({
         }
       }
       router.replace(`/sessions/${match.id}`, { scroll: false });
-      setInfoMessage(`Partida abierta en vivo (${shortId(match.id)}).`);
-    } catch {
-      if (autosaveEnabled && runtimeLoad.runtime?.match_id === match.id) {
+      setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
+    } catch (error) {
+      const runtimeLoadMatchId = runtimeLoad.runtime
+        ? getRuntimeMatch(runtimeLoad.runtime.snapshot_envelope.snapshot).id
+        : null;
+      const runtimeLoadSettings = runtimeLoad.runtime
+        ? getRuntimeSettings(runtimeLoad.runtime.snapshot_envelope.snapshot)
+        : null;
+      const runtimeLoadPhase = runtimeLoad.runtime
+        ? getRuntimeMatch(runtimeLoad.runtime.snapshot_envelope.snapshot).phase
+        : null;
+      if (autosaveEnabled && runtimeLoadMatchId === match.id) {
         setRuntime(runtimeLoad.runtime);
         setPlaybackSpeed(
-          runtimeLoad.runtime.phase === 'running'
-            ? runtimeLoad.runtime.settings.simulation_speed
+          runtimeLoadPhase === 'running'
+            ? runtimeLoadSettings?.simulation_speed ?? DEFAULT_SIMULATION_SPEED
             : 'pause'
         );
         setAutoplayReadyAt(
-          runtimeLoad.runtime.phase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
+          runtimeLoadPhase === 'running' ? Date.now() + FIRST_AUTOPLAY_DELAY_MS : null
         );
         router.replace(`/sessions/${match.id}`, { scroll: false });
         setInfoMessage(`Partida recuperada localmente (${shortId(match.id)}).`);
@@ -917,8 +951,8 @@ export function MatchStudioPage({
       return;
     }
 
-    if (runtime?.match_id === sessionMatchId) {
-      if (!infoMessage && runtime.turn_number === 0 && runtime.feed.length === 0) {
+    if (runtimeMatchId === sessionMatchId) {
+      if (!infoMessage && runtime?.snapshot_envelope.snapshot.match.turn_number === 0 && runtime.feed.length === 0) {
         setInfoMessage(`Simulacion iniciada (${shortId(sessionMatchId)}).`);
       }
       setHasAutoResumed(true);
@@ -944,8 +978,8 @@ export function MatchStudioPage({
     onOpenMatch,
     sessionMatchId,
     infoMessage,
-    runtime?.match_id,
-    runtime?.turn_number,
+    runtimeMatchId,
+    runtime?.snapshot_envelope.snapshot.match.turn_number,
     runtime?.feed.length
   ]);
 
@@ -978,33 +1012,33 @@ export function MatchStudioPage({
   ]);
 
   const onAdvanceStep = useCallback(async () => {
-    if (!runtime || runtime.phase !== 'running' || isBusy) {
+    if (!runtime || runtimePhase !== 'running' || isBusy) {
       return;
     }
+
+    const currentMatch = runtime.snapshot_envelope.snapshot.match;
+    const currentSettings = runtime.snapshot_envelope.snapshot.settings;
 
     setIsBusy(true);
 
     try {
       const advance = await requestJson<AdvanceTurnResponse>(
-        `/api/matches/${runtime.match_id}/turns/advance`,
+        `/api/matches/${currentMatch.id}/turns/advance`,
         {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify(runtime.snapshot_envelope)
         }
       );
-      const state = await requestJson<GetMatchStateResponse>(`/api/matches/${runtime.match_id}`);
-      const event = feedFromAdvance(advance, state.participants);
+      const nextSnapshot = advance.snapshot_envelope.snapshot;
+      const event = feedFromAdvance(advance, nextSnapshot.participants);
       const nextFeed = [event, ...runtime.feed].slice(0, 100);
 
-      const nextRuntime: SimulationRuntime = {
-        ...runtime,
-        phase: state.phase,
-        cycle_phase: state.cycle_phase,
-        turn_number: state.turn_number,
-        tension_level: state.tension_level,
-        settings: state.settings,
-        participants: state.participants,
-        feed: nextFeed,
-        winner_id: advance.winner_id
+      const nextRuntime = {
+        ...buildRuntimeFromSnapshot(nextSnapshot, advance.winner_id),
+        feed: nextFeed
       };
 
       setRuntime(nextRuntime);
@@ -1016,14 +1050,14 @@ export function MatchStudioPage({
       }
       setLatestFeedEventId(event.id);
 
-      const summary = localMatches.find((match) => match.id === runtime.match_id);
+      const summary = localMatches.find((match) => match.id === currentMatch.id);
       if (autosaveEnabled && summary) {
         const nowIso = new Date().toISOString();
         const updatedSummary: LocalMatchSummary = {
           ...summary,
-          cycle_phase: state.cycle_phase,
-          turn_number: state.turn_number,
-          alive_count: countAlive(state.participants),
+          cycle_phase: nextSnapshot.match.cycle_phase,
+          turn_number: nextSnapshot.match.turn_number,
+          alive_count: countAlive(nextSnapshot.participants),
           updated_at: nowIso
         };
         const nextMatches = [
@@ -1036,10 +1070,10 @@ export function MatchStudioPage({
       if (advance.finished) {
         setPlaybackSpeed('pause');
         const winnerCharacterId =
-          state.participants.find((participant) => participant.id === advance.winner_id)?.character_id ??
+          nextSnapshot.participants.find((participant) => participant.id === advance.winner_id)?.character_id ??
           null;
         captureProductEvent('match_finished', {
-          match_id: runtime.match_id,
+          match_id: currentMatch.id,
           winner: winnerCharacterId ? displayCharacterName(winnerCharacterId) : null,
           winner_movie: winnerCharacterId
             ? characterById.get(winnerCharacterId)?.movie_title ?? null
@@ -1047,9 +1081,11 @@ export function MatchStudioPage({
           franchise:
             franchiseOptions.find((franchise) => franchise.franchise_id === selectedFranchiseId)
               ?.franchise_name ?? null,
-          roster_size: state.participants.length,
-          turn_count: state.turn_number,
-          simulation_speed: runtime.settings.simulation_speed
+          roster_size: nextSnapshot.participants.length,
+          turn_count: nextSnapshot.match.turn_number,
+          simulation_speed: currentMatch.phase === 'running'
+            ? currentSettings.simulation_speed
+            : DEFAULT_SIMULATION_SPEED
         });
         setInfoMessage(
           winnerCharacterId
@@ -1062,14 +1098,14 @@ export function MatchStudioPage({
       const failureKind = classifyAdvanceFailure(rawMessage);
       setPlaybackSpeed('pause');
       if (failureKind === 'SESSION_LOST') {
-        const summary = localMatches.find((match) => match.id === runtime.match_id);
+        const summary = localMatches.find((match) => match.id === currentMatch.id);
         if (summary) {
           applySetupFromMatch(summary);
         }
         setRuntime(null);
         clearLocalRuntimeFromStorage(window.localStorage);
       }
-      setInfoMessage(recoveryMessageForAdvanceFailure(failureKind, shortId(runtime.match_id)));
+      setInfoMessage(recoveryMessageForAdvanceFailure(failureKind, shortId(currentMatch.id)));
     } finally {
       setIsBusy(false);
     }
@@ -1089,7 +1125,7 @@ export function MatchStudioPage({
   useEffect(() => {
     if (
       !runtime ||
-      runtime.phase !== 'running' ||
+      runtimePhase !== 'running' ||
       playbackSpeed === 'pause' ||
       isBusy ||
       autoplayReadyAt === null
@@ -1112,8 +1148,9 @@ export function MatchStudioPage({
       setInfoMessage('Inicia una simulacion para compartir el estado.');
       return;
     }
+    const { match } = runtime.snapshot_envelope.snapshot;
 
-    const shareText = `Hunger Games ${shortId(runtime.match_id)} | turno ${runtime.turn_number} | fase ${runtime.cycle_phase} | vivos ${countAlive(runtime.participants)}`;
+    const shareText = `Hunger Games ${shortId(match.id)} | turno ${match.turn_number} | fase ${match.cycle_phase} | vivos ${countAlive(runtimeParticipants)}`;
 
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
@@ -1137,19 +1174,20 @@ export function MatchStudioPage({
       setInfoMessage('Guardado local desactivado. Activalo para guardar esta partida.');
       return;
     }
+    const { match, settings } = runtime.snapshot_envelope.snapshot;
 
-    const existing = localMatches.find((match) => match.id === runtime.match_id);
+    const existing = localMatches.find((item) => item.id === match.id);
     const nowIso = new Date().toISOString();
     const summary: LocalMatchSummary = {
-      id: runtime.match_id,
+      id: match.id,
       created_at: existing?.created_at ?? nowIso,
       updated_at: nowIso,
-      roster_character_ids: runtime.participants.map((participant) => participant.character_id),
-      cycle_phase: runtime.cycle_phase,
-      turn_number: runtime.turn_number,
-      alive_count: countAlive(runtime.participants),
-      total_participants: runtime.participants.length,
-      settings: runtime.settings
+      roster_character_ids: runtimeParticipants.map((participant) => participant.character_id),
+      cycle_phase: match.cycle_phase,
+      turn_number: match.turn_number,
+      alive_count: countAlive(runtimeParticipants),
+      total_participants: runtimeParticipants.length,
+      settings
     };
 
     const nextMatches = [summary, ...localMatches.filter((match) => match.id !== summary.id)];
@@ -1584,7 +1622,7 @@ export function MatchStudioPage({
                   Cada evento resume quien, que y su impacto directo en 1-2 lineas.
                 </p>
 
-              {runtime.phase === 'running' ? (
+              {runtimeMatch?.phase === 'running' ? (
                 <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap" aria-label="Controles de reproduccion">
                   <button
                     type="button"
