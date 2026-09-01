@@ -11,3 +11,4 @@ output/playwright/
 test-results/
 .env*
 /tmp
+.vercel
