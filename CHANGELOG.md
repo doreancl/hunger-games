@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Ignore local `.vercel` project linkage metadata to keep Vercel project and team identifiers out of version control.
+
 ## [0.6.0] - 2026-03-01
 
 ### Added
