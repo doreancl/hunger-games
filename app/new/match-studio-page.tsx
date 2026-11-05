@@ -1614,7 +1614,7 @@ export function MatchStudioPage({
                   <span className="font-mono text-xs font-bold text-muted-foreground">
                     01
                   </span>
-                  <span>Simulacion en progreso</span>
+                  <span>{matchRunState === 'finished' ? 'Simulacion finalizada' : 'Simulacion en progreso'}</span>
                 </h2>
               </div>
 
