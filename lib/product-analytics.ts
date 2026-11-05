@@ -1,8 +1,8 @@
 'use client';
 
-import posthog from 'posthog-js';
 import packageJson from '@/package.json';
 import { RULESET_VERSION } from '@/lib/domain/types';
+import { loadPostHog } from '@/lib/posthog-client';
 
 export function captureProductEvent(
   event: string,
@@ -12,10 +12,12 @@ export function captureProductEvent(
     return;
   }
 
-  posthog.capture(event, {
-    app_version: packageJson.version,
-    ruleset_version: RULESET_VERSION,
-    environment: process.env.NODE_ENV,
-    ...properties
+  void loadPostHog().then((posthog) => {
+    posthog?.capture(event, {
+      app_version: packageJson.version,
+      ruleset_version: RULESET_VERSION,
+      environment: process.env.NODE_ENV,
+      ...properties
+    });
   });
 }
